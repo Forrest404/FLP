@@ -1,0 +1,265 @@
+/* App shell and player, measured from the Figma "Player" frames (title bar 40, controls 54,
+   video panel inset 10 with rounded corners). */
+
+.flp-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: transparent;
+}
+/* Everything except the video hole is painted by these regions. */
+.flp-titlebar, .flp-controls { background: var(--bg-chrome); flex-shrink: 0; }
+
+/* ── Title bar ── */
+.flp-titlebar {
+  height: 40px;
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: center;
+  padding: 0 10px 0 6px;
+  -webkit-app-region: drag;
+  position: relative;
+  z-index: 20;
+}
+.flp-titlebar__lights { width: 72px; height: 1px; }
+.flp-titlebar__side { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.flp-titlebar__side--right { justify-content: flex-end; }
+.flp-titlebar__title { grid-column: 3; text-align: center; padding: 0 16px; min-width: 0; }
+.flp-titlebar__side--right { grid-column: 4; }
+.flp-titletext { display: block; font-size: var(--fs); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50vw; }
+.flp-titlebar button, .flp-titlebar .ui-iconbtn { -webkit-app-region: no-drag; }
+.flp-crumb {
+  display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--text-dim);
+  font-size: var(--fs); padding: 4px 6px; border-radius: var(--radius-s); cursor: pointer; -webkit-app-region: no-drag;
+}
+.flp-crumb:hover { color: var(--text-strong); }
+.flp-divider { width: 1px; height: 18px; background: var(--border); margin: 0 6px; filter: brightness(1.6); }
+.flp-bartext { font-size: var(--fs); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.flp-barthumb { height: 30px; border-radius: var(--radius-s); }
+
+/* ── Main area ── */
+.flp-main { flex: 1; display: flex; min-height: 0; position: relative; }
+.flp-stage { flex: 1; min-width: 0; display: flex; padding: 0 10px; position: relative; overflow: hidden; }
+.flp-app[data-overlay='true'] .flp-stage { padding: 0; }
+
+/* The transparent hole above the native video view. */
+.flp-surface {
+  flex: 1;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  background: transparent;
+  outline: none;
+  /* Paints the chrome around the rounded hole without covering the video. */
+  box-shadow: 0 0 0 200px var(--bg-chrome);
+}
+.flp-app[data-overlay='true'] .flp-surface { border-radius: 0; box-shadow: none; }
+.flp-surface[data-video='false'] { background: var(--bg-video); }
+.flp-surface__msg {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px;
+  color: var(--text-dim); text-align: center; pointer-events: none; padding: 24px;
+}
+.flp-surface__msg p { margin: 0; font-size: var(--fs-l); color: var(--text); }
+.flp-surface__msg small { color: var(--text-faint); max-width: 520px; }
+.flp-surface__msg--empty { background: var(--bg-video); }
+.flp-spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid var(--bg-raised); border-top-color: var(--accent); animation: flp-spin 0.8s linear infinite; }
+@keyframes flp-spin { to { transform: rotate(360deg); } }
+
+/* ── Control bar ── */
+.flp-controls {
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  position: relative;
+  z-index: 20;
+}
+.flp-bar__flex { flex: 1; min-width: 80px; display: flex; align-items: center; }
+.flp-controls .ui-iconbtn { height: 32px; min-width: 32px; }
+.flp-controls .ui-iconbtn svg { width: 22px; height: 22px; }
+
+/* Fullscreen / Hide UI: bars float over the video and fade when idle. */
+.flp-app[data-overlay='true'] .flp-titlebar,
+.flp-app[data-overlay='true'] .flp-controls {
+  position: absolute; left: 0; right: 0; transition: opacity 0.25s ease;
+  background: color-mix(in srgb, var(--bg-chrome) 92%, transparent);
+}
+.flp-app[data-overlay='true'] .flp-titlebar { top: 0; }
+.flp-app[data-overlay='true'] .flp-controls { bottom: 0; }
+.flp-app[data-bars-hidden='true'] .flp-titlebar,
+.flp-app[data-bars-hidden='true'] .flp-controls { opacity: 0; pointer-events: none; }
+.flp-app[data-bars-hidden='true'][data-overlay='true'] { cursor: none; }
+
+.flp-play {
+  width: 46px; height: 26px; border: 0; border-radius: var(--radius); background: var(--accent); color: var(--accent-contrast);
+  display: grid; place-items: center; cursor: pointer; flex-shrink: 0;
+}
+.flp-play:hover { filter: brightness(1.1); }
+.flp-time { font-size: var(--fs); color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.flp-time--btn { border: 0; background: transparent; padding: 0; cursor: pointer; }
+.flp-time--btn:hover { color: var(--text); }
+
+/* Seek bar */
+.flp-seek-wrap { position: relative; flex: 1; display: flex; align-items: center; }
+.flp-seek {
+  position: relative; flex: 1; height: 26px; border-radius: var(--radius); background: var(--bg-well); cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--bg-well) 60%, var(--bg-chrome));
+}
+.flp-seek__fill { position: absolute; inset: 0 auto 0 0; border-radius: var(--radius) 0 0 var(--radius); background: var(--accent-dim); }
+.flp-seek__buffer { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--text-ghost) 25%, transparent); }
+.flp-seek__knob {
+  position: absolute; top: 1px; bottom: 1px; width: 7px; margin-left: -4px; border-radius: 4px; background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-well);
+}
+.flp-seek__chapter { position: absolute; top: 6px; bottom: 6px; width: 2px; margin-left: -1px; background: var(--bg-chrome); }
+.flp-seek__ab { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.flp-seek__tip {
+  position: absolute; bottom: 36px; transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; padding: 6px;
+  border-radius: var(--radius); background: var(--bg-panel); box-shadow: var(--shadow); pointer-events: none; z-index: 30;
+  color: var(--text); font-size: var(--fs-s); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.flp-seek__tip img { width: 200px; border-radius: var(--radius-s); display: block; }
+.flp-seek__tipchap { color: var(--text-faint); max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Music waveform seek bar */
+.flp-seek--wave { background: transparent; border-color: transparent; }
+.flp-wave { position: absolute; inset: 0 2px; display: flex; align-items: center; justify-content: space-between; gap: 1px; }
+.flp-wave i { flex: 1; max-width: 3px; border-radius: 1px; background: var(--text-ghost); }
+.flp-wave i[data-played='true'] { background: var(--accent); }
+
+/* Volume wedge */
+.flp-volume { display: flex; align-items: center; gap: 6px; }
+.flp-volume__wedge {
+  position: relative; width: 74px; height: 22px; cursor: pointer; background: var(--bg-well);
+  clip-path: polygon(0 32%, 100% 0, 100% 100%, 0 68%);
+  border-radius: 2px;
+}
+.flp-volume__fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, color-mix(in srgb, var(--level) 85%, #fff), var(--level)); }
+.flp-volume__fill[data-boost='true'] { background: linear-gradient(90deg, var(--level), var(--accent)); }
+
+/* ── Player sidebar (icon rail + panel) ── */
+.flp-psidebar { display: flex; flex-shrink: 0; background: var(--bg-chrome); }
+.flp-rail { width: 44px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 8px; }
+.flp-rail .ui-iconbtn { width: 32px; height: 32px; }
+.flp-psidebar__panel { width: 316px; background: var(--bg-canvas); display: flex; flex-direction: column; min-height: 0; border-radius: 10px 10px 0 0; }
+
+/* ── Right panel (effects) ── */
+.flp-rpanel { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--bg-chrome); padding: 0 10px 0 0; }
+.flp-rpanel__head { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 12px; color: var(--text); font-size: var(--fs-m); }
+.flp-rpanel__body { flex: 1; overflow: auto; display: grid; align-content: start; gap: 10px; padding-bottom: 10px; }
+
+.flp-section { border-radius: var(--radius-l); background: var(--bg-panel); }
+.flp-section[data-open='false'] { background: var(--bg-well); }
+.flp-section__head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; cursor: pointer; color: var(--text-dim); font-size: var(--fs-m); }
+.flp-section__head > span:first-child { flex: 1; }
+.flp-section__body { padding: 2px 14px 16px; display: grid; gap: 14px; }
+.flp-fx-row { display: grid; gap: 8px; }
+.flp-fx-row__label { display: flex; justify-content: space-between; color: var(--text-dim); font-size: var(--fs-m); }
+.flp-fx-row__value { color: var(--text-faint); font-variant-numeric: tabular-nums; font-size: var(--fs); }
+
+.flp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.flp-chips button {
+  border: 0; border-radius: var(--radius); background: var(--bg-raised); color: var(--text-dim); padding: 6px 10px; font-size: var(--fs); cursor: pointer;
+}
+.flp-chips button[aria-pressed='true'] { background: var(--accent-dim); color: var(--accent); }
+
+/* ── Lists ── */
+.flp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.flp-list__row {
+  display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 6px 10px; border-radius: var(--radius);
+  color: var(--text-dim); font-size: var(--fs); cursor: default;
+}
+.flp-list__row:hover { background: var(--bg-raised); color: var(--text); }
+.flp-list__row[data-current='true'] { color: var(--accent); }
+.flp-list__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flp-empty { display: grid; justify-items: center; gap: 10px; padding: 48px 24px; text-align: center; color: var(--text-faint); }
+.flp-empty p { margin: 0; max-width: 260px; line-height: 1.5; }
+.flp-muted { color: var(--text-faint); margin: 0; line-height: 1.5; }
+
+/* ── Music view ── */
+.flp-music { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr auto; justify-items: center; overflow: hidden; background: #050505; }
+.flp-music__bg { position: absolute; inset: -40px; background-size: cover; background-position: center; filter: blur(48px) brightness(0.35); transform: scale(1.1); }
+.flp-music__art {
+  position: relative; align-self: center; width: min(58vh, 60%); aspect-ratio: 1; margin-top: 4%;
+  border-radius: 14px; overflow: hidden; background: #000; display: grid; place-items: center; color: var(--text-ghost);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 50%);
+}
+.flp-music__art img { width: 100%; height: 100%; object-fit: cover; }
+.flp-music__caption { position: relative; padding: 24px 24px 36px; font-size: 20px; color: var(--text); text-align: center; display: grid; gap: 6px; }
+.flp-music__caption small { font-size: var(--fs); color: var(--text-faint); }
+.flp-visualizer { width: 100%; height: 100%; }
+
+/* ── Image viewer ── */
+.flp-image { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; background: var(--bg-video); }
+.flp-image img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.08s linear; user-select: none; }
+.flp-image__tools {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border-radius: var(--radius-l); background: color-mix(in srgb, var(--bg-panel) 90%, transparent); box-shadow: var(--shadow);
+  opacity: 0; transition: opacity 0.2s;
+}
+.flp-image:hover .flp-image__tools { opacity: 1; }
+.flp-image__zoom { min-width: 44px; text-align: center; font-size: var(--fs); font-variant-numeric: tabular-nums; }
+
+/* ── Miniplayer (library view) ── */
+.flp-mini {
+  position: absolute; right: 16px; bottom: 16px; width: 320px; z-index: 40; display: grid;
+}
+/* The panel is painted as a ring around the transparent video hole. */
+.flp-mini__video { height: 172px; display: flex; position: relative; border-radius: 12px 12px 0 0; overflow: hidden; padding: 8px 8px 0; }
+.flp-mini__video .flp-surface { border-radius: 6px; box-shadow: 0 0 0 12px var(--bg-panel); }
+.flp-mini__progress, .flp-mini__title, .flp-mini__meta { background: var(--bg-panel); }
+.flp-mini > :last-child { border-radius: 0 0 12px 12px; padding-bottom: 8px; }
+.flp-mini__progress { margin: 0; border: 8px solid var(--bg-panel); border-bottom-width: 4px; }
+.flp-mini__art { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-ghost); background: var(--bg-video); }
+.flp-mini__hover { position: absolute; inset: auto 6px 6px auto; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
+.flp-mini__hover .ui-iconbtn { background: color-mix(in srgb, var(--bg-panel) 85%, transparent); }
+.flp-mini__video:hover .flp-mini__hover { opacity: 1; }
+.flp-mini__progress { height: 24px; border-radius: 0; overflow: hidden; }
+.flp-mini__progress > div { height: 100%; }
+.flp-mini__bar { height: 100%; border-radius: 6px; background: var(--bg-well); overflow: hidden; }
+.flp-mini__bar > i { display: block; height: 100%; background: var(--accent-dim); border-right: 3px solid var(--accent); }
+.flp-mini__title { padding: 6px 14px 2px; color: var(--text); font-size: var(--fs-m); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flp-mini__meta { display: flex; align-items: center; gap: 16px; padding: 4px 8px 0 14px; color: var(--text-dim); font-size: var(--fs-m); }
+.flp-mini__meta > span { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ── Overlays ── */
+.flp-osd {
+  position: absolute; top: 56px; left: 24px; z-index: 60; padding: 8px 14px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-panel) 88%, transparent); color: var(--text-strong); font-size: var(--fs-l);
+  font-variant-numeric: tabular-nums; pointer-events: none; animation: flp-fade 0.12s ease-out;
+}
+@keyframes flp-fade { from { opacity: 0; transform: translateY(-4px); } }
+.flp-dropzone {
+  position: absolute; inset: 8px; z-index: 990; border: 2px dashed var(--accent); border-radius: 14px; display: grid; place-content: center;
+  justify-items: center; gap: 12px; background: color-mix(in srgb, var(--bg-canvas) 85%, transparent); color: var(--text); pointer-events: none;
+}
+
+/* ── Command palette ── */
+.flp-palette-backdrop { place-items: start center; padding-top: 12vh; }
+.flp-palette { width: min(640px, calc(100vw - 48px)); border-radius: var(--radius-l); background: var(--bg-panel); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+.flp-palette__search { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 52px; background: var(--bg-well); color: var(--text-faint); }
+.flp-palette__search input { flex: 1; border: 0; outline: none; background: transparent; color: var(--text-strong); font-size: var(--fs-l); }
+.flp-palette__list { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow: auto; }
+.flp-palette__list li { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: var(--radius); color: var(--text-dim); cursor: pointer; }
+.flp-palette__list li[data-active='true'] { background: var(--bg-raised); color: var(--text-strong); }
+.flp-palette__title { white-space: nowrap; }
+.flp-palette__sub { flex: 1; color: var(--text-faint); font-size: var(--fs-s); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flp-palette__list kbd { font-family: var(--font); font-size: var(--fs-s); color: var(--text-faint); background: var(--bg-well); padding: 2px 6px; border-radius: 4px; }
+.flp-palette__none { color: var(--text-faint); justify-content: center; cursor: default !important; }
+
+/* ── Dialog bits ── */
+.flp-form { padding: 20px 22px; display: grid; gap: 12px; }
+.flp-form__label { color: var(--text); font-size: var(--fs-m); }
+.flp-about { display: grid; justify-items: center; gap: 6px; padding: 32px 24px; text-align: center; }
+.flp-about h2 { margin: 10px 0 0; color: var(--text-strong); font-weight: 500; }
+.flp-about p { margin: 0; }
+.flp-logo-item { display: inline-flex; padding: 0 6px 0 2px; }
+
+/* Hole for the miniplayer's video in the (opaque) library. */
+.flp-main[data-hole] {
+  -webkit-mask: linear-gradient(#000 0 0) 0 0 / 100% 100% no-repeat, linear-gradient(#000 0 0) var(--hx) var(--hy) / var(--hw) var(--hh) no-repeat;
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}

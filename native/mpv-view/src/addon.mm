@@ -229,6 +229,7 @@ class Player : public Napi::ObjectWrap<Player> {
                             InstanceMethod("poll", &Player::Poll),
                             InstanceMethod("setBounds", &Player::SetBounds),
                             InstanceMethod("setVisible", &Player::SetVisible),
+                            InstanceMethod("setCornerRadius", &Player::SetCornerRadius),
                             InstanceMethod("destroy", &Player::Destroy)});
     exports.Set("Player", cls);
     return exports;
@@ -430,6 +431,15 @@ class Player : public Napi::ObjectWrap<Player> {
 
   Napi::Value SetVisible(const Napi::CallbackInfo &info) {
     if (view_) view_.hidden = !info[0].ToBoolean().Value();
+    return info.Env().Undefined();
+  }
+
+  // Rounded corners so the video matches the rounded video panel in the UI.
+  Napi::Value SetCornerRadius(const Napi::CallbackInfo &info) {
+    if (view_) {
+      view_.layer.cornerRadius = info[0].ToNumber().DoubleValue();
+      view_.layer.masksToBounds = YES;
+    }
     return info.Env().Undefined();
   }
 

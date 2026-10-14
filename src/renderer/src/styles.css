@@ -1,7 +1,0 @@
-
-.app { display: flex; flex-direction: column; height: 100%; }
-.titlebar { height: 34px; background: #1d1d1d; -webkit-app-region: drag; display: flex; align-items: center; justify-content: center; font-size: 13px; }
-.video { flex: 1; background: transparent; }
-.controls { height: 52px; background: #1d1d1d; display: flex; align-items: center; gap: 12px; padding: 0 16px; font-size: 13px; }
-.controls button { background: #2c2c2c; color: #ddd; border: 0; border-radius: 6px; padding: 6px 12px; }
-.controls input[type=range] { flex: 1; }

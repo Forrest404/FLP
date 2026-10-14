@@ -13,7 +13,7 @@ export interface Command {
   keys?: string[]
   /** Extra words for palette search. */
   keywords?: string[]
-  run(arg?: unknown): void | Promise<void>
+  run(arg?: unknown): unknown
   enabled?(): boolean
   /** For toggle-style commands, whether it's currently on (control-bar buttons show this). */
   active?(): boolean

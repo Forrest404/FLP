@@ -1,0 +1,14 @@
+/* Library (Figma "Player" library frames): labelled sidebar + content. */
+.flp-library { flex: 1; display: flex; min-width: 0; background: var(--bg-chrome); padding: 0 8px 8px; gap: 8px; }
+.flp-libnav { width: 168px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-radius: 10px; background: var(--bg-panel); }
+.flp-libnav__item {
+  display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--radius);
+  background: transparent; color: var(--text-dim); font-size: var(--fs); cursor: pointer; text-align: left;
+}
+.flp-libnav__item:hover { color: var(--text); background: var(--bg-raised); }
+.flp-libnav__item[aria-pressed='true'] { color: var(--text-strong); }
+.flp-libmain { flex: 1; min-width: 0; border-radius: 10px; background: var(--bg-canvas); display: flex; flex-direction: column; overflow: hidden; }
+.flp-libpanel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.flp-libpanel__head { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.flp-libpanel__title { flex: 1; color: var(--text); font-size: var(--fs-m); }
+.flp-libpanel > .flp-list, .flp-libpanel > .flp-empty { padding: 8px; overflow: auto; }

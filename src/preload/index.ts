@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { RendererApi } from '@shared/api'
 
 function listen<T>(channel: string, cb: (value: T) => void): () => void {
@@ -15,6 +15,7 @@ const api: RendererApi = {
     snapshot: () => ipcRenderer.invoke('player:snapshot'),
     setBounds: (b) => ipcRenderer.send('player:bounds', b),
     setVisible: (visible) => ipcRenderer.send('player:visible', visible),
+    setCornerRadius: (radius) => ipcRenderer.send('player:radius', radius),
     onState: (cb) => listen('player:state', cb)
   },
   settings: {
@@ -37,13 +38,26 @@ const api: RendererApi = {
     onFullscreen: (cb) => listen('window:fullscreen', cb),
     setAlwaysOnTop: (on) => ipcRenderer.send('window:alwaysOnTop', on),
     minimize: () => ipcRenderer.send('window:minimize'),
+    pip: (on) => ipcRenderer.send('window:pip', on),
     zoom: () => ipcRenderer.send('window:zoom'),
     close: () => ipcRenderer.send('window:close')
+  },
+  media: {
+    thumbnail: (path, time) => ipcRenderer.invoke('media:thumbnail', path, time),
+    waveform: (path) => ipcRenderer.invoke('media:waveform', path),
+    tags: (path) => ipcRenderer.invoke('media:tags', path),
+    displayableImage: (path) => ipcRenderer.invoke('media:image', path),
+    poster: (path, duration) => ipcRenderer.invoke('media:poster', path, duration)
+  },
+  menu: {
+    set: (specs) => ipcRenderer.send('menu:set', specs),
+    onCommand: (cb) => listen('command:run', cb)
   },
   shell: {
     showInFolder: (path) => ipcRenderer.send('shell:showInFolder', path),
     openPath: (path) => ipcRenderer.send('shell:openPath', path)
   },
+  pathForFile: (file) => webUtils.getPathForFile(file),
   platform: process.platform
 }
 
