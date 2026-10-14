@@ -1,0 +1,85 @@
+/* Design tokens sampled from the Figma file. The accent is set at runtime from Settings → General. */
+@import '@fontsource-variable/inter';
+
+:root {
+  --accent: #1f9a3a;
+  --accent-contrast: #f4f4f4;
+  --accent-dim: color-mix(in srgb, var(--accent) 26%, #000);
+  --accent-mid: color-mix(in srgb, var(--accent) 80%, #000);
+  --level: #7f9d13; /* volume fill */
+
+  --bg-chrome: #1b1b1b;   /* title bar, control bar */
+  --bg-canvas: #0e0e0e;   /* library content, settings body */
+  --bg-panel: #191919;    /* sidebars, menus, cards */
+  --bg-raised: #222222;   /* hover / selected rows */
+  --bg-field: #151515;    /* search fields */
+  --bg-well: #090909;     /* tracks, inputs, dialog headers */
+  --bg-video: #2b2a28;    /* empty video area */
+  --border: #1f1f1f;
+  --backdrop: rgb(0 0 0 / 55%);
+
+  --text-strong: #eaeaea;
+  --text: #c6c6c6;
+  --text-dim: #8f8f8f;
+  --text-faint: #6b6b6b;
+  --text-ghost: #4d4d4d;
+
+  --radius-s: 4px;
+  --radius: 6px;
+  --radius-l: 10px;
+  --shadow: 0 12px 40px rgb(0 0 0 / 45%);
+
+  --font: 'Inter Variable', -apple-system, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-s: 12px;
+  --fs: 13px;
+  --fs-m: 14px;
+  --fs-l: 16px;
+  --fs-xl: 20px;
+
+  --titlebar-h: 34px;
+  --controls-h: 46px;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg-chrome: #d1d1d1;
+  --bg-canvas: #e4e4e4;
+  --bg-panel: #c8c8c8;
+  --bg-raised: #bdbdbd;
+  --bg-field: #d8d8d8;
+  --bg-well: #f0f0f0;
+  --bg-video: #2b2a28;
+  --border: #b9b9b9;
+  --backdrop: rgb(0 0 0 / 30%);
+  --accent-dim: color-mix(in srgb, var(--accent) 35%, #fff);
+  --level: #9cc33a;
+
+  --text-strong: #111111;
+  --text: #2a2a2a;
+  --text-dim: #555555;
+  --text-faint: #777777;
+  --text-ghost: #9a9a9a;
+  --shadow: 0 12px 40px rgb(0 0 0 / 20%);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: var(--fs);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+button { font: inherit; color: inherit; }
+input, select, textarea { font: inherit; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

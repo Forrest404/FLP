@@ -1,0 +1,2478 @@
+{
+ "Settings - global [999:5047]": {
+  "title": "Global Settings",
+  "sections": [
+   {
+    "section": "Appearance",
+    "rows": []
+   },
+   {
+    "section": "Startup",
+    "rows": [
+     {
+      "label": "Show confirmation and error dialogs",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Check for updates automatically",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Diagnostics",
+    "rows": [
+     {
+      "label": "Developer mode",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Save a log",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Log file",
+      "control": "path",
+      "values": [
+       "Browse"
+      ]
+     },
+     {
+      "label": "Log details",
+      "control": "dropdown",
+      "values": [
+       "Errors only",
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - global [3046:9282]": {
+  "title": "Global Settings",
+  "sections": [
+   {
+    "section": "Appearance",
+    "rows": []
+   },
+   {
+    "section": "Startup",
+    "rows": [
+     {
+      "label": "Show confirmation and error dialogs",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Check for updates automatically",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Diagnostics",
+    "rows": [
+     {
+      "label": "Developer mode",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Save a log",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Log file",
+      "control": "path",
+      "values": [
+       "Browse"
+      ]
+     },
+     {
+      "label": "Log details",
+      "control": "dropdown",
+      "values": [
+       "Errors only",
+       "Advanced Options"
+      ]
+     },
+     {
+      "label": "Show minor warnings",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Additional command line options",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Log format",
+      "control": "dropdown",
+      "values": [
+       "Plain text"
+      ]
+     },
+     {
+      "label": "Collect playback statistics",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Open configurations folder",
+      "control": null,
+      "values": [
+       "Open"
+      ]
+     },
+     {
+      "label": "Reset all settings",
+      "control": null,
+      "values": [
+       "Reset"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Developer Options",
+    "rows": [
+     {
+      "label": "Write to the system log",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Include debug messages in the system log",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "System log identity",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "System log facility",
+      "control": "dropdown",
+      "values": [
+       "User"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - interface [3046:10057]": {
+  "title": "Interface Settings",
+  "sections": [
+   {
+    "section": "Skin",
+    "rows": [
+     {
+      "label": "Use a custom skin",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Skin file",
+      "control": "path",
+      "values": [
+       "Browse"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Window",
+    "rows": [
+     {
+      "label": "Play video inside main window",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Resize window to fit video",
+      "control": "dropdown",
+      "values": [
+       "Never"
+      ]
+     },
+     {
+      "label": "Remember window size and position",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Keep window above other windows",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show window decorations",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show the file name in the title bar",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Open fullscreen on",
+      "control": "dropdown",
+      "values": [
+       "Current screen"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Playback Controls",
+    "rows": [
+     {
+      "label": "Start in compact mode",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Auto-hide the controls",
+      "control": "dropdown",
+      "values": [
+       "In fullscreen only"
+      ]
+     },
+     {
+      "label": "Hide after",
+      "control": "slider",
+      "values": [
+       "0 s",
+       "5 s",
+       "10s"
+      ]
+     },
+     {
+      "label": "Show controls in fullscreen",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Notifications and System Tray",
+    "rows": [
+     {
+      "label": "Show a system tray icon",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Start minimized to the tray",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show a popup when the track changew",
+      "control": "dropdown",
+      "values": [
+       "When minimized"
+      ]
+     },
+     {
+      "label": "Popup duration",
+      "control": "slider",
+      "values": [
+       "0 s",
+       "5 s",
+       "10s"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Playlist",
+    "rows": [
+     {
+      "label": "Show the playlist as a tree",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - interface [3062:11379]": {
+  "title": "Interface Settings",
+  "sections": [
+   {
+    "section": "Skin",
+    "rows": [
+     {
+      "label": "Use a custom skin",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Skin file",
+      "control": "path",
+      "values": [
+       "Browse"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Window",
+    "rows": [
+     {
+      "label": "Play video inside main window",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Resize window to fit video",
+      "control": "dropdown",
+      "values": [
+       "Never"
+      ]
+     },
+     {
+      "label": "Remember window size and position",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Keep window above other windows",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show window decorations",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show the file name in the title bar",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Open fullscreen on",
+      "control": "dropdown",
+      "values": [
+       "Current screen"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Playback Controls",
+    "rows": [
+     {
+      "label": "Start in compact mode",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Auto-hide the controls",
+      "control": "dropdown",
+      "values": [
+       "In fullscreen only"
+      ]
+     },
+     {
+      "label": "Hide after",
+      "control": "slider",
+      "values": [
+       "0 s",
+       "5 s",
+       "10s"
+      ]
+     },
+     {
+      "label": "Show controls in fullscreen",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Notifications and System Tray",
+    "rows": [
+     {
+      "label": "Show a system tray icon",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Start minimized to the tray",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show a popup when the track changew",
+      "control": "dropdown",
+      "values": [
+       "When minimized"
+      ]
+     },
+     {
+      "label": "Popup duration",
+      "control": "slider",
+      "values": [
+       "0 s",
+       "5 s",
+       "10s"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Playlist",
+    "rows": [
+     {
+      "label": "Show the playlist as a tree",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     },
+     {
+      "label": "Window opacity",
+      "control": "slider",
+      "values": [
+       "10%",
+       "100%"
+      ]
+     },
+     {
+      "label": "Pause video when window is minimized",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Bring VLC to the front when playback starts",
+      "control": "dropdown",
+      "values": [
+       "Video"
+      ]
+     },
+     {
+      "label": "Show cover art in the window when playing audio",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show the file browser inside the open dialog",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Allow the app icon to change",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Fullscreen controls opacity",
+      "control": "slider",
+      "values": [
+       "10%",
+       "100%"
+      ]
+     },
+     {
+      "label": "Fullscreen controls sensitivity",
+      "control": "slider",
+      "values": [
+       "Low",
+       "Medium",
+       "High"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - privacy [3062:11911]": {
+  "title": "Privacy Settings",
+  "sections": [
+   {
+    "section": "History",
+    "rows": [
+     {
+      "label": "Save recently played items",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Remember the playback position",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Never remember items matching",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Clear history now",
+      "control": null,
+      "values": [
+       "Clear"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Network",
+    "rows": [
+     {
+      "label": "Fetch titles and cover art from the internet",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Submit played tracks to last.fm",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Last.fm username",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Last.fm username",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Last.fm submission URL",
+      "control": null,
+      "values": []
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - playback [3062:12552]": {
+  "title": "Playback Preferences",
+  "sections": [
+   {
+    "section": "Startup",
+    "rows": [
+     {
+      "label": "Continue where you left off",
+      "control": "dropdown",
+      "values": [
+       "Always"
+      ]
+     },
+     {
+      "label": "Start playing as soon as a file opens",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Default playback speed",
+      "control": "slider",
+      "values": [
+       "0.25",
+       "0.5",
+       "0.75",
+       "1",
+       "1.25",
+       "1.5",
+       "1.75",
+       "2"
+      ]
+     },
+     {
+      "label": "Pause when another app uses audio",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Tracks",
+    "rows": [
+     {
+      "label": "Preferred video quality",
+      "control": "dropdown",
+      "values": [
+       "Best available"
+      ]
+     },
+     {
+      "label": "Preferred menu language",
+      "control": "dropdown",
+      "values": [
+       "English"
+      ]
+     },
+     {
+      "label": "Default audio track",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     },
+     {
+      "label": "Default subtitle track",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Order",
+    "rows": [
+     {
+      "label": "Repeat",
+      "control": "dropdown",
+      "values": [
+       "Off"
+      ]
+     },
+     {
+      "label": "Shuffle",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Stop after each item",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "When playback finishes",
+      "control": "dropdown",
+      "values": [
+       "Stop"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Seeking",
+    "rows": [
+     {
+      "label": "Seek precisely",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show thumbnail while scrubbing",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Files & Discs",
+    "rows": [
+     {
+      "label": "Default optical drive",
+      "control": "dropdown",
+      "values": [
+       "-"
+      ]
+     },
+     {
+      "label": "Repair damaged AVI files",
+      "control": "dropdown",
+      "values": [
+       "Ask"
+      ]
+     },
+     {
+      "label": "Load matching .mkv files from the same folder",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - playback [3072:13408]": {
+  "title": "Playback Preferences",
+  "sections": [
+   {
+    "section": "Startup",
+    "rows": [
+     {
+      "label": "Continue where you left off",
+      "control": "dropdown",
+      "values": [
+       "Always"
+      ]
+     },
+     {
+      "label": "Start playing as soon as a file opens",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Default playback speed",
+      "control": "slider",
+      "values": [
+       "0.25",
+       "0.5",
+       "0.75",
+       "1",
+       "1.25",
+       "1.5",
+       "1.75",
+       "2"
+      ]
+     },
+     {
+      "label": "Pause when another app uses audio",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Tracks",
+    "rows": [
+     {
+      "label": "Preferred video quality",
+      "control": "dropdown",
+      "values": [
+       "Best available"
+      ]
+     },
+     {
+      "label": "Preferred menu language",
+      "control": "dropdown",
+      "values": [
+       "English"
+      ]
+     },
+     {
+      "label": "Default audio track",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     },
+     {
+      "label": "Default subtitle track",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Order",
+    "rows": [
+     {
+      "label": "Repeat",
+      "control": "dropdown",
+      "values": [
+       "Off"
+      ]
+     },
+     {
+      "label": "Shuffle",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Stop after each item",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "When playback finishes",
+      "control": "dropdown",
+      "values": [
+       "Stop"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Seeking",
+    "rows": [
+     {
+      "label": "Seek precisely",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show thumbnail while scrubbing",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Files & Discs",
+    "rows": [
+     {
+      "label": "Default optical drive",
+      "control": "dropdown",
+      "values": [
+       "-"
+      ]
+     },
+     {
+      "label": "Repair damaged AVI files",
+      "control": "dropdown",
+      "values": [
+       "Ask"
+      ]
+     },
+     {
+      "label": "Load matching .mkv files from the same folder",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     },
+     {
+      "label": "Time-shift buffer folder",
+      "control": "path",
+      "values": [
+       "Browse"
+      ]
+     },
+     {
+      "label": "Time-shift buffer size",
+      "control": "dropdown",
+      "values": [
+       "Medium"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - video [3073:14187]": {
+  "title": "Video Defaults",
+  "sections": [
+   {
+    "section": "Output",
+    "rows": [
+     {
+      "label": "Enable video",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Start videos in fullscreen",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Stop the screensaver during playback",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Play video as desktop wallpaper",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Picture",
+    "rows": [
+     {
+      "label": "Reset picture",
+      "control": null,
+      "values": [
+       "Reset"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Deinterlacing",
+    "rows": [
+     {
+      "label": "Deinterlacing",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Method",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Framing",
+    "rows": [
+     {
+      "label": "Aspect ratio",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Crop",
+      "control": "dropdown",
+      "values": [
+       "None"
+      ]
+     },
+     {
+      "label": "Scale video to the window",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Zoom",
+      "control": "dropdown",
+      "values": [
+       "Fit"
+      ]
+     },
+     {
+      "label": "Position in the window",
+      "control": "dropdown",
+      "values": [
+       "Center"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Snapshots",
+    "rows": [
+     {
+      "label": "Save to",
+      "control": "path",
+      "values": [
+       "Browse"
+      ]
+     },
+     {
+      "label": "File name prefix",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     },
+     {
+      "label": "Format",
+      "control": "dropdown",
+      "values": [
+       "PNG"
+      ]
+     },
+     {
+      "label": "Size",
+      "control": "dropdown",
+      "values": [
+       "Same as video"
+      ]
+     },
+     {
+      "label": "Number files sequentially",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show a preview after capture",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - video [3073:15375]": {
+  "title": "Video Defaults",
+  "sections": [
+   {
+    "section": "Output",
+    "rows": [
+     {
+      "label": "Enable video",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Start videos in fullscreen",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Stop the screensaver during playback",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Play video as desktop wallpaper",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Picture",
+    "rows": [
+     {
+      "label": "Reset picture",
+      "control": null,
+      "values": [
+       "Reset"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Deinterlacing",
+    "rows": [
+     {
+      "label": "Deinterlacing",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Method",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Framing",
+    "rows": [
+     {
+      "label": "Aspect ratio",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Crop",
+      "control": "dropdown",
+      "values": [
+       "None"
+      ]
+     },
+     {
+      "label": "Scale video to the window",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Zoom",
+      "control": "dropdown",
+      "values": [
+       "Fit"
+      ]
+     },
+     {
+      "label": "Position in the window",
+      "control": "dropdown",
+      "values": [
+       "Center"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Snapshots",
+    "rows": [
+     {
+      "label": "Save to",
+      "control": "path",
+      "values": [
+       "Browse"
+      ]
+     },
+     {
+      "label": "File name prefix",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     },
+     {
+      "label": "Format",
+      "control": "dropdown",
+      "values": [
+       "PNG"
+      ]
+     },
+     {
+      "label": "Size",
+      "control": "dropdown",
+      "values": [
+       "Same as video"
+      ]
+     },
+     {
+      "label": "Number files sequentially",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show a preview after capture",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     },
+     {
+      "label": "Custom aspect ratios",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Custom crop ratios",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Monitor pixel aspect ratio",
+      "control": null,
+      "values": [
+       "1:1"
+      ]
+     },
+     {
+      "label": "Time-shift buffer size",
+      "control": "dropdown",
+      "values": [
+       "Medium"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - audio [3073:15879]": {
+  "title": "Audio Defaults",
+  "sections": [
+   {
+    "section": "Output",
+    "rows": [
+     {
+      "label": "Enable audio",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Output device",
+      "control": "dropdown",
+      "values": [
+       "System default"
+      ]
+     },
+     {
+      "label": "Speaker setup",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Volume",
+    "rows": [
+     {
+      "label": "Maximum volume",
+      "control": "slider",
+      "values": [
+       "100%",
+       "200%",
+       "300%"
+      ]
+     },
+     {
+      "label": "Startup volume",
+      "control": "number",
+      "values": []
+     },
+     {
+      "label": "Volume step",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Loudness",
+    "rows": [
+     {
+      "label": "Normalize loudness",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Target level",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     },
+     {
+      "label": "Night mode",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Replay gain",
+      "control": "dropdown",
+      "values": [
+       "Off"
+      ]
+     },
+     {
+      "label": "Replay gain preamp",
+      "control": null,
+      "values": [
+       "0.0"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Effects",
+    "rows": [
+     {
+      "label": "Equalizer",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Equalizer preset",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Two-pass",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Spatial audio",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Spatial audio mode",
+      "control": "dropdown",
+      "values": [
+       "Headphone virtualization"
+      ]
+     },
+     {
+      "label": "Stereo widening",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Compressor",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Pitch shift",
+      "control": null,
+      "values": [
+       "0.00"
+      ]
+     },
+     {
+      "label": "Chorus/flanger",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Karaoke",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Tracks",
+    "rows": [
+     {
+      "label": "Preferred audio language",
+      "control": "dropdown",
+      "values": [
+       "System language"
+      ]
+     },
+     {
+      "label": "Audio delay",
+      "control": null,
+      "values": [
+       "0.00"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Visualization",
+    "rows": [
+     {
+      "label": "Visualizer",
+      "control": null,
+      "values": [
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - audio [3180:17398]": {
+  "title": "Audio Defaults",
+  "sections": [
+   {
+    "section": "Output",
+    "rows": [
+     {
+      "label": "Enable audio",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Output device",
+      "control": "dropdown",
+      "values": [
+       "System default"
+      ]
+     },
+     {
+      "label": "Speaker setup",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Volume",
+    "rows": [
+     {
+      "label": "Maximum volume",
+      "control": "slider",
+      "values": [
+       "100%",
+       "200%",
+       "300%"
+      ]
+     },
+     {
+      "label": "Startup volume",
+      "control": "number",
+      "values": []
+     },
+     {
+      "label": "Volume step",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Loudness",
+    "rows": [
+     {
+      "label": "Normalize loudness",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Target level",
+      "control": null,
+      "values": [
+       "1"
+      ]
+     },
+     {
+      "label": "Night mode",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Replay gain",
+      "control": "dropdown",
+      "values": [
+       "Off"
+      ]
+     },
+     {
+      "label": "Replay gain preamp",
+      "control": null,
+      "values": [
+       "0.0"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Effects",
+    "rows": [
+     {
+      "label": "Equalizer",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Equalizer preset",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Two-pass",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Spatial audio",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Spatial audio mode",
+      "control": "dropdown",
+      "values": [
+       "Headphone virtualization"
+      ]
+     },
+     {
+      "label": "Stereo widening",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Compressor",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Pitch shift",
+      "control": null,
+      "values": [
+       "0.00"
+      ]
+     },
+     {
+      "label": "Chorus/flanger",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Karaoke",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Tracks",
+    "rows": [
+     {
+      "label": "Preferred audio language",
+      "control": "dropdown",
+      "values": [
+       "System language"
+      ]
+     },
+     {
+      "label": "Audio delay",
+      "control": null,
+      "values": [
+       "0.00"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Visualization",
+    "rows": [
+     {
+      "label": "Visualizer",
+      "control": null,
+      "values": [
+       "Advanced Options"
+      ]
+     },
+     {
+      "label": "Pass compressed audio to the receiver",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Detect Dolby Surround",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Resampling quality",
+      "control": "dropdown",
+      "values": [
+       "Balanced"
+      ]
+     },
+     {
+      "label": "Media role",
+      "control": "dropdown",
+      "values": [
+       "Video"
+      ]
+     },
+     {
+      "label": "Visualization size",
+      "control": "dropdown",
+      "values": [
+       "Match window"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - subtitles [3180:17989]": {
+  "title": "Subtitle Defaults",
+  "sections": [
+   {
+    "section": "Tracks & Languages",
+    "rows": [
+     {
+      "label": "Enable subtitles",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Preferred language",
+      "control": "dropdown",
+      "values": [
+       "System language"
+      ]
+     },
+     {
+      "label": "Text encoding",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Loading Subtitles",
+    "rows": [
+     {
+      "label": "Load subtitle files automatically",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "File name matching",
+      "control": "dropdown",
+      "values": [
+       "Title with extra characters"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Appearance",
+    "rows": [
+     {
+      "label": "Font",
+      "control": null,
+      "values": [
+       "System, sans-serif"
+      ]
+     },
+     {
+      "label": "Size values",
+      "control": "number",
+      "values": []
+     },
+     {
+      "label": "Font size",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Bold",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Text color",
+      "control": null,
+      "values": [
+       "#FFFFFF"
+      ]
+     },
+     {
+      "label": "Text opacity",
+      "control": "slider",
+      "values": [
+       "0%",
+       "50%",
+       "100%"
+      ]
+     },
+     {
+      "label": "Outline thickness",
+      "control": "dropdown",
+      "values": [
+       "Normal"
+      ]
+     },
+     {
+      "label": "Outline color",
+      "control": null,
+      "values": [
+       "#000000"
+      ]
+     },
+     {
+      "label": "Shadow",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Shadow color",
+      "control": null,
+      "values": [
+       "#000000"
+      ]
+     },
+     {
+      "label": "Shadow distance",
+      "control": "dropdown",
+      "values": [
+       "Small"
+      ]
+     },
+     {
+      "label": "Background",
+      "control": "dropdown",
+      "values": [
+       "None"
+      ]
+     },
+     {
+      "label": "Background color",
+      "control": null,
+      "values": [
+       "#000000"
+      ]
+     },
+     {
+      "label": "Background opacity",
+      "control": "slider",
+      "values": [
+       "0%",
+       "50%",
+       "100%"
+      ]
+     },
+     {
+      "label": "Vertical position",
+      "control": "dropdown",
+      "values": [
+       "Bottom"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Timing",
+    "rows": [
+     {
+      "label": "Subtitle delay",
+      "control": "slider",
+      "values": [
+       "-5 s",
+       "0 s",
+       "+5 s"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "On-Screen Messages",
+    "rows": [
+     {
+      "label": "Show feedback for shortcuts",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show feedback for",
+      "control": "slider",
+      "values": [
+       "0.5 s",
+       "5 s"
+      ]
+     },
+     {
+      "label": "Show filename when a video starts",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show filename for",
+      "control": "slider",
+      "values": [
+       "1 s",
+       "10 s",
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - subtitles [6536:13908]": {
+  "title": "Subtitle Defaults",
+  "sections": [
+   {
+    "section": "Tracks & Languages",
+    "rows": [
+     {
+      "label": "Enable subtitles",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Preferred language",
+      "control": "dropdown",
+      "values": [
+       "System language"
+      ]
+     },
+     {
+      "label": "Text encoding",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Loading Subtitles",
+    "rows": [
+     {
+      "label": "Load subtitle files automatically",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "File name matching",
+      "control": "dropdown",
+      "values": [
+       "Title with extra characters"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Appearance",
+    "rows": [
+     {
+      "label": "Font",
+      "control": null,
+      "values": [
+       "System, sans-serif"
+      ]
+     },
+     {
+      "label": "Size values",
+      "control": "number",
+      "values": []
+     },
+     {
+      "label": "Font size",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Bold",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Text color",
+      "control": null,
+      "values": [
+       "#FFFFFF"
+      ]
+     },
+     {
+      "label": "Text opacity",
+      "control": "slider",
+      "values": [
+       "0%",
+       "50%",
+       "100%"
+      ]
+     },
+     {
+      "label": "Outline thickness",
+      "control": "dropdown",
+      "values": [
+       "Normal"
+      ]
+     },
+     {
+      "label": "Outline color",
+      "control": null,
+      "values": [
+       "#000000"
+      ]
+     },
+     {
+      "label": "Shadow",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Shadow color",
+      "control": null,
+      "values": [
+       "#000000"
+      ]
+     },
+     {
+      "label": "Shadow distance",
+      "control": "dropdown",
+      "values": [
+       "Small"
+      ]
+     },
+     {
+      "label": "Background",
+      "control": "dropdown",
+      "values": [
+       "None"
+      ]
+     },
+     {
+      "label": "Background color",
+      "control": null,
+      "values": [
+       "#000000"
+      ]
+     },
+     {
+      "label": "Background opacity",
+      "control": "slider",
+      "values": [
+       "0%",
+       "50%",
+       "100%"
+      ]
+     },
+     {
+      "label": "Vertical position",
+      "control": "dropdown",
+      "values": [
+       "Bottom"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Timing",
+    "rows": [
+     {
+      "label": "Subtitle delay",
+      "control": "slider",
+      "values": [
+       "-5 s",
+       "0 s",
+       "+5 s"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "On-Screen Messages",
+    "rows": [
+     {
+      "label": "Show feedback for shortcuts",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show feedback for",
+      "control": "slider",
+      "values": [
+       "0.5 s",
+       "5 s"
+      ]
+     },
+     {
+      "label": "Show filename when a video starts",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Show filename for",
+      "control": "slider",
+      "values": [
+       "1 s",
+       "10 s",
+       "Advanced Options"
+      ]
+     },
+     {
+      "label": "Load subtitles from these folders",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Ignore styling in ASS and SSA subtitles",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Shadow angle",
+      "control": null,
+      "values": [
+       "0"
+      ]
+     },
+     {
+      "label": "Text direction",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Monospace font",
+      "control": null,
+      "values": [
+       "System monospace"
+      ]
+     },
+     {
+      "label": "Visualization size",
+      "control": "dropdown",
+      "values": [
+       "Match window"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - controls [6536:14482]": {
+  "title": "Mouse, Keyboard & Remote Controls",
+  "sections": [
+   {
+    "section": "Keyboard Shortcuts",
+    "rows": [
+     {
+      "label": "Defaults",
+      "control": null,
+      "values": [
+       "Edit Keyboard Shortcuts"
+      ]
+     },
+     {
+      "label": "Reset all shortcuts",
+      "control": null,
+      "values": [
+       "Reset"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Skip Amounts",
+    "rows": [
+     {
+      "label": "Very short skip",
+      "control": null,
+      "values": [
+       "3 s"
+      ]
+     },
+     {
+      "label": "Short skip",
+      "control": null,
+      "values": [
+       "10 s"
+      ]
+     },
+     {
+      "label": "Medium skip",
+      "control": null,
+      "values": [
+       "60 s"
+      ]
+     },
+     {
+      "label": "Long skip",
+      "control": null,
+      "values": [
+       "300 s"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Mouse",
+    "rows": [
+     {
+      "label": "Single click on the video",
+      "control": "dropdown",
+      "values": [
+       "Play / Pause"
+      ]
+     },
+     {
+      "label": "Double click on the video",
+      "control": "dropdown",
+      "values": [
+       "Toggle fullscreen"
+      ]
+     },
+     {
+      "label": "Scroll wheel",
+      "control": "dropdown",
+      "values": [
+       "Volume"
+      ]
+     },
+     {
+      "label": "Horizontal scroll",
+      "control": "dropdown",
+      "values": [
+       "Seek"
+      ]
+     },
+     {
+      "label": "Reverse scroll direction",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Remotes",
+    "rows": [
+     {
+      "label": "Web remote control",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Port",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Scroll wheel",
+      "control": "dropdown",
+      "values": [
+       "Volume"
+      ]
+     },
+     {
+      "label": "Horizontal scroll",
+      "control": "dropdown",
+      "values": [
+       "Seek"
+      ]
+     },
+     {
+      "label": "Reverse scroll direction",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - library [6542:15251]": {
+  "title": "Playlists, Folders & Files",
+  "sections": [
+   {
+    "section": "Opening Files",
+    "rows": [
+     {
+      "label": "Only allow one VLC window",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Apply to files opened from the file manager",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Add to the playlist instead of replacing it",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "When opening a folder",
+      "control": "dropdown",
+      "values": [
+       "Include subfolders"
+      ]
+     },
+     {
+      "label": "Show hidden files",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Metadata & Artwork",
+    "rows": [
+     {
+      "label": "Fetch titles and artwork",
+      "control": "dropdown",
+      "values": [
+       "From the file only"
+      ]
+     },
+     {
+      "label": "Use the media library",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - network [6543:15649]": {
+  "title": "Network Connections & Security",
+  "sections": [
+   {
+    "section": "Buffering",
+    "rows": [
+     {
+      "label": "Buffering",
+      "control": "dropdown",
+      "values": [
+       "Normal"
+      ]
+     },
+     {
+      "label": "Local files",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Discs",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Network streams",
+      "control": null,
+      "values": []
+     },
+     {
+      "label": "Live capture",
+      "control": null,
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Proxy",
+    "rows": [
+     {
+      "label": "HTTP proxy",
+      "control": null,
+      "values": [
+       "System proxy"
+      ]
+     },
+     {
+      "label": "HTTP proxy password",
+      "control": null,
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Security",
+    "rows": [
+     {
+      "label": "Verify certificates against the system trust store",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Cipher preference",
+      "control": "dropdown",
+      "values": [
+       "Balanced",
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - performance [6571:15958]": {
+  "title": "Performance Settings",
+  "sections": [
+   {
+    "section": "Decoding",
+    "rows": [
+     {
+      "label": "Hardware-accelerated decoding",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Video post-processing",
+      "control": "dropdown",
+      "values": [
+       "Off"
+      ]
+     },
+     {
+      "label": "Skip the H.264 loop filter",
+      "control": "dropdown",
+      "values": [
+       "Never"
+      ]
+     },
+     {
+      "label": "Decoding threads",
+      "control": null,
+      "values": [
+       "0"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Smooth Playback",
+    "rows": [
+     {
+      "label": "Drop frames when the system can't keep up",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Give VLC real-time priority",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Process priority",
+      "control": null,
+      "values": [
+       "0"
+      ]
+     },
+     {
+      "label": "Rescan plugins",
+      "control": null,
+      "values": [
+       "Rescan",
+       "Advanced Options"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Developer",
+    "rows": [
+     {
+      "label": "Encoder",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Decoder",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     },
+     {
+      "label": "Clock synchronisation",
+      "control": "dropdown",
+      "values": [
+       "Default"
+      ]
+     },
+     {
+      "label": "Clock jitter",
+      "control": null,
+      "values": [
+       "5000 ms"
+      ]
+     },
+     {
+      "label": "Clock reference averaging",
+      "control": null,
+      "values": [
+       "40"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - recording [6571:16429]": {
+  "title": "Recording, Casting & Streaming Out",
+  "sections": [
+   {
+    "section": "Recording",
+    "rows": [
+     {
+      "label": "Save recordings to",
+      "control": "path",
+      "values": [
+       "~/Videos",
+       "Browse"
+      ]
+     },
+     {
+      "label": "Record without re-encoding when possible",
+      "control": "toggle",
+      "values": []
+     }
+    ]
+   },
+   {
+    "section": "Casting",
+    "rows": [
+     {
+      "label": "Discover cast devices",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Cast quality",
+      "control": "dropdown",
+      "values": [
+       "Automatic"
+      ]
+     }
+    ]
+   },
+   {
+    "section": "Streaming",
+    "rows": [
+     {
+      "label": "Play locally while streaming",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Include audio",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Include video",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "include subtitles",
+      "control": "toggle",
+      "values": []
+     },
+     {
+      "label": "Encoding preset",
+      "control": "dropdown",
+      "values": [
+       "Medium"
+      ]
+     },
+     {
+      "label": "Tuning",
+      "control": "dropdown",
+      "values": [
+       "None",
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "Settings - extensions [6575:17137]": {
+  "title": "Add-ons & Scripts",
+  "sections": [
+   {
+    "section": "Add-ons",
+    "rows": [
+     {
+      "label": "Load add-ons on startup",
+      "control": "toggle",
+      "values": [
+       "Advanced Options"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

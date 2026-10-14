@@ -1,0 +1,431 @@
+
+## Settings - global [999:5047] — Global Settings
+  [Appearance]
+  [Startup]
+    - Show confirmation and error dialogs :: toggle :: 
+    - Check for updates automatically :: toggle :: 
+  [Diagnostics]
+    - Developer mode :: toggle :: 
+    - Save a log :: toggle :: 
+    - Log file :: path :: Browse
+    - Log details :: dropdown :: Errors only, Advanced Options
+
+## Settings - global [3046:9282] — Global Settings
+  [Appearance]
+  [Startup]
+    - Show confirmation and error dialogs :: toggle :: 
+    - Check for updates automatically :: toggle :: 
+  [Diagnostics]
+    - Developer mode :: toggle :: 
+    - Save a log :: toggle :: 
+    - Log file :: path :: Browse
+    - Log details :: dropdown :: Errors only, Advanced Options
+    - Show minor warnings :: toggle :: 
+    - Additional command line options :: None :: 
+    - Log format :: dropdown :: Plain text
+    - Collect playback statistics :: toggle :: 
+    - Open configurations folder :: None :: Open
+    - Reset all settings :: None :: Reset
+  [Developer Options]
+    - Write to the system log :: toggle :: 
+    - Include debug messages in the system log :: toggle :: 
+    - System log identity :: None :: 
+    - System log facility :: dropdown :: User
+
+## Settings - interface [3046:10057] — Interface Settings
+  [Skin]
+    - Use a custom skin :: toggle :: 
+    - Skin file :: path :: Browse
+  [Window]
+    - Play video inside main window :: toggle :: 
+    - Resize window to fit video :: dropdown :: Never
+    - Remember window size and position :: toggle :: 
+    - Keep window above other windows :: toggle :: 
+    - Show window decorations :: toggle :: 
+    - Show the file name in the title bar :: toggle :: 
+    - Open fullscreen on :: dropdown :: Current screen
+  [Playback Controls]
+    - Start in compact mode :: toggle :: 
+    - Auto-hide the controls :: dropdown :: In fullscreen only
+    - Hide after :: slider :: 0 s, 5 s, 10s
+    - Show controls in fullscreen :: toggle :: 
+  [Notifications and System Tray]
+    - Show a system tray icon :: toggle :: 
+    - Start minimized to the tray :: toggle :: 
+    - Show a popup when the track changew :: dropdown :: When minimized
+    - Popup duration :: slider :: 0 s, 5 s, 10s
+  [Playlist]
+    - Show the playlist as a tree :: toggle :: Advanced Options
+
+## Settings - interface [3062:11379] — Interface Settings
+  [Skin]
+    - Use a custom skin :: toggle :: 
+    - Skin file :: path :: Browse
+  [Window]
+    - Play video inside main window :: toggle :: 
+    - Resize window to fit video :: dropdown :: Never
+    - Remember window size and position :: toggle :: 
+    - Keep window above other windows :: toggle :: 
+    - Show window decorations :: toggle :: 
+    - Show the file name in the title bar :: toggle :: 
+    - Open fullscreen on :: dropdown :: Current screen
+  [Playback Controls]
+    - Start in compact mode :: toggle :: 
+    - Auto-hide the controls :: dropdown :: In fullscreen only
+    - Hide after :: slider :: 0 s, 5 s, 10s
+    - Show controls in fullscreen :: toggle :: 
+  [Notifications and System Tray]
+    - Show a system tray icon :: toggle :: 
+    - Start minimized to the tray :: toggle :: 
+    - Show a popup when the track changew :: dropdown :: When minimized
+    - Popup duration :: slider :: 0 s, 5 s, 10s
+  [Playlist]
+    - Show the playlist as a tree :: toggle :: Advanced Options
+    - Window opacity :: slider :: 10%, 100%
+    - Pause video when window is minimized :: toggle :: 
+    - Bring VLC to the front when playback starts :: dropdown :: Video
+    - Show cover art in the window when playing audio :: toggle :: 
+    - Show the file browser inside the open dialog :: toggle :: 
+    - Allow the app icon to change :: toggle :: 
+    - Fullscreen controls opacity :: slider :: 10%, 100%
+    - Fullscreen controls sensitivity :: slider :: Low, Medium, High
+
+## Settings - privacy [3062:11911] — Privacy Settings
+  [History]
+    - Save recently played items :: toggle :: 
+    - Remember the playback position :: toggle :: 
+    - Never remember items matching :: None :: 
+    - Clear history now :: None :: Clear
+  [Network]
+    - Fetch titles and cover art from the internet :: toggle :: 
+    - Submit played tracks to last.fm :: toggle :: 
+    - Last.fm username :: None :: 
+    - Last.fm username :: None :: 
+    - Last.fm submission URL :: None :: 
+
+## Settings - playback [3062:12552] — Playback Preferences
+  [Startup]
+    - Continue where you left off :: dropdown :: Always
+    - Start playing as soon as a file opens :: toggle :: 
+    - Default playback speed :: slider :: 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2
+    - Pause when another app uses audio :: toggle :: 
+  [Tracks]
+    - Preferred video quality :: dropdown :: Best available
+    - Preferred menu language :: dropdown :: English
+    - Default audio track :: None :: 1
+    - Default subtitle track :: None :: 1
+  [Order]
+    - Repeat :: dropdown :: Off
+    - Shuffle :: toggle :: 
+    - Stop after each item :: toggle :: 
+    - When playback finishes :: dropdown :: Stop
+  [Seeking]
+    - Seek precisely :: toggle :: 
+    - Show thumbnail while scrubbing :: toggle :: 
+  [Files & Discs]
+    - Default optical drive :: dropdown :: -
+    - Repair damaged AVI files :: dropdown :: Ask
+    - Load matching .mkv files from the same folder :: toggle :: Advanced Options
+
+## Settings - playback [3072:13408] — Playback Preferences
+  [Startup]
+    - Continue where you left off :: dropdown :: Always
+    - Start playing as soon as a file opens :: toggle :: 
+    - Default playback speed :: slider :: 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2
+    - Pause when another app uses audio :: toggle :: 
+  [Tracks]
+    - Preferred video quality :: dropdown :: Best available
+    - Preferred menu language :: dropdown :: English
+    - Default audio track :: None :: 1
+    - Default subtitle track :: None :: 1
+  [Order]
+    - Repeat :: dropdown :: Off
+    - Shuffle :: toggle :: 
+    - Stop after each item :: toggle :: 
+    - When playback finishes :: dropdown :: Stop
+  [Seeking]
+    - Seek precisely :: toggle :: 
+    - Show thumbnail while scrubbing :: toggle :: 
+  [Files & Discs]
+    - Default optical drive :: dropdown :: -
+    - Repair damaged AVI files :: dropdown :: Ask
+    - Load matching .mkv files from the same folder :: toggle :: Advanced Options
+    - Time-shift buffer folder :: path :: Browse
+    - Time-shift buffer size :: dropdown :: Medium
+
+## Settings - video [3073:14187] — Video Defaults
+  [Output]
+    - Enable video :: toggle :: 
+    - Start videos in fullscreen :: toggle :: 
+    - Stop the screensaver during playback :: toggle :: 
+    - Play video as desktop wallpaper :: toggle :: 
+  [Picture]
+    - Reset picture :: None :: Reset
+  [Deinterlacing]
+    - Deinterlacing :: dropdown :: Automatic
+    - Method :: dropdown :: Automatic
+  [Framing]
+    - Aspect ratio :: dropdown :: Automatic
+    - Crop :: dropdown :: None
+    - Scale video to the window :: toggle :: 
+    - Zoom :: dropdown :: Fit
+    - Position in the window :: dropdown :: Center
+  [Snapshots]
+    - Save to :: path :: Browse
+    - File name prefix :: None :: 1
+    - Format :: dropdown :: PNG
+    - Size :: dropdown :: Same as video
+    - Number files sequentially :: toggle :: 
+    - Show a preview after capture :: toggle :: Advanced Options
+
+## Settings - video [3073:15375] — Video Defaults
+  [Output]
+    - Enable video :: toggle :: 
+    - Start videos in fullscreen :: toggle :: 
+    - Stop the screensaver during playback :: toggle :: 
+    - Play video as desktop wallpaper :: toggle :: 
+  [Picture]
+    - Reset picture :: None :: Reset
+  [Deinterlacing]
+    - Deinterlacing :: dropdown :: Automatic
+    - Method :: dropdown :: Automatic
+  [Framing]
+    - Aspect ratio :: dropdown :: Automatic
+    - Crop :: dropdown :: None
+    - Scale video to the window :: toggle :: 
+    - Zoom :: dropdown :: Fit
+    - Position in the window :: dropdown :: Center
+  [Snapshots]
+    - Save to :: path :: Browse
+    - File name prefix :: None :: 1
+    - Format :: dropdown :: PNG
+    - Size :: dropdown :: Same as video
+    - Number files sequentially :: toggle :: 
+    - Show a preview after capture :: toggle :: Advanced Options
+    - Custom aspect ratios :: None :: 
+    - Custom crop ratios :: None :: 
+    - Monitor pixel aspect ratio :: None :: 1:1
+    - Time-shift buffer size :: dropdown :: Medium
+
+## Settings - audio [3073:15879] — Audio Defaults
+  [Output]
+    - Enable audio :: toggle :: 
+    - Output device :: dropdown :: System default
+    - Speaker setup :: dropdown :: Automatic
+  [Volume]
+    - Maximum volume :: slider :: 100%, 200%, 300%
+    - Startup volume :: number :: 
+    - Volume step :: None :: 1
+  [Loudness]
+    - Normalize loudness :: toggle :: 
+    - Target level :: None :: 1
+    - Night mode :: toggle :: 
+    - Replay gain :: dropdown :: Off
+    - Replay gain preamp :: None :: 0.0
+  [Effects]
+    - Equalizer :: toggle :: 
+    - Equalizer preset :: None :: 
+    - Two-pass :: toggle :: 
+    - Spatial audio :: toggle :: 
+    - Spatial audio mode :: dropdown :: Headphone virtualization
+    - Stereo widening :: toggle :: 
+    - Compressor :: toggle :: 
+    - Pitch shift :: None :: 0.00
+    - Chorus/flanger :: toggle :: 
+    - Karaoke :: toggle :: 
+  [Tracks]
+    - Preferred audio language :: dropdown :: System language
+    - Audio delay :: None :: 0.00
+  [Visualization]
+    - Visualizer :: None :: Advanced Options
+
+## Settings - audio [3180:17398] — Audio Defaults
+  [Output]
+    - Enable audio :: toggle :: 
+    - Output device :: dropdown :: System default
+    - Speaker setup :: dropdown :: Automatic
+  [Volume]
+    - Maximum volume :: slider :: 100%, 200%, 300%
+    - Startup volume :: number :: 
+    - Volume step :: None :: 1
+  [Loudness]
+    - Normalize loudness :: toggle :: 
+    - Target level :: None :: 1
+    - Night mode :: toggle :: 
+    - Replay gain :: dropdown :: Off
+    - Replay gain preamp :: None :: 0.0
+  [Effects]
+    - Equalizer :: toggle :: 
+    - Equalizer preset :: None :: 
+    - Two-pass :: toggle :: 
+    - Spatial audio :: toggle :: 
+    - Spatial audio mode :: dropdown :: Headphone virtualization
+    - Stereo widening :: toggle :: 
+    - Compressor :: toggle :: 
+    - Pitch shift :: None :: 0.00
+    - Chorus/flanger :: toggle :: 
+    - Karaoke :: toggle :: 
+  [Tracks]
+    - Preferred audio language :: dropdown :: System language
+    - Audio delay :: None :: 0.00
+  [Visualization]
+    - Visualizer :: None :: Advanced Options
+    - Pass compressed audio to the receiver :: toggle :: 
+    - Detect Dolby Surround :: dropdown :: Automatic
+    - Resampling quality :: dropdown :: Balanced
+    - Media role :: dropdown :: Video
+    - Visualization size :: dropdown :: Match window
+
+## Settings - subtitles [3180:17989] — Subtitle Defaults
+  [Tracks & Languages]
+    - Enable subtitles :: toggle :: 
+    - Preferred language :: dropdown :: System language
+    - Text encoding :: dropdown :: Automatic
+  [Loading Subtitles]
+    - Load subtitle files automatically :: toggle :: 
+    - File name matching :: dropdown :: Title with extra characters
+  [Appearance]
+    - Font :: None :: System, sans-serif
+    - Size values :: number :: 
+    - Font size :: dropdown :: Automatic
+    - Bold :: toggle :: 
+    - Text color :: None :: #FFFFFF
+    - Text opacity :: slider :: 0%, 50%, 100%
+    - Outline thickness :: dropdown :: Normal
+    - Outline color :: None :: #000000
+    - Shadow :: toggle :: 
+    - Shadow color :: None :: #000000
+    - Shadow distance :: dropdown :: Small
+    - Background :: dropdown :: None
+    - Background color :: None :: #000000
+    - Background opacity :: slider :: 0%, 50%, 100%
+    - Vertical position :: dropdown :: Bottom
+  [Timing]
+    - Subtitle delay :: slider :: -5 s, 0 s, +5 s
+  [On-Screen Messages]
+    - Show feedback for shortcuts :: toggle :: 
+    - Show feedback for :: slider :: 0.5 s, 5 s
+    - Show filename when a video starts :: toggle :: 
+    - Show filename for :: slider :: 1 s, 10 s, Advanced Options
+
+## Settings - subtitles [6536:13908] — Subtitle Defaults
+  [Tracks & Languages]
+    - Enable subtitles :: toggle :: 
+    - Preferred language :: dropdown :: System language
+    - Text encoding :: dropdown :: Automatic
+  [Loading Subtitles]
+    - Load subtitle files automatically :: toggle :: 
+    - File name matching :: dropdown :: Title with extra characters
+  [Appearance]
+    - Font :: None :: System, sans-serif
+    - Size values :: number :: 
+    - Font size :: dropdown :: Automatic
+    - Bold :: toggle :: 
+    - Text color :: None :: #FFFFFF
+    - Text opacity :: slider :: 0%, 50%, 100%
+    - Outline thickness :: dropdown :: Normal
+    - Outline color :: None :: #000000
+    - Shadow :: toggle :: 
+    - Shadow color :: None :: #000000
+    - Shadow distance :: dropdown :: Small
+    - Background :: dropdown :: None
+    - Background color :: None :: #000000
+    - Background opacity :: slider :: 0%, 50%, 100%
+    - Vertical position :: dropdown :: Bottom
+  [Timing]
+    - Subtitle delay :: slider :: -5 s, 0 s, +5 s
+  [On-Screen Messages]
+    - Show feedback for shortcuts :: toggle :: 
+    - Show feedback for :: slider :: 0.5 s, 5 s
+    - Show filename when a video starts :: toggle :: 
+    - Show filename for :: slider :: 1 s, 10 s, Advanced Options
+    - Load subtitles from these folders :: None :: 
+    - Ignore styling in ASS and SSA subtitles :: toggle :: 
+    - Shadow angle :: None :: 0
+    - Text direction :: dropdown :: Automatic
+    - Monospace font :: None :: System monospace
+    - Visualization size :: dropdown :: Match window
+
+## Settings - controls [6536:14482] — Mouse, Keyboard & Remote Controls
+  [Keyboard Shortcuts]
+    - Defaults :: None :: Edit Keyboard Shortcuts
+    - Reset all shortcuts :: None :: Reset
+  [Skip Amounts]
+    - Very short skip :: None :: 3 s
+    - Short skip :: None :: 10 s
+    - Medium skip :: None :: 60 s
+    - Long skip :: None :: 300 s
+  [Mouse]
+    - Single click on the video :: dropdown :: Play / Pause
+    - Double click on the video :: dropdown :: Toggle fullscreen
+    - Scroll wheel :: dropdown :: Volume
+    - Horizontal scroll :: dropdown :: Seek
+    - Reverse scroll direction :: toggle :: 
+  [Remotes]
+    - Web remote control :: toggle :: 
+    - Port :: None :: 
+    - Scroll wheel :: dropdown :: Volume
+    - Horizontal scroll :: dropdown :: Seek
+    - Reverse scroll direction :: toggle :: Advanced Options
+
+## Settings - library [6542:15251] — Playlists, Folders & Files
+  [Opening Files]
+    - Only allow one VLC window :: toggle :: 
+    - Apply to files opened from the file manager :: toggle :: 
+    - Add to the playlist instead of replacing it :: toggle :: 
+    - When opening a folder :: dropdown :: Include subfolders
+    - Show hidden files :: toggle :: 
+  [Metadata & Artwork]
+    - Fetch titles and artwork :: dropdown :: From the file only
+    - Use the media library :: toggle :: Advanced Options
+
+## Settings - network [6543:15649] — Network Connections & Security
+  [Buffering]
+    - Buffering :: dropdown :: Normal
+    - Local files :: None :: 
+    - Discs :: None :: 
+    - Network streams :: None :: 
+    - Live capture :: None :: 
+  [Proxy]
+    - HTTP proxy :: None :: System proxy
+    - HTTP proxy password :: None :: 
+  [Security]
+    - Verify certificates against the system trust store :: toggle :: 
+    - Cipher preference :: dropdown :: Balanced, Advanced Options
+
+## Settings - performance [6571:15958] — Performance Settings
+  [Decoding]
+    - Hardware-accelerated decoding :: dropdown :: Automatic
+    - Video post-processing :: dropdown :: Off
+    - Skip the H.264 loop filter :: dropdown :: Never
+    - Decoding threads :: None :: 0
+  [Smooth Playback]
+    - Drop frames when the system can't keep up :: toggle :: 
+    - Give VLC real-time priority :: toggle :: 
+    - Process priority :: None :: 0
+    - Rescan plugins :: None :: Rescan, Advanced Options
+  [Developer]
+    - Encoder :: dropdown :: Automatic
+    - Decoder :: dropdown :: Automatic
+    - Clock synchronisation :: dropdown :: Default
+    - Clock jitter :: None :: 5000 ms
+    - Clock reference averaging :: None :: 40
+
+## Settings - recording [6571:16429] — Recording, Casting & Streaming Out
+  [Recording]
+    - Save recordings to :: path :: ~/Videos, Browse
+    - Record without re-encoding when possible :: toggle :: 
+  [Casting]
+    - Discover cast devices :: toggle :: 
+    - Cast quality :: dropdown :: Automatic
+  [Streaming]
+    - Play locally while streaming :: toggle :: 
+    - Include audio :: toggle :: 
+    - Include video :: toggle :: 
+    - include subtitles :: toggle :: 
+    - Encoding preset :: dropdown :: Medium
+    - Tuning :: dropdown :: None, Advanced Options
+
+## Settings - extensions [6575:17137] — Add-ons & Scripts
+  [Add-ons]
+    - Load add-ons on startup :: toggle :: Advanced Options

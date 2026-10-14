@@ -62,20 +62,3 @@ export interface Bounds {
   width: number
   height: number
 }
-
-// The API the preload script exposes to the renderer as window.flp.
-export interface RendererApi {
-  player: {
-    command(...args: (string | number | boolean)[]): Promise<unknown>
-    set(name: string, value: unknown): Promise<void>
-    get(name: string): Promise<unknown>
-    snapshot(): Promise<PlayerState>
-    setBounds(b: Bounds): void
-    setVisible(visible: boolean): void
-    onState(cb: (patch: Partial<PlayerState>) => void): () => void
-  }
-  dialog: {
-    openFiles(): Promise<string[]>
-  }
-  platform: NodeJS.Platform
-}

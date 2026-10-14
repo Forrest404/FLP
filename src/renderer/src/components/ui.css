@@ -1,0 +1,224 @@
+/* Base controls, sized from the Figma components (Toggle 68×32, Dropdown 320×36, slider thumb 8×24…). */
+
+/* Buttons */
+.ui-btn {
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: var(--fs-m);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.ui-btn:hover:not(:disabled) { color: var(--text-strong); filter: brightness(1.15); }
+.ui-btn:disabled { opacity: 0.45; cursor: default; }
+.ui-btn--primary { background: var(--accent); color: var(--accent-contrast); }
+.ui-btn--ghost { background: transparent; }
+.ui-btn--block { width: 100%; }
+
+.ui-iconbtn {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  height: 28px;
+  min-width: 28px;
+  padding: 0 4px;
+  border-radius: var(--radius-s);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.ui-iconbtn:hover:not(:disabled) { color: var(--text-strong); background: color-mix(in srgb, var(--text-strong) 6%, transparent); }
+.ui-iconbtn[aria-pressed='true'] { color: var(--accent); }
+.ui-iconbtn:disabled { opacity: 0.35; cursor: default; }
+
+/* Toggle: [ OFF | knob ] / [ ON | knob ] */
+.ui-toggle {
+  width: 68px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  background: var(--bg-canvas);
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ui-toggle__label, .ui-toggle__knob { flex: 1; border-radius: 3px; display: grid; place-items: center; font-size: 11px; font-weight: 600; }
+.ui-toggle__knob { background: var(--bg-raised); filter: brightness(1.6); }
+.ui-toggle__label { color: var(--text-faint); }
+.ui-toggle[aria-checked='true'] { flex-direction: row; }
+.ui-toggle[aria-checked='true'] .ui-toggle__label { background: var(--accent-dim); color: var(--accent); }
+.ui-toggle[aria-checked='true'] .ui-toggle__knob { background: var(--accent-mid); filter: none; }
+.ui-toggle[aria-checked='false'] { flex-direction: row-reverse; }
+
+/* Slider */
+.ui-slider { position: relative; width: 100%; padding-top: 4px; }
+.ui-slider__track {
+  position: relative;
+  height: 16px;
+  border-radius: var(--radius-s);
+  background: var(--bg-well);
+  cursor: pointer;
+}
+.ui-slider__fill { position: absolute; inset: 0 auto 0 0; border-radius: var(--radius-s); background: var(--accent-dim); }
+.ui-slider__tick { position: absolute; top: 5px; width: 1px; height: 6px; background: var(--text-ghost); }
+.ui-slider__thumb {
+  position: absolute;
+  top: -4px;
+  width: 8px;
+  height: 24px;
+  margin-left: -4px;
+  border-radius: 2px;
+  background: var(--accent-mid);
+}
+.ui-slider__labels { position: relative; height: 15px; margin-top: 6px; font-size: 11px; color: var(--text-faint); }
+.ui-slider__labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.ui-slider__labels span:first-child { transform: none; }
+.ui-slider__labels span:last-child { transform: translateX(-100%); }
+
+/* Dropdown (native select styled like Figma) */
+.ui-select {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-canvas);
+}
+.ui-select select {
+  appearance: none;
+  width: 100%;
+  height: 100%;
+  padding: 0 40px 0 14px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: var(--fs-m);
+  cursor: pointer;
+  outline: none;
+}
+.ui-select svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-dim); }
+
+/* Segmented control (Theme: Dark / Light / System) */
+.ui-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius); background: var(--bg-well); width: 320px; max-width: 100%; height: 36px; }
+.ui-seg button { flex: 1; border: 0; border-radius: var(--radius-s); background: var(--bg-panel); color: var(--text-faint); font-size: var(--fs-m); cursor: pointer; }
+.ui-seg button[aria-pressed='true'] { background: var(--accent-dim); color: var(--accent); }
+
+/* Accent swatches */
+.ui-swatches { display: inline-flex; gap: 4px; padding: 3px; border-radius: var(--radius); background: var(--bg-well); }
+.ui-swatches button { width: 32px; height: 30px; border: 0; border-radius: var(--radius-s); background: transparent; display: grid; place-items: center; cursor: pointer; }
+.ui-swatches button[aria-pressed='true'] { background: var(--bg-raised); }
+.ui-swatches i { width: 20px; height: 20px; border-radius: 3px; }
+
+/* Text and number fields */
+.ui-field {
+  height: 36px;
+  width: 320px;
+  max-width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-well);
+  color: var(--text);
+  font-size: var(--fs-m);
+  outline: none;
+  user-select: text;
+}
+.ui-field:focus { border-color: var(--accent-mid); }
+.ui-field--search { background: var(--bg-field); padding-left: 36px; }
+.ui-search { position: relative; display: inline-block; }
+.ui-search > svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-faint); }
+.ui-number { width: 120px; text-align: left; font-variant-numeric: tabular-nums; }
+.ui-color { display: inline-flex; align-items: center; gap: 8px; }
+.ui-color input[type='color'] { width: 36px; height: 36px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-well); cursor: pointer; }
+
+/* Info tip next to setting labels */
+.ui-info { display: inline-flex; color: var(--text-faint); vertical-align: middle; margin-left: 10px; cursor: help; }
+
+/* Menus */
+.ui-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 260px;
+  padding: 6px;
+  border-radius: var(--radius-l);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.ui-menu__item {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: var(--fs-m);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ui-menu__item:hover, .ui-menu__item[data-open='true'] { background: var(--bg-raised); color: var(--text); }
+.ui-menu__item[aria-disabled='true'] { opacity: 0.4; pointer-events: none; }
+.ui-menu__label { flex: 1; }
+.ui-menu__hint { color: var(--text-faint); font-size: var(--fs); padding-left: 24px; }
+.ui-menu__sep { height: 1px; margin: 4px 6px; background: var(--border); }
+.ui-menu__check { width: 20px; display: inline-flex; }
+
+/* Dialogs */
+.ui-backdrop { position: fixed; inset: 0; z-index: 900; background: var(--backdrop); display: grid; place-items: center; }
+.ui-dialog {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  border-radius: var(--radius-l);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.ui-dialog__head {
+  height: 48px;
+  flex-shrink: 0;
+  padding: 0 10px 0 18px;
+  display: flex;
+  align-items: center;
+  background: var(--bg-well);
+  color: var(--text);
+  font-size: var(--fs-m);
+}
+.ui-dialog__title { flex: 1; }
+.ui-dialog__body { flex: 1; overflow: auto; }
+.ui-dialog__foot { display: flex; justify-content: space-between; padding: 14px 18px; flex-shrink: 0; }
+
+/* Toast (bottom-centre message, e.g. "You've watched till 00:45:08 already.") */
+.ui-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--controls-h) + 24px);
+  transform: translateX(-50%);
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 10px 10px 20px;
+  border-radius: var(--radius-l);
+  background: var(--bg-panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}

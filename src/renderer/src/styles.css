@@ -1,4 +1,4 @@
-html, body, #root { margin: 0; height: 100%; background: transparent; color: #ddd; font-family: -apple-system, sans-serif; }
+
 .app { display: flex; flex-direction: column; height: 100%; }
 .titlebar { height: 34px; background: #1d1d1d; -webkit-app-region: drag; display: flex; align-items: center; justify-content: center; font-size: 13px; }
 .video { flex: 1; background: transparent; }
