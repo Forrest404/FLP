@@ -8,18 +8,23 @@ import { Settings } from './settings'
 import { applySettings } from './settings-apply'
 import { scheduleSnapshot } from './dev-snapshot'
 import { displayableImage, posterFor, readTags, thumbnailAt, waveform } from './media-tools'
+import { Library } from './library'
+import type { MusicView, SortKey } from '@shared/library'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
 let win: BrowserWindow | null = null
 let player: PlayerBridge | null = null
 
 app.setName(BRAND.name)
+// Tests and dev checks use a throwaway profile so they never touch real settings or the library.
+if (process.env.FLP_USER_DATA) app.setPath('userData', process.env.FLP_USER_DATA)
 
 // flp-media://file/<absolute path> serves local files (images, covers, posters) to the UI.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'flp-media', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } }
 ])
 const settings = new Settings()
+const library = new Library()
 
 function snapshot(): SettingsSnapshot {
   return {
@@ -32,9 +37,22 @@ function snapshot(): SettingsSnapshot {
 
 settings.on('changed', (keys: string[]) => {
   if (player) applySettings(player, settings.values(), keys)
+  if (keys.includes('library.showHidden') || keys.includes('library.folderMode')) {
+    library.showHidden = !!settings.get('library.showHidden')
+    library.recursive = settings.get('library.folderMode') !== 'flat'
+    void library.scanAll()
+  }
   if (keys.includes('interface.opacity')) win?.setOpacity(Number(settings.get('interface.opacity') ?? 100) / 100)
   win?.webContents.send('settings:changed', snapshot())
 })
+library.on('changed', () => scheduleLibraryNotice())
+library.on('status', (status) => win?.webContents.send('library:status', status))
+let libraryNoticeTimer: NodeJS.Timeout | undefined
+function scheduleLibraryNotice() {
+  clearTimeout(libraryNoticeTimer)
+  libraryNoticeTimer = setTimeout(() => win?.webContents.send('library:changed'), 300)
+}
+
 settings.on('ui-changed', (key: string) => {
   if (key !== 'lastVolume') win?.webContents.send('settings:changed', snapshot())
 })
@@ -82,6 +100,23 @@ function createWindow(): void {
     win?.webContents.send('player:state', patch)
     if ('volume' in patch && settings.get('audio.rememberVolume')) settings.setUi('lastVolume', patch.volume)
     if (patch.path && settings.get('privacy.saveRecent')) rememberRecent(patch.path)
+    if (patch.time !== undefined && settings.get('privacy.rememberPosition')) library.onTime(patch.time, player!.state.duration)
+  })
+  player.on('file-loaded', () => {
+    // Property updates can arrive after this event, so ask mpv directly.
+    const path = player!.get('path') as string | null
+    const title = player!.get('media-title') as string | null
+    const duration = (player!.get('duration') as number | null) ?? 0
+    if (!path) return
+    if (settings.get('privacy.saveRecent')) library.onFileStarted(path, title, duration)
+    const resume = settings.get('playback.resume')
+    const position = settings.get('privacy.rememberPosition') ? library.resumePosition(path) : 0
+    if (position > 0 && resume === 'always') player!.command(['seek', position, 'absolute'])
+    else if (position > 0 && resume === 'ask') win?.webContents.send('player:resume-offer', { path, position })
+  })
+  player.on('end-file', (reason: string) => {
+    const { time, duration } = player!.state
+    library.onStopped(time, duration, reason === 'eof')
   })
 
   win.setOpacity(Number(settings.get('interface.opacity') ?? 100) / 100)
@@ -165,8 +200,71 @@ ipcMain.on('window:pip', (_e, on: boolean) => {
     beforePip = null
   }
 })
+ipcMain.handle('app:homeDir', () => app.getPath('home'))
 ipcMain.on('shell:showInFolder', (_e, path: string) => shell.showItemInFolder(path))
 ipcMain.on('shell:openPath', (_e, path: string) => void shell.openPath(path))
+
+// Library
+ipcMain.handle('library:roots', () => library.roots())
+ipcMain.handle('library:addRoot', (_e, path: string) => library.addRoot(path))
+ipcMain.handle('library:removeRoot', (_e, path: string) => library.removeRoot(path))
+ipcMain.handle('library:rescan', () => library.scanAll())
+ipcMain.handle('library:status', () => library.status)
+ipcMain.handle('library:browse', (_e, kind: string, dir: string | null, sort: SortKey) => library.browse(kind, dir, sort))
+ipcMain.handle('library:search', (_e, q: string, kind: string) => library.search(q, kind))
+ipcMain.handle('library:home', () => library.home())
+ipcMain.handle('library:recent', () => library.recent())
+ipcMain.handle('library:favorites', () => library.favorites())
+ipcMain.handle('library:music', (_e, view: MusicView, filter: string | null, sort: SortKey) => library.music(view, filter, sort))
+ipcMain.handle('library:poster', (_e, id: number) => library.poster(id))
+ipcMain.handle('library:item', (_e, path: string) => library.db.byPath(path))
+ipcMain.handle('library:setFavorite', (_e, path: string, on: boolean) => {
+  library.db.setFavorite(path, on)
+  scheduleLibraryNotice()
+})
+ipcMain.handle('library:setWatched', (_e, path: string, on: boolean) => {
+  library.db.setWatched(path, on)
+  scheduleLibraryNotice()
+})
+ipcMain.handle('library:clearHistory', () => {
+  library.db.clearHistory()
+  settings.setUi('recent', [])
+  scheduleLibraryNotice()
+})
+ipcMain.handle('library:playlists', () => library.db.playlists())
+ipcMain.handle('library:createPlaylist', (_e, name: string, paths: string[], cover: string | null) => {
+  const id = library.db.createPlaylist(name, paths, cover)
+  scheduleLibraryNotice()
+  return id
+})
+ipcMain.handle('library:playlistPaths', (_e, id: number) => library.db.playlistPaths(id))
+ipcMain.handle('library:addToPlaylist', (_e, id: number, paths: string[]) => {
+  library.db.addToPlaylist(id, paths)
+  scheduleLibraryNotice()
+})
+ipcMain.handle('library:setPlaylistPaths', (_e, id: number, paths: string[]) => {
+  library.db.setPlaylistPaths(id, paths)
+  scheduleLibraryNotice()
+})
+ipcMain.handle('library:renamePlaylist', (_e, id: number, name: string) => {
+  library.db.renamePlaylist(id, name)
+  scheduleLibraryNotice()
+})
+ipcMain.handle('library:deletePlaylist', (_e, id: number) => {
+  library.db.deletePlaylist(id)
+  scheduleLibraryNotice()
+})
+ipcMain.handle('library:exportPlaylist', async (_e, id: number) => {
+  const pl = library.db.playlists().find((p) => p.id === id)
+  if (!pl || !win) return
+  const res = await dialog.showSaveDialog(win, { defaultPath: `${pl.name}.m3u8`, filters: [{ name: 'Playlist', extensions: ['m3u8'] }] })
+  if (res.canceled || !res.filePath) return
+  const { writeFile } = await import('node:fs/promises')
+  await writeFile(res.filePath, ['#EXTM3U', `#PLAYLIST:${pl.name}`, ...library.db.playlistPaths(id)].join('\n') + '\n')
+})
+ipcMain.handle('library:bookmarks', (_e, path: string) => library.db.bookmarks(path))
+ipcMain.handle('library:addBookmark', (_e, path: string, time: number, name: string) => library.db.addBookmark(path, time, name))
+ipcMain.handle('library:removeBookmark', (_e, id: number) => library.db.removeBookmark(id))
 
 // Media helpers
 ipcMain.handle('media:thumbnail', (_e, path: string, time: number) => thumbnailAt(path, time))
@@ -225,7 +323,13 @@ app.whenReady().then(() => {
     const path = decodeURIComponent(new URL(req.url).pathname)
     return net.fetch(pathToFileURL(path).toString(), { headers: req.headers })
   })
+  library.showHidden = !!settings.get('library.showHidden')
+  library.recursive = settings.get('library.folderMode') !== 'flat'
+  library.start()
   createWindow()
 })
 app.on('window-all-closed', () => app.quit())
-app.on('before-quit', () => settings.flush())
+app.on('before-quit', () => {
+  if (player) library.onStopped(player.state.time, player.state.duration, false)
+  settings.flush()
+})

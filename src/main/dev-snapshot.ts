@@ -7,10 +7,14 @@ import type { PlayerBridge } from './player'
 export function scheduleSnapshot(win: BrowserWindow, player: PlayerBridge): void {
   const out = process.env.FLP_SNAPSHOT
   if (!out) return
+  win.webContents.on('console-message', (e) => {
+    if (e.level === 'error' || e.level === 'warning') console.log(`[renderer:${e.level}] ${e.message}`)
+  })
   const delay = Number(process.env.FLP_SNAPSHOT_DELAY ?? 4000)
   // FLP_EVAL runs in the renderer shortly before the capture, e.g. "__flp.runCommand('ui.palette')".
   const script = process.env.FLP_EVAL
-  if (script) setTimeout(() => void win.webContents.executeJavaScript(script).catch((e) => console.error('[eval]', e)), Math.max(0, delay - 1200))
+  const evalAt = Number(process.env.FLP_EVAL_AT ?? Math.max(0, delay - 1200))
+  if (script) setTimeout(() => void win.webContents.executeJavaScript(script).catch((e) => console.error('[eval]', e)), evalAt)
   setTimeout(() => {
     const id = win.getMediaSourceId().split(':')[1]
     const state = ['time-pos', 'duration', 'pause', 'hwdec-current', 'video-codec', 'track-list/count']

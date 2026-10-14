@@ -5,7 +5,7 @@ export type LibrarySection = 'home' | 'videos' | 'music' | 'network' | 'playlist
 export type RightPanel = 'video' | 'audio' | 'subtitles' | 'playback' | null
 export type DialogId =
   | 'settings' | 'shortcuts' | 'customize' | 'network' | 'newPlaylist' | 'profiles' | 'about'
-  | 'mediaInfo' | 'convert' | 'capture' | 'disc' | 'addSubtitles' | 'plugins' | null
+  | 'mediaInfo' | 'convert' | 'capture' | 'disc' | 'addSubtitles' | 'plugins' | 'onboarding' | null
 
 export interface Osd {
   id: number

@@ -2,6 +2,8 @@ import { Dialog } from '@/components/Dialog'
 import { ui, useUi } from '@/state/ui'
 import { AboutDialog } from './AboutDialog'
 import { NetworkDialog } from './NetworkDialog'
+import { NewPlaylistDialog } from './NewPlaylistDialog'
+import { OnboardingDialog } from './OnboardingDialog'
 
 export function Dialogs() {
   const dialog = useUi((s) => s.dialog)
@@ -12,6 +14,10 @@ export function Dialogs() {
       return <AboutDialog />
     case 'network':
       return <NetworkDialog />
+    case 'newPlaylist':
+      return <NewPlaylistDialog />
+    case 'onboarding':
+      return <OnboardingDialog />
     default:
       return (
         <Dialog title={dialog} width={520} onClose={ui.closeDialog}>

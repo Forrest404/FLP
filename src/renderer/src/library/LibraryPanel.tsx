@@ -1,16 +1,28 @@
-// Placeholder library panel; replaced by the media library in milestone 3.
 import { useUi } from '@/state/ui'
-import { Empty, QueueList, SECTIONS } from '@/player/Sidebar'
+import { BrowseSection, HomeSection, MusicSection, NetworkSection, PlaylistsSection, RecentSection } from './Sections'
 
+/** The current library section; `compact` is the narrow version used in the player sidebar. */
 export function LibraryPanel({ compact }: { compact?: boolean }) {
   const section = useUi((s) => s.section)
-  const label = SECTIONS.find((s) => s.id === section)?.label ?? ''
-  return (
-    <div className={`flp-libpanel ${compact ? 'flp-libpanel--compact' : ''}`}>
-      <div className="flp-libpanel__head">
-        <span className="flp-libpanel__title">{section === 'playlists' ? 'Now Playing' : label}</span>
-      </div>
-      {section === 'playlists' ? <QueueList /> : <Empty icon="library" text="Your library will appear here." />}
-    </div>
-  )
+  switch (section) {
+    case 'home':
+      return <HomeSection compact={compact} />
+    case 'videos':
+      return <BrowseSection kind="video" compact={compact} />
+    case 'music':
+      return <MusicSection compact={compact} />
+    case 'playlists':
+      return <PlaylistsSection compact={compact} />
+    case 'recent':
+      return <RecentSection compact={compact} />
+    case 'network':
+      return <NetworkSection compact={compact} />
+  }
 }
+
+/** Opens a folder picker and adds the folder to the library. */
+export async function addLibraryFolder() {
+  const [dir] = await window.flp.dialog.openFiles({ folders: true, multiple: false, title: 'Add a media folder' })
+  if (dir) await window.flp.library.addRoot(dir)
+}
+window.addEventListener('flp:add-library-folder', () => void addLibraryFolder())

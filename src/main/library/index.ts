@@ -1,0 +1,278 @@
+// Media library service: scans and watches folders, probes files, tracks playback progress.
+import { execFile } from 'node:child_process'
+import { watch, type FSWatcher } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
+import { basename, join } from 'node:path'
+import { EventEmitter } from 'node:events'
+import { homedir } from 'node:os'
+import { typeOf, type BrowseResult, type Crumb, type FolderEntry, type HomeData, type MediaItem, type MediaType, type MusicGroup, type MusicView, type ScanStatus, type SortKey } from '@shared/library'
+import { bin, posterFor, readTags } from '../media-tools'
+import { LibraryDb } from './db'
+
+const TYPES: Record<string, MediaType[]> = { video: ['video'], audio: ['audio'], image: ['image'], all: ['video', 'audio', 'image'] }
+
+function ffprobe(path: string): Promise<{ duration?: number; width?: number; height?: number; title?: string }> {
+  return new Promise((resolve) => {
+    execFile(bin('ffprobe'), ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', path], { timeout: 15000, maxBuffer: 8 << 20 }, (err, out) => {
+      if (err) return resolve({})
+      try {
+        const j = JSON.parse(out)
+        const v = (j.streams ?? []).find((s: any) => s.codec_type === 'video' && !s.disposition?.attached_pic)
+        resolve({
+          duration: Number(j.format?.duration) || 0,
+          width: v?.width ?? 0,
+          height: v?.height ?? 0,
+          title: j.format?.tags?.title
+        })
+      } catch {
+        resolve({})
+      }
+    })
+  })
+}
+
+export class Library extends EventEmitter {
+  db = new LibraryDb()
+  status: ScanStatus = { scanning: false, done: 0, total: 0, root: null }
+  private watchers = new Map<string, FSWatcher>()
+  private rescanTimers = new Map<string, NodeJS.Timeout>()
+  private probing = false
+  showHidden = false
+  recursive = true
+
+  start(): void {
+    for (const root of this.db.roots()) this.watchRoot(root)
+    void this.scanAll()
+  }
+
+  roots(): string[] {
+    return this.db.roots()
+  }
+
+  async addRoot(path: string): Promise<void> {
+    this.db.addRoot(path)
+    this.watchRoot(path)
+    this.emit('changed')
+    await this.scan(path)
+  }
+
+  removeRoot(path: string): void {
+    this.watchers.get(path)?.close()
+    this.watchers.delete(path)
+    this.db.removeRoot(path)
+    this.emit('changed')
+  }
+
+  private watchRoot(root: string): void {
+    if (this.watchers.has(root)) return
+    try {
+      const w = watch(root, { recursive: true }, (_ev, file) => {
+        if (file && !typeOf(String(file)) && String(file).includes('.')) return
+        clearTimeout(this.rescanTimers.get(root))
+        this.rescanTimers.set(root, setTimeout(() => void this.scan(root), 2000))
+      })
+      w.on('error', () => this.watchers.delete(root))
+      this.watchers.set(root, w)
+    } catch {
+      /* folder missing or not watchable; scans still work */
+    }
+  }
+
+  async scanAll(): Promise<void> {
+    for (const root of this.db.roots()) await this.scan(root)
+  }
+
+  async scan(root: string): Promise<void> {
+    if (this.status.scanning) return
+    this.setStatus({ scanning: true, done: 0, total: 0, root })
+    const seen = new Set<string>()
+    const walk = async (dir: string, depth: number): Promise<void> => {
+      let entries
+      try {
+        entries = await readdir(dir, { withFileTypes: true })
+      } catch {
+        return
+      }
+      for (const e of entries) {
+        if (!this.showHidden && e.name.startsWith('.')) continue
+        const full = join(dir, e.name)
+        if (e.isDirectory()) {
+          // Skip bundles and system folders.
+          if (/\.(app|photoslibrary|musiclibrary|tvlibrary|bundle|framework)$/i.test(e.name) || e.name === 'node_modules') continue
+          if (this.recursive || depth === 0) await walk(full, depth + 1)
+          continue
+        }
+        if (!e.isFile()) continue
+        const type = typeOf(e.name)
+        if (!type) continue
+        try {
+          const st = await stat(full)
+          seen.add(full)
+          this.db.upsertScanned({ path: full, type, size: st.size, mtime: Math.floor(st.mtimeMs) })
+          this.status.total = seen.size
+          if (seen.size % 200 === 0) this.emit('status', this.status)
+        } catch {
+          /* vanished mid-scan */
+        }
+      }
+    }
+    try {
+      await walk(root, 0)
+      this.db.prune(root, seen)
+    } finally {
+      this.setStatus({ scanning: false, done: seen.size, total: seen.size, root: null })
+      this.emit('changed')
+      void this.probeQueue()
+    }
+  }
+
+  /** Reads duration, size and tags for new files in the background. */
+  private async probeQueue(): Promise<void> {
+    if (this.probing) return
+    this.probing = true
+    try {
+      for (;;) {
+        const batch = this.db.unprobed(32)
+        if (!batch.length) break
+        await Promise.all(
+          batch.map(async (m) => {
+            if (m.type === 'audio') {
+              const t = await readTags(m.path)
+              this.db.setProbe(m.path, { duration: t.duration, title: t.title, artist: t.artist, album: t.album, genre: t.genre, year: t.year, track: t.track })
+              if (t.cover) this.db.setPoster(m.id, t.cover)
+            } else if (m.type === 'video') {
+              this.db.setProbe(m.path, await ffprobe(m.path))
+            } else {
+              this.db.setProbe(m.path, {})
+              this.db.setPoster(m.id, m.path)
+            }
+          })
+        )
+        this.emit('changed')
+      }
+    } finally {
+      this.probing = false
+    }
+  }
+
+  private setStatus(s: ScanStatus) {
+    this.status = s
+    this.emit('status', s)
+  }
+
+  /** Poster for a library item, generated on first request. */
+  async poster(id: number): Promise<string | null> {
+    const m = this.db.byId(id)
+    if (!m) return null
+    if (m.poster) return m.poster
+    if (m.type !== 'video') return null
+    const p = await posterFor(m.path, m.duration)
+    if (p) this.db.setPoster(id, p)
+    return p
+  }
+
+  // ── Queries ──
+
+  browse(kind: string, dir: string | null, sort: SortKey): BrowseResult {
+    const types = TYPES[kind] ?? TYPES.all
+    const roots = this.db.roots()
+    const sectionName = kind === 'audio' ? 'Music' : kind === 'video' ? 'Videos' : 'Library'
+    if (!dir) {
+      const folders = roots
+        .map((r): FolderEntry => ({ path: r, name: basename(r) || r, count: this.db.countUnder(r, types), posters: [] }))
+        .filter((f) => f.count > 0)
+      // One root: open it directly.
+      if (folders.length === 1) return this.browse(kind, folders[0].path, sort)
+      return { dir: null, crumbs: [{ name: sectionName, path: null }], folders, items: [] }
+    }
+    const root = roots.find((r) => dir === r || dir.startsWith(`${r}/`)) ?? dir
+    const rel = dir.slice(root.length).split('/').filter(Boolean)
+    // With only one library folder holding this kind of media, the section name stands in for it.
+    const multi = roots.filter((r) => this.db.countUnder(r, types) > 0).length > 1
+    const crumbs: Crumb[] = [{ name: sectionName, path: multi ? null : root }]
+    if (multi) crumbs.push({ name: basename(root), path: root })
+    rel.forEach((part, i) => crumbs.push({ name: part, path: join(root, ...rel.slice(0, i + 1)) }))
+    const folders = [...this.db.subfolderCounts(dir, types)].map(([path, v]) => ({ path, name: basename(path), count: v.count, posters: v.posters, firstId: v.firstId }))
+    folders.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    return { dir, crumbs, folders, items: this.db.inFolder(dir, types, sort) }
+  }
+
+  search(q: string, kind: string): MediaItem[] {
+    return this.db.search(q, TYPES[kind] ?? TYPES.all)
+  }
+
+  home(): HomeData {
+    const continueWatching = this.db.query(
+      `select * from media where type = 'video' and position > 10 and watched = 0 and (duration = 0 or position < duration - 10) order by last_played desc limit 12`
+    )
+    const listenAgain = this.db.query(`select * from media where type = 'audio' and last_played is not null order by last_played desc limit 12`)
+    const folderRows = this.db.raw<{ folder: string; n: number }>(
+      `select folder, count(*) n from media where last_played is not null and folder != '' group by folder order by max(last_played) desc, n desc limit 8`
+    )
+    const frequentFolders = folderRows.map((r) => ({ path: r.folder, name: basename(r.folder), count: r.n, posters: [] }))
+    const recentlyAdded = this.db.query(`select * from media where in_library = 1 and type != 'image' order by added_at desc limit 12`)
+    return { continueWatching, listenAgain, frequentFolders, recentlyAdded }
+  }
+
+  recent(limit = 100): MediaItem[] {
+    return this.db.query('select * from media where last_played is not null order by last_played desc limit ?', limit)
+  }
+
+  favorites(): MediaItem[] {
+    return this.db.query('select * from media where favorite = 1 order by title collate nocase')
+  }
+
+  music(view: MusicView, filter: string | null, sort: SortKey): MediaItem[] | MusicGroup[] {
+    if (view === 'songs' || filter !== null) {
+      const where = view === 'albums' ? 'album = ?' : view === 'artists' ? 'coalesce(artist, \'Unknown artist\') = ?' : view === 'genres' ? 'genre = ?' : '1 = 1'
+      const order = view === 'albums' ? 'track, title collate nocase' : { name: 'title collate nocase', added: 'added_at desc', played: 'coalesce(last_played,0) desc', plays: 'play_count desc', artist: 'artist collate nocase, album, track', album: 'album collate nocase, track', year: 'year desc', track: 'track' }[sort as string] ?? 'artist collate nocase, album collate nocase, track'
+      return this.db.query(`select * from media where in_library = 1 and type = 'audio' and ${where} order by ${order}`, ...(filter !== null && view !== 'songs' ? [filter] : []))
+    }
+    const col = view === 'albums' ? 'album' : view === 'artists' ? "coalesce(artist, 'Unknown artist')" : 'genre'
+    const rows = this.db.raw<{ name: string; n: number; cover: string | null; sub: string | null }>(
+      `select ${col} name, count(*) n, max(poster) cover, max(artist) sub from media where in_library = 1 and type = 'audio' and ${col} is not null group by ${col} order by ${col} collate nocase`
+    )
+    return rows.map((r) => ({
+      name: r.name,
+      subtitle: view === 'albums' ? r.sub ?? '' : `${r.n} song${r.n === 1 ? '' : 's'}`,
+      count: r.n,
+      cover: r.cover
+    }))
+  }
+
+  // ── Playback tracking ──
+
+  private current: { path: string; type: MediaType } | null = null
+  private lastSave = 0
+
+  onFileStarted(path: string, title: string | null, duration: number): void {
+    const type = typeOf(path) ?? (/^[a-z]+:\/\//i.test(path) ? 'video' : null)
+    if (!type) return
+    this.current = { path, type }
+    this.db.touchPlayed(path, type, title || basename(path).replace(/\.[^.]+$/, ''), duration)
+    this.emit('changed')
+  }
+
+  onTime(time: number, duration: number): void {
+    if (!this.current || Date.now() - this.lastSave < 5000) return
+    this.lastSave = Date.now()
+    this.db.savePosition(this.current.path, time, duration)
+  }
+
+  onStopped(time: number, duration: number, eof: boolean): void {
+    if (!this.current) return
+    if (eof) this.db.finished(this.current.path)
+    else this.db.savePosition(this.current.path, time, duration)
+    this.current = null
+    this.emit('changed')
+  }
+
+  resumePosition(path: string): number {
+    const m = this.db.byPath(path)
+    if (!m || m.watched || m.position < 10) return 0
+    if (m.duration && m.position > m.duration - 10) return 0
+    return m.position
+  }
+}
+
+export const defaultMediaFolders = () => [join(homedir(), 'Movies'), join(homedir(), 'Music')]

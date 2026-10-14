@@ -14,9 +14,9 @@ import { VideoSurface } from '@/player/VideoSurface'
 import { RightPanel } from '@/panels/RightPanel'
 import { Dialogs } from '@/dialogs/Dialogs'
 import { usePlayer } from '@/state/player'
-import { openPaths } from '@/state/playback'
-import { getSetting, useSetting } from '@/state/settings'
-import { ui, useUi } from '@/state/ui'
+import { fmtTime, openPaths } from '@/state/playback'
+import { getSetting, useSetting, useSettings } from '@/state/settings'
+import { showToast, ui, useUi } from '@/state/ui'
 import '@/player/widgets'
 
 registerCoreCommands()
@@ -35,6 +35,8 @@ export function App() {
   useMenuBar()
   useFullscreenTracking()
   useAlwaysOnTop()
+  useFirstRun()
+  useResumeOffer()
   const idle = useIdle()
 
   const { view, leftOpen, hideUi, fullscreen } = useUi()
@@ -97,6 +99,27 @@ export function App() {
         </div>
       )}
     </div>
+  )
+}
+
+function useFirstRun() {
+  const ready = useSettings((s) => s.ready)
+  const onboarded = useSettings((s) => s.ui.onboarded)
+  useEffect(() => {
+    if (ready && !onboarded && !new URLSearchParams(location.search).has('dev')) ui.openDialog('onboarding')
+  }, [ready, onboarded])
+}
+
+function useResumeOffer() {
+  useEffect(
+    () =>
+      window.flp.onResumeOffer(({ position }) =>
+        showToast(`You’ve watched till ${fmtTime(position, position >= 3600)} already.`, {
+          label: 'Continue Watching',
+          run: () => void window.flp.player.command('seek', position, 'absolute')
+        })
+      ),
+    []
   )
 }
 

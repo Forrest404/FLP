@@ -1,5 +1,6 @@
 import type { Bounds, PlayerState } from './player'
 import type { SettingsSnapshot } from './settings-store'
+import type { BrowseResult, HomeData, MediaItem, MusicGroup, MusicView, Playlist, ScanStatus, SortKey } from './library'
 
 export interface AudioTags {
   title?: string
@@ -71,9 +72,44 @@ export interface RendererApi {
     displayableImage(path: string): Promise<string>
     poster(path: string, duration?: number): Promise<string | null>
   }
+  library: {
+    roots(): Promise<string[]>
+    addRoot(path: string): Promise<void>
+    removeRoot(path: string): Promise<void>
+    rescan(): Promise<void>
+    status(): Promise<ScanStatus>
+    browse(kind: 'video' | 'audio' | 'image' | 'all', dir: string | null, sort: SortKey): Promise<BrowseResult>
+    search(query: string, kind: string): Promise<MediaItem[]>
+    home(): Promise<HomeData>
+    recent(): Promise<MediaItem[]>
+    favorites(): Promise<MediaItem[]>
+    music(view: MusicView, filter: string | null, sort: SortKey): Promise<MediaItem[] | MusicGroup[]>
+    poster(id: number): Promise<string | null>
+    item(path: string): Promise<MediaItem | null>
+    setFavorite(path: string, on: boolean): Promise<void>
+    setWatched(path: string, on: boolean): Promise<void>
+    clearHistory(): Promise<void>
+    playlists(): Promise<Playlist[]>
+    createPlaylist(name: string, paths: string[], cover?: string | null): Promise<number>
+    playlistPaths(id: number): Promise<string[]>
+    addToPlaylist(id: number, paths: string[]): Promise<void>
+    setPlaylistPaths(id: number, paths: string[]): Promise<void>
+    renamePlaylist(id: number, name: string): Promise<void>
+    deletePlaylist(id: number): Promise<void>
+    exportPlaylist(id: number): Promise<void>
+    bookmarks(path: string): Promise<{ id: number; time: number; name: string }[]>
+    addBookmark(path: string, time: number, name: string): Promise<void>
+    removeBookmark(id: number): Promise<void>
+    onChanged(cb: () => void): () => void
+    onStatus(cb: (s: ScanStatus) => void): () => void
+  }
+  onResumeOffer(cb: (offer: { path: string; position: number }) => void): () => void
   menu: {
     set(specs: MenuSpec[]): void
     onCommand(cb: (id: string) => void): () => void
+  }
+  app: {
+    homeDir(): Promise<string>
   }
   shell: {
     showInFolder(path: string): void

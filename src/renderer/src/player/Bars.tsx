@@ -5,8 +5,10 @@ import { useUi } from '@/state/ui'
 import { DEFAULT_LAYOUT, getItem, type LayoutZone } from './items'
 import { TitleText } from './widgets'
 
+const NO_LAYOUT = {}
+
 export function useLayout(zone: LayoutZone): string[] {
-  const layout = useUiSetting<Partial<typeof DEFAULT_LAYOUT>>('layout', {})
+  const layout = useUiSetting<Partial<typeof DEFAULT_LAYOUT>>('layout', NO_LAYOUT)
   return layout[zone] ?? DEFAULT_LAYOUT[zone]
 }
 

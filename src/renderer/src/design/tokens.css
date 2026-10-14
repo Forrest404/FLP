@@ -2,8 +2,13 @@
 @import '@fontsource-variable/inter';
 
 :root {
+  /* Set at runtime from Settings → General → Accent color. */
   --accent: #1f9a3a;
   --accent-contrast: #f4f4f4;
+}
+
+:root,
+[data-theme='dark'] {
   --accent-dim: color-mix(in srgb, var(--accent) 26%, #000);
   --accent-mid: color-mix(in srgb, var(--accent) 80%, #000);
   --level: #7f9d13; /* volume fill */
@@ -42,7 +47,7 @@
   color-scheme: dark;
 }
 
-:root[data-theme='light'] {
+[data-theme='light'] {
   --bg-chrome: #d1d1d1;
   --bg-canvas: #e4e4e4;
   --bg-panel: #c8c8c8;

@@ -121,8 +121,11 @@ export class PlayerBridge extends EventEmitter {
         this.emit('state', OBSERVED[ev.name]?.(ev.data) ?? {})
       } else if (ev.event === 'start-file') {
         this.emit('state', { error: null })
-      } else if (ev.event === 'end-file' && ev.reason === 'error') {
-        this.emit('state', { error: ev.error ?? 'Could not play this file' })
+      } else if (ev.event === 'file-loaded') {
+        this.emit('file-loaded')
+      } else if (ev.event === 'end-file') {
+        this.emit('end-file', ev.reason)
+        if (ev.reason === 'error') this.emit('state', { error: ev.error ?? 'Could not play this file' })
       } else if (ev.event === 'log-message' && ev.level === 'error') {
         console.error(`[mpv/${ev.prefix}] ${ev.text?.trim()}`)
       }

@@ -1,10 +1,10 @@
-// Placeholder full-window library; replaced by the media library in milestone 3.
 import { Icon } from '@/components/Icon'
 import { openMenu } from '@/components/Menu'
 import { ui, useUi } from '@/state/ui'
 import { SECTIONS, addMenu } from '@/player/Sidebar'
 import { LibraryPanel } from './LibraryPanel'
 
+/** Full-window library (Figma library frames): labelled sidebar + content. */
 export function LibraryView() {
   const section = useUi((s) => s.section)
   return (
@@ -12,7 +12,7 @@ export function LibraryView() {
       <nav className="flp-libnav">
         {SECTIONS.map((s) => (
           <button key={s.id} type="button" className="flp-libnav__item" aria-pressed={section === s.id} onClick={() => ui.set({ section: s.id })}>
-            <Icon name={s.icon} size={20} state={section === s.id ? 'active' : 'default'} />
+            <Icon name={s.icon} size={20} state={section === s.id ? 'active' : 'default'} filled={section === s.id && s.id === 'home'} />
             {s.label}
           </button>
         ))}

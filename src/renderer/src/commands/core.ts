@@ -39,8 +39,8 @@ const playback: Command[] = [
       await player.command('stop')
       ui.set({ view: 'library' })
     } },
-  { id: 'player.next', title: 'Next item', category: 'Playback', icon: 'next', keys: ['N'], run: () => player.command('playlist-next', 'force') },
-  { id: 'player.previous', title: 'Previous item', category: 'Playback', icon: 'previous', keys: ['P'],
+  { id: 'player.next', title: 'Next item', category: 'Playback', icon: 'next', keys: ['N', 'Shift+Period'], run: () => player.command('playlist-next', 'force') },
+  { id: 'player.previous', title: 'Previous item', category: 'Playback', icon: 'previous', keys: ['P', 'Shift+Comma'],
     run: async () => {
       // Like most players: restart the item if we're more than a few seconds in.
       if (p().time > 3) await player.command('seek', 0, 'absolute')
@@ -59,8 +59,8 @@ const playback: Command[] = [
   { id: 'player.back10', title: 'Backward 10 seconds', category: 'Navigation', icon: 'backward-10-sec', run: () => seekBy(-10) },
   { id: 'player.forward15', title: 'Forward 15 seconds', category: 'Navigation', icon: 'forward-15-sec', run: () => seekBy(15) },
   { id: 'player.back15', title: 'Backward 15 seconds', category: 'Navigation', icon: 'backward-15-sec', run: () => seekBy(-15) },
-  { id: 'player.frameStep', title: 'Next frame', category: 'Navigation', keys: ['E'], run: () => player.command('frame-step') },
-  { id: 'player.frameBack', title: 'Previous frame', category: 'Navigation', keys: ['Shift+E'], run: () => player.command('frame-back-step') },
+  { id: 'player.frameStep', title: 'Next frame', category: 'Navigation', keys: ['Period', 'E'], run: () => player.command('frame-step') },
+  { id: 'player.frameBack', title: 'Previous frame', category: 'Navigation', keys: ['Comma', 'Shift+E'], run: () => player.command('frame-back-step') },
   { id: 'player.nextChapter', title: 'Next chapter', category: 'Navigation', icon: 'chapters', keys: ['Shift+N'], run: () => player.command('add', 'chapter', 1) },
   { id: 'player.prevChapter', title: 'Previous chapter', category: 'Navigation', keys: ['Shift+P'], run: () => player.command('add', 'chapter', -1) },
   { id: 'player.nextProgram', title: 'Next program / Service ID', category: 'Navigation', keys: ['X'], run: () => player.command('cycle', 'program') },
@@ -70,7 +70,7 @@ const playback: Command[] = [
   { id: 'player.speedFineDown', title: 'Slower (fine)', category: 'Playback', keys: ['Shift+BracketLeft'], run: () => setSpeed(p().speed - 0.05) },
   { id: 'player.speedReset', title: 'Normal speed', category: 'Playback', keys: ['Equal'], run: () => setSpeed(1) },
   { id: 'player.speedMenu', title: 'Playback speed', category: 'Playback', icon: 'speed', run: () => ui.togglePanel('playback') },
-  { id: 'player.repeat', title: 'Repeat (off / one / all)', category: 'Playback', icon: 'repeat', keys: ['L'],
+  { id: 'player.repeat', title: 'Repeat (off / one / all)', category: 'Playback', icon: 'repeat', keys: ['R'],
     active: () => p().loopFile || p().loopPlaylist,
     run: async () => {
       const { loopFile, loopPlaylist } = p()
@@ -103,7 +103,7 @@ const playback: Command[] = [
         showOsd(abA === null ? 'A-B loop cleared' : abB === null ? 'Loop start (A) set' : 'Looping A → B')
       }, 100)
     } },
-  { id: 'player.record', title: 'Record', category: 'Playback', icon: 'record', keys: ['R'],
+  { id: 'player.record', title: 'Record', category: 'Playback', icon: 'record', keys: ['Shift+R'],
     active: () => p().recording,
     run: async () => {
       if (p().recording) {
@@ -248,7 +248,7 @@ const windowCmds: Command[] = [
   { id: 'ui.settings', title: 'Settings', category: 'Interface', icon: 'settings', keys: ['Mod+Comma'], run: () => ui.openSettings() },
   { id: 'ui.keyboardShortcuts', title: 'Keyboard shortcuts', category: 'Interface', icon: 'hotkeys', keys: ['Mod+Slash'], run: () => ui.openDialog('shortcuts') },
   { id: 'ui.customizePlayer', title: 'Customize player', category: 'Interface', icon: 'paint', run: () => ui.openDialog('customize') },
-  { id: 'ui.leftSidebar', title: 'Toggle sidebar', category: 'Interface', icon: 'sidebar-left', keys: ['Mod+Shift+L'], active: () => useUi.getState().leftOpen,
+  { id: 'ui.leftSidebar', title: 'Toggle sidebar', category: 'Interface', icon: 'sidebar-left', keys: ['L', 'Mod+Shift+L'], active: () => useUi.getState().leftOpen,
     run: () => {
       const s = useUi.getState()
       if (s.view === 'library') ui.set({ view: 'player' })
@@ -256,7 +256,7 @@ const windowCmds: Command[] = [
     } },
   { id: 'ui.rightSidebar', title: 'Right sidebar (effects)', category: 'Interface', icon: 'sidebar-right', active: () => useUi.getState().rightPanel !== null,
     run: () => ui.set({ rightPanel: useUi.getState().rightPanel ? null : 'video' }) },
-  { id: 'ui.playlist', title: 'Show playlist', category: 'Interface', icon: 'playlist', keys: ['Mod+L'],
+  { id: 'ui.playlist', title: 'Show / hide queue', category: 'Interface', icon: 'playlist', keys: ['Q', 'Mod+L'],
     run: () => {
       const s = useUi.getState()
       ui.set(s.view === 'player' && s.leftOpen && s.section === 'playlists' ? { leftOpen: false } : { view: 'player', leftOpen: true, section: 'playlists' })
