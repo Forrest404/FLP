@@ -1,0 +1,37 @@
+{
+  "name": "flp",
+  "productName": "FLP",
+  "version": "0.1.0",
+  "description": "A media player that plays everything and is easy to extend.",
+  "main": "out/main/index.js",
+  "author": "Forrest",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "native": "cd native/mpv-view && node-gyp rebuild",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.7.2",
+    "electron-vite": "^6.0.0",
+    "node-addon-api": "^8.9.2",
+    "node-gyp": "^13.1.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zustand": "^5.0.15"
+  }
+}

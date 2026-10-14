@@ -1,0 +1,7 @@
+node_modules/
+out/
+dist/
+native/mpv-view/build/
+test/media/
+*.log
+.DS_Store
