@@ -338,3 +338,22 @@
 .flp-addsubs__pair .ui-select { width: 150px; height: 32px; }
 .flp-addsubs__chip { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--accent); }
 .flp-addsubs__empty { flex: 1; display: grid; place-items: center; text-align: center; color: var(--text-faint); padding: 24px; cursor: pointer; }
+
+/* Customize Player */
+.flp-customize-backdrop { position: fixed; inset: 40px 0 54px; z-index: 900; display: grid; place-items: center; background: var(--backdrop); }
+.flp-customize { width: min(654px, calc(100vw - 48px)); max-height: calc(100% - 32px); display: flex; flex-direction: column; border-radius: var(--radius-l); background: var(--bg-canvas); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+.flp-customize__hint { margin: 0; padding: 14px 18px; color: var(--text-dim); font-size: var(--fs); border-bottom: 1px solid var(--border); background: var(--bg-well); }
+.flp-customize__palette { flex: 1; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 18px 8px; padding: 22px 18px; }
+.flp-customize__palette[data-drop='true'] { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.flp-customize__item { display: grid; justify-items: center; gap: 8px; text-align: center; color: var(--text-dim); font-size: var(--fs-s); cursor: grab; }
+.flp-customize__item:hover { color: var(--text-strong); }
+.flp-customize__icon { width: 30px; height: 30px; display: grid; place-items: center; border: 1px dashed var(--text-ghost); border-radius: 4px; }
+.flp-editzone { display: flex; align-items: center; gap: 6px; min-width: 60px; min-height: 30px; flex: 1; }
+.flp-titlebar__side .flp-editzone { flex: 0 1 auto; }
+.flp-edititem { position: relative; border: 1px dashed var(--text-ghost); border-radius: 4px; padding: 1px; cursor: grab; display: flex; align-items: center; }
+.flp-edititem__inner { pointer-events: none; display: flex; align-items: center; flex: 1; }
+.flp-edititem[data-insert='before']::before, .flp-edititem[data-insert='after']::after {
+  content: ''; position: absolute; top: -2px; bottom: -2px; width: 3px; border-radius: 2px; background: var(--accent);
+}
+.flp-edititem[data-insert='before']::before { left: -5px; }
+.flp-edititem[data-insert='after']::after { right: -5px; }

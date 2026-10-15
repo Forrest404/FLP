@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, screen, shell, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, screen, shell, type MenuItemConstructorOptions } from 'electron'
 import { BRAND } from '@shared/brand'
 import type { SettingsSnapshot } from '@shared/settings-store'
 import { PlayerBridge } from './player'
@@ -170,6 +170,7 @@ ipcMain.handle('settings:setMany', (_e, patch: Record<string, unknown>) => setti
 ipcMain.handle('settings:resetAll', () => settings.resetAll())
 ipcMain.handle('settings:setProfile', (_e, id: string | null) => settings.setProfile(id))
 ipcMain.handle('settings:createProfile', (_e, name: string) => settings.createProfile(name))
+ipcMain.handle('settings:renameProfile', (_e, id: string, name: string) => settings.renameProfile(id, name))
 ipcMain.handle('settings:deleteProfile', (_e, id: string) => settings.deleteProfile(id))
 ipcMain.handle('settings:setUi', (_e, key: string, value: unknown) => settings.setUi(key, value))
 
@@ -212,6 +213,38 @@ ipcMain.on('window:pip', (_e, on: boolean) => {
   }
 })
 ipcMain.handle('app:homeDir', () => app.getPath('home'))
+ipcMain.handle('app:displays', () => screen.getAllDisplays().map((d, i) => ({ id: d.id, label: d.label || `Display ${i + 1} (${d.size.width}×${d.size.height})` })))
+// System-wide hotkeys work even when FLP isn't focused (e.g. play/pause from any app).
+const ACCEL: Record<string, string> = {
+  Mod: 'CommandOrControl', Ctrl: 'Control', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
+  BracketLeft: '[', BracketRight: ']', Equal: '=', Minus: '-', Comma: ',', Period: '.', Slash: '/', Backslash: '\\', Escape: 'Esc'
+}
+function registerGlobalShortcuts(map: Record<string, string>): string[] {
+  globalShortcut.unregisterAll()
+  const failed: string[] = []
+  for (const [command, key] of Object.entries(map)) {
+    const accel = key.split('+').map((p) => ACCEL[p] ?? p).join('+')
+    try {
+      if (!globalShortcut.register(accel, () => win?.webContents.send('command:run', command))) failed.push(command)
+    } catch {
+      failed.push(command)
+    }
+  }
+  return failed
+}
+ipcMain.handle('app:globalShortcuts', (_e, map: Record<string, string>) => registerGlobalShortcuts(map))
+ipcMain.on('app:openConfigFolder', () => void shell.openPath(app.getPath('userData')))
+// Mounted discs: DVDs (VIDEO_TS), Blu-rays (BDMV) and audio CDs (.aiff tracks) under /Volumes.
+ipcMain.handle('app:opticalDrives', async () => {
+  const { readdir } = await import('node:fs/promises')
+  const vols = await readdir('/Volumes').catch(() => [] as string[])
+  const out: string[] = []
+  for (const v of vols) {
+    const items = await readdir(join('/Volumes', v)).catch(() => [] as string[])
+    if (items.includes('VIDEO_TS') || items.includes('BDMV') || items.some((i) => i.toLowerCase().endsWith('.aiff'))) out.push(join('/Volumes', v))
+  }
+  return out
+})
 
 // Subtitles: list a folder's videos, and copy subtitle files next to them as "<video>.<lang>.<ext>"
 // so every player picks them up automatically. Existing files are never overwritten silently.
@@ -363,8 +396,10 @@ app.whenReady().then(() => {
   library.recursive = settings.get('library.folderMode') !== 'flat'
   library.start()
   createWindow()
+  registerGlobalShortcuts(settings.getUi<Record<string, string>>('globalShortcuts', {}))
 })
 app.on('window-all-closed', () => app.quit())
+app.on('will-quit', () => globalShortcut.unregisterAll())
 app.on('before-quit', () => {
   if (player) library.onStopped(player.state.time, player.state.duration, false)
   settings.flush()

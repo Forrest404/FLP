@@ -1,6 +1,10 @@
 import { Dialog } from '@/components/Dialog'
 import { ui, useUi } from '@/state/ui'
 import { AboutDialog } from './AboutDialog'
+import { CustomizeDialog } from './CustomizeDialog'
+import { ProfilesDialog } from './ProfilesDialog'
+import { ShortcutsDialog } from './ShortcutsDialog'
+import { SettingsDialog } from '@/settings/SettingsDialog'
 import { AddSubtitlesDialog } from './AddSubtitlesDialog'
 import { NetworkDialog } from './NetworkDialog'
 import { NewPlaylistDialog } from './NewPlaylistDialog'
@@ -11,6 +15,14 @@ export function Dialogs() {
   switch (dialog) {
     case null:
       return null
+    case 'settings':
+      return <SettingsDialog />
+    case 'shortcuts':
+      return <ShortcutsDialog />
+    case 'profiles':
+      return <ProfilesDialog />
+    case 'customize':
+      return <CustomizeDialog />
     case 'about':
       return <AboutDialog />
     case 'network':

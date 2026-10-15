@@ -275,7 +275,11 @@ const windowCmds: Command[] = [
     run: () => ui.set({ paletteOpen: !useUi.getState().paletteOpen }) },
   { id: 'ui.settings', title: 'Settings', category: 'Interface', icon: 'settings', keys: ['Mod+Comma'], run: () => ui.openSettings() },
   { id: 'ui.keyboardShortcuts', title: 'Keyboard shortcuts', category: 'Interface', icon: 'hotkeys', keys: ['Mod+Slash'], run: () => ui.openDialog('shortcuts') },
-  { id: 'ui.customizePlayer', title: 'Customize player', category: 'Interface', icon: 'paint', run: () => ui.openDialog('customize') },
+  { id: 'ui.customizePlayer', title: 'Customize player', category: 'Interface', icon: 'paint',
+    run: () => {
+      ui.set({ view: 'player', hideUi: false })
+      ui.openDialog('customize')
+    } },
   { id: 'ui.leftSidebar', title: 'Toggle sidebar', category: 'Interface', icon: 'sidebar-left', keys: ['L', 'Mod+Shift+L'], active: () => useUi.getState().leftOpen,
     run: () => {
       const s = useUi.getState()
@@ -308,6 +312,18 @@ const windowCmds: Command[] = [
     } },
   { id: 'ui.mediaInfo', title: 'Media information', category: 'Interface', icon: 'info', keys: ['Mod+I'], run: () => ui.openDialog('mediaInfo') },
   { id: 'ui.profiles', title: 'Manage profiles', category: 'Interface', icon: 'profile', run: () => ui.openDialog('profiles') },
+  { id: 'app.openConfigFolder', title: 'Open configuration folder', category: 'Interface', icon: 'folder', run: () => window.flp.app.openConfigFolder() },
+  { id: 'settings.resetAll', title: 'Reset all settings', category: 'Interface', icon: 'refresh',
+    run: async () => {
+      await window.flp.settings.resetAll()
+      showOsd('All settings reset')
+    } },
+  { id: 'shortcuts.resetAll', title: 'Reset all keyboard shortcuts', category: 'Interface', icon: 'hotkeys',
+    run: async () => {
+      await window.flp.settings.setUi('shortcuts', {})
+      await window.flp.settings.setUi('globalShortcuts', {})
+      showOsd('Keyboard shortcuts reset')
+    } },
   { id: 'app.about', title: 'About FLP', category: 'Interface', icon: 'info', keys: ['Shift+F1'], run: () => ui.openDialog('about') }
 ]
 

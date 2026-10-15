@@ -25,6 +25,7 @@ const api: RendererApi = {
     resetAll: () => ipcRenderer.invoke('settings:resetAll'),
     setProfile: (id) => ipcRenderer.invoke('settings:setProfile', id),
     createProfile: (name) => ipcRenderer.invoke('settings:createProfile', name),
+    renameProfile: (id, name) => ipcRenderer.invoke('settings:renameProfile', id, name),
     deleteProfile: (id) => ipcRenderer.invoke('settings:deleteProfile', id),
     setUi: (key, value) => ipcRenderer.invoke('settings:setUi', key, value),
     onChange: (cb) => listen('settings:changed', cb)
@@ -86,7 +87,11 @@ const api: RendererApi = {
     onCommand: (cb) => listen('command:run', cb)
   },
   app: {
-    homeDir: () => ipcRenderer.invoke('app:homeDir')
+    homeDir: () => ipcRenderer.invoke('app:homeDir'),
+    displays: () => ipcRenderer.invoke('app:displays'),
+    opticalDrives: () => ipcRenderer.invoke('app:opticalDrives'),
+    openConfigFolder: () => ipcRenderer.send('app:openConfigFolder'),
+    registerGlobalShortcuts: (map) => ipcRenderer.invoke('app:globalShortcuts', map)
   },
   subs: {
     listVideos: (dir) => ipcRenderer.invoke('subs:listVideos', dir),

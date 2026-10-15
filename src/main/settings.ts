@@ -99,6 +99,13 @@ export class Settings extends EventEmitter {
     return id
   }
 
+  renameProfile(id: string, name: string): void {
+    if (!this.data.profiles[id]) return
+    this.data.profiles[id].name = name
+    this.save()
+    this.emit('ui-changed', 'profiles')
+  }
+
   deleteProfile(id: string): void {
     delete this.data.profiles[id]
     if (this.data.activeProfile === id) this.data.activeProfile = null

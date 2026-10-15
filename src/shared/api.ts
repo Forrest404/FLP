@@ -48,6 +48,7 @@ export interface RendererApi {
     resetAll(): Promise<void>
     setProfile(id: string | null): Promise<void>
     createProfile(name: string): Promise<string>
+    renameProfile(id: string, name: string): Promise<void>
     deleteProfile(id: string): Promise<void>
     setUi(key: string, value: unknown): Promise<void>
     onChange(cb: (snap: SettingsSnapshot) => void): () => void
@@ -110,6 +111,11 @@ export interface RendererApi {
   }
   app: {
     homeDir(): Promise<string>
+    displays(): Promise<{ id: number; label: string }[]>
+    opticalDrives(): Promise<string[]>
+    openConfigFolder(): void
+    /** Registers system-wide hotkeys { commandId: 'Mod+Shift+P' }; returns the ones that failed. */
+    registerGlobalShortcuts(map: Record<string, string>): Promise<string[]>
   }
   subs: {
     listVideos(dir: string): Promise<string[]>

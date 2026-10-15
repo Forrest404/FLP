@@ -25,6 +25,7 @@ registerCoreCommands()
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('dev')) {
   void Promise.all([import('@/commands/registry'), import('@/components/Menu'), import('@/player/menus'), import('@/state/playback')]).then(
     ([reg, menu, menus, playback]) => {
+      void import('@/player/customize').then((c) => ((window as unknown as { __flpCustomize: unknown }).__flpCustomize = c))
       ;(window as unknown as { __flp: unknown }).__flp = { runCommand: reg.runCommand, ui, openMenu: menu.openMenu, menus, playback }
     }
   )

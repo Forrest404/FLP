@@ -8,7 +8,7 @@ import {
   Music, Music2, Paintbrush, Pause, PictureInPicture2, Play, Plug, Plus, Radio, RefreshCw, Repeat,
   Repeat1, RotateCcw, RotateCw, Save, ScanSearch, Search, Settings, Settings2, Shield, Shuffle,
   SkipBack, SkipForward, SlidersHorizontal, SlidersVertical, Camera, Square, Subtitles, Tags, TextCursor,
-  Trash2, Tv, Upload, User, UserRound, Video, Volume, Volume1, Volume2, VolumeX, Webcam, Wrench, X,
+  Trash2, Tv, Upload, Pencil, User, UserRound, Video, Volume, Volume1, Volume2, VolumeX, Webcam, Wrench, X,
   ZoomIn, PanelLeft, PanelLeftClose, PanelLeftOpen, PanelRight, ArrowDownUp, Rows3, LayoutList,
   FileVideo, File, Activity, BarChart3, ArrowLeftRight, Sun, Clock, CircleStop, Layers, Hd, Monitor,
   type LucideIcon
@@ -41,7 +41,7 @@ const ICONS = {
   'expand-sidebar': PanelLeftOpen,
   disc: Disc3,
   divider: Minus,
-  edit: Paintbrush,
+  edit: Pencil,
   eq: SlidersVertical,
   favorite: Heart,
   file: File,
