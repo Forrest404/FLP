@@ -274,6 +274,14 @@ function setFullScreen(on: boolean): void {
   win.setFullScreen(on)
 }
 
+/** mpv can't see the display through the render API, so tell it the refresh rate of the one the window is on
+ *  (needed by "Sync video to the display refresh rate" and frame blending). */
+function syncDisplayFps(): void {
+  if (!win || win.isDestroyed() || !player || 'display-fps-override' in extraMpvOptions()) return
+  const hz = screen.getDisplayMatching(win.getBounds()).displayFrequency
+  if (hz > 0) void player.set('display-fps-override', hz).catch(() => null)
+}
+
 /** The video's place in the window, as last reported by the UI (for "resize window to fit video"). */
 let videoRect: Electron.Rectangle | null = null
 let resizedForVideo = false
@@ -378,6 +386,7 @@ function createWindow(): void {
   applySettings(player, settings.values())
   // The user's own options win over FLP's settings (applySettings just set many of the same properties).
   for (const [k, v] of Object.entries(extra)) if (k !== 'script-opts') void player.set(k, v).catch(() => null)
+  syncDisplayFps()
   player.on('log', (m: { level: string; prefix: string; text: string }) => writeLog(m.prefix, m.level, m.text))
   configureLog()
   void loadMpvScripts(player)
@@ -460,8 +469,15 @@ function createWindow(): void {
   win.on('minimize', () => {
     if (settings.get('interface.pauseMinimized')) void player?.set('pause', true)
   })
-  win.on('enter-full-screen', () => win?.webContents.send('window:fullscreen', true))
-  win.on('leave-full-screen', () => win?.webContents.send('window:fullscreen', false))
+  win.on('enter-full-screen', () => {
+    win?.webContents.send('window:fullscreen', true)
+    syncDisplayFps()
+  })
+  win.on('leave-full-screen', () => {
+    win?.webContents.send('window:fullscreen', false)
+    syncDisplayFps()
+  })
+  win.on('moved', syncDisplayFps)
   win.on('close', () => {
     saveWindowBounds()
     // The player is destroyed with the window, before before-quit; keep the resume point now.
@@ -866,6 +882,8 @@ app.on('second-instance', (_e, argv) => {
 })
 
 app.whenReady().then(() => {
+  // A display's refresh rate changed, or the one the window was on went away.
+  for (const ev of ['display-metrics-changed', 'display-added', 'display-removed'] as const) screen.on(ev, () => setTimeout(syncDisplayFps, 500))
   protocol.handle('flp-plugin', (req) => {
     const url = new URL(req.url)
     const [, pluginId, panelId] = url.pathname.split('/')
