@@ -1,7 +1,7 @@
 {
   "name": "flp",
   "productName": "FLP",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A media player that plays everything and is easy to extend.",
   "main": "out/main/index.js",
   "author": "Forrest",

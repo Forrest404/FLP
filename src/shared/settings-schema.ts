@@ -128,7 +128,7 @@ export const SETTINGS: SettingDef[] = [
   ...S('interface', 'Notifications and System Tray', [
     { key: 'interface.trayIcon', label: 'Show a menu bar icon', type: 'toggle', default: false, keywords: ['tray'] },
     { key: 'interface.startInTray', label: 'Start minimized to the menu bar', type: 'toggle', default: false, keywords: ['tray'] },
-    { key: 'interface.trackPopup', label: 'Show a popup when the track changes', type: 'select', default: 'minimized', options: [
+    { key: 'interface.trackPopup', label: 'Show a popup when the track changes', type: 'select', default: 'never', options: [
       { value: 'never', label: 'Never' }, { value: 'minimized', label: 'When minimized' }, { value: 'always', label: 'Always' }] },
     { key: 'interface.popupDuration', label: 'Popup duration', type: 'slider', default: 4, min: 0, max: 10, step: 0.5, ticks: [0, 2.5, 5, 7.5, 10], labels: secs([0, 5, 10]) }
   ]),

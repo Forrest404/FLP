@@ -29,6 +29,8 @@ mac:
   # Ad-hoc signature so it runs on Apple Silicon; notarizing needs an Apple Developer account.
   identity: '-'
   hardenedRuntime: false
+  # The bundled libmpv/FFmpeg come from Homebrew, which builds them for this macOS version.
+  minimumSystemVersion: '26.0'
   extendInfo:
     NSCameraUsageDescription: FLP can play from your camera when you open a capture device.
     NSMicrophoneUsageDescription: FLP can play or record from your microphone when you open a capture device.

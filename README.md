@@ -6,10 +6,17 @@ Built with Electron + React on top of [mpv](https://mpv.io) / FFmpeg.
 
 ## Download
 
-**[FLP 0.1.0 for Mac (Apple Silicon, macOS 26 or later)](https://github.com/Forrest404/FLP/releases/download/v0.1.0/FLP-0.1.0-arm64.dmg)** — 208 MB. Other versions are on the [Releases](https://github.com/Forrest404/FLP/releases) page.
+**[FLP 0.1.1 for Mac (Apple Silicon, macOS 26 or later)](https://github.com/Forrest404/FLP/releases/download/v0.1.1/FLP-0.1.1-arm64.dmg)** — 208 MB. Other versions are on the [Releases](https://github.com/Forrest404/FLP/releases) page.
 
 1. Open the `.dmg` and drag FLP into Applications.
-2. The first time, right-click FLP and choose **Open**, then **Open** again. FLP isn't notarized by Apple, so macOS asks once. If it says FLP "is damaged", run `xattr -dr com.apple.quarantine /Applications/FLP.app` in Terminal.
+2. Open FLP. It isn't notarized by Apple, so the first time macOS refuses to open it. Either:
+   - open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to the FLP message, then confirm; or
+   - run this once in Terminal, then open FLP as usual:
+     ```sh
+     xattr -dr com.apple.quarantine /Applications/FLP.app
+     ```
+
+After that it opens normally. FLP doesn't ask for any permissions when it starts. macOS only asks if you use something that needs it, like the local network for media servers and casting, or the camera for a capture device.
 
 ## What it does
 
@@ -30,7 +37,7 @@ npm run native     # builds the mpv addon (native/mpv-view)
 npm run dev        # starts FLP with hot reload
 ```
 
-`npm run dist` builds `dist/FLP-<version>-arm64.dmg`. The app inside carries its own libmpv, FFmpeg and yt-dlp, so it runs without Homebrew. It is ad-hoc signed. Without an Apple Developer account it isn't notarized, so the first launch needs right-click → Open.
+`npm run dist` builds `dist/FLP-<version>-arm64.dmg`. The app inside carries its own libmpv, FFmpeg and yt-dlp, so it runs without Homebrew. It is ad-hoc signed. Without an Apple Developer account it isn't notarized, so the first launch needs **Open Anyway** (see Download above).
 
 ## Finding things
 
