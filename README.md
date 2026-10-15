@@ -4,7 +4,22 @@ A media player for macOS that plays almost anything (video, music, images, discs
 
 Built with Electron + React on top of [mpv](https://mpv.io) / FFmpeg.
 
-## Run it
+## Download
+
+**[FLP 0.1.0 for Mac (Apple Silicon, macOS 26 or later)](https://github.com/Forrest404/FLP/releases/download/v0.1.0/FLP-0.1.0-arm64.dmg)** — 208 MB. Other versions are on the [Releases](https://github.com/Forrest404/FLP/releases) page.
+
+1. Open the `.dmg` and drag FLP into Applications.
+2. The first time, right-click FLP and choose **Open**, then **Open** again. FLP isn't notarized by Apple, so macOS asks once. If it says FLP "is damaged", run `xattr -dr com.apple.quarantine /Applications/FLP.app` in Terminal.
+
+## What it does
+
+- Plays video, music and images in almost any format, plus folders, discs, network streams, online video (yt-dlp), internet radio, podcasts and UPnP/DLNA servers.
+- A library with Home, Videos, Music, Playlists and Recent, with thumbnails and resume.
+- Video, audio and subtitle effects in a sidebar: colour, crop, zoom, equalizer, compressor, subtitle delay and style.
+- Convert and record, stream out, picture-in-picture, a web remote, profiles, and keyboard shortcuts you can change.
+- Light and dark themes with an accent colour, and a control bar you can rearrange.
+
+## Build from source
 
 Needs macOS on Apple Silicon, Node 22+, Xcode command line tools and Homebrew.
 
@@ -48,4 +63,9 @@ test/unit/         unit tests (npm test)
 - DVD and Blu-ray **menus** aren't supported (mpv has no menu support), so titles play directly.
 - Icons are close stand-ins for the Figma icon set until its SVGs are exported into `design/icons`.
 - Casting uses DLNA/UPnP (most smart TVs and speakers). Chromecast and AirPlay aren't supported.
-- mpv and FFmpeg are GPL-licensed, so a public release of FLP must be GPL too.
+- Plugins run with full access to your Mac; the permissions in `plugin.json` are shown but not enforced. Only install plugins you trust.
+- Set a password before turning on the web remote (Settings → Controls), since anyone on your network can reach it.
+
+## Licence
+
+GPL-3.0-or-later (see [LICENSE](LICENSE)). FLP bundles mpv and FFmpeg, which are GPL.
