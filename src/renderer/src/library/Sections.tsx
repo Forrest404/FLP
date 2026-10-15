@@ -46,7 +46,10 @@ function Items({ items, folders, kind, compact, columns }: {
       {folders?.map((f) => (list
         ? <FolderRow key={f.path} folder={f} kind={kind} onOpen={() => nav.go({ dir: f.path })} />
         : <FolderTile key={f.path} folder={f} kind={kind} onOpen={() => nav.go({ dir: f.path })} />))}
-      {items.map((m) => (list ? <MediaRow key={m.path} item={m} siblings={items} columns={compact ? undefined : columns} /> : <MediaTile key={m.path} item={m} siblings={items} />))}
+      {/* Keyed by position too: a playlist can hold the same file twice. */}
+      {items.map((m, i) => (list
+        ? <MediaRow key={`${i}:${m.path}`} item={m} siblings={items} pos={i} columns={compact ? undefined : columns} />
+        : <MediaTile key={`${i}:${m.path}`} item={m} siblings={items} pos={i} />))}
     </div>
   )
 }
@@ -110,7 +113,7 @@ export function HomeSection({ compact }: { compact?: boolean }) {
 
 function openFolder(path: string) {
   ui.set({ section: 'videos' })
-  nav.go({ dir: path })
+  nav.go({ dir: path, allKinds: true })
 }
 
 // ── Videos (folder browser) ──
@@ -119,7 +122,8 @@ export function BrowseSection({ kind, compact }: { kind: 'video' | 'all'; compac
   const loc = useLocation()
   const { sort } = useViewPrefs()
   const search = useLibrary((s) => s.search)
-  const data = useLibraryData<BrowseResult>(() => lib().browse(kind, loc.dir, sort), [kind, loc.dir, sort])
+  const browseKind = loc.allKinds ? 'all' : kind
+  const data = useLibraryData<BrowseResult>(() => lib().browse(browseKind, loc.dir, sort), [browseKind, loc.dir, sort])
   const results = useLibraryData<MediaItem[]>(() => (search ? lib().search(search, kind) : Promise.resolve([])), [search, kind])
   const roots = useLibraryData(() => lib().roots(), [])
   const crumbs = data?.crumbs ?? [{ name: 'Videos', path: null }]
@@ -142,20 +146,21 @@ const MUSIC_TABS: { id: MusicView; label: string; icon: 'songs' | 'album' | 'art
 ]
 
 export function MusicSection({ compact }: { compact?: boolean }) {
-  const view = useLibrary((s) => s.musicView)
   const loc = useLocation()
+  const view = loc.musicView ?? 'songs'
   const { sort } = useViewPrefs()
   const search = useLibrary((s) => s.search)
   const group = loc.group ?? null
   const data = useLibraryData(() => (search ? lib().search(search, 'audio') : lib().music(view, group, sort)), [view, group, sort, search])
   const tab = MUSIC_TABS.find((t) => t.id === view)!
-  const crumbs: Crumb[] = [{ name: 'Music', path: null }, { name: tab.label, path: null }, ...(group ? [{ name: group, path: null }] : [])]
+  // Album groups are keyed "album<US>album artist"; show just the album.
+  const crumbs: Crumb[] = [{ name: 'Music', path: null }, { name: tab.label, path: null }, ...(group ? [{ name: group.split('\u001f')[0], path: null }] : [])]
   const isGroups = data && data.length > 0 && !('path' in (data[0] as object))
   return (
-    <Frame compact={compact} title="Music" crumbs={crumbs} count={data?.length} onCrumb={(c) => c.name === tab.label && nav.go({ dir: null, group: null })}>
+    <Frame compact={compact} title="Music" crumbs={crumbs} count={data?.length} onCrumb={(c) => c.name === tab.label && nav.go({ dir: null, musicView: view, group: null })}>
       <div className="flp-tabs">
         {MUSIC_TABS.map((t) => (
-          <button key={t.id} type="button" aria-pressed={view === t.id} aria-label={t.label} title={t.label} onClick={() => { useLibrary.setState({ musicView: t.id }); nav.go({ dir: null, group: null }) }}>
+          <button key={t.id} type="button" aria-pressed={view === t.id} aria-label={t.label} title={t.label} onClick={() => nav.go({ dir: null, musicView: t.id, group: null })}>
             <Icon name={t.icon} size={18} state={view === t.id ? 'active' : 'default'} />
             {!compact && t.label}
           </button>
@@ -168,7 +173,7 @@ export function MusicSection({ compact }: { compact?: boolean }) {
       </div>
       {data && (isGroups ? (
         <div className={compact ? 'flp-rows' : 'flp-grid flp-grid--square'}>
-          {(data as MusicGroup[]).map((g) => <GroupTile key={g.name} group={g} icon={tab.icon === 'songs' ? 'album' : tab.icon} onOpen={() => nav.go({ dir: null, group: g.name })} />)}
+          {(data as MusicGroup[]).map((g) => <GroupTile key={g.key ?? g.name} group={g} icon={tab.icon === 'songs' ? 'album' : tab.icon} onOpen={() => nav.go({ dir: null, musicView: view, group: g.key ?? g.name })} />)}
         </div>
       ) : (
         <Items items={data as MediaItem[]} kind="audio" compact={compact} columns={['artist', 'album', 'duration']} />

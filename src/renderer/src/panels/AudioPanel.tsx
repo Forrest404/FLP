@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { EQ_BANDS, EQ_PRESETS, FX_DEFAULTS } from '@shared/audio-effects'
-import { Select, VSlider } from '@/components/controls'
+import { Button, Select, Slider, VSlider } from '@/components/controls'
 import { player, usePlayer } from '@/state/player'
 import { trackLabel } from '@/state/playback'
 import { setSetting } from '@/state/settings'
@@ -75,7 +75,24 @@ function TracksAndOutput() {
         <Select<string> label="Output device" value={device} onChange={setDevice}
           options={devices.length ? devices.map((d) => ({ value: d.name, label: d.name === 'auto' ? 'System default' : d.description })) : [{ value: 'auto', label: 'System default' }]} />
       </div>
-      <FxSlider k="audio.delay" label="Audio delay" min={-2} max={2} step={0.01} origin={0} ticks={[0]} format={(v) => `${Math.round(v * 1000)} ms`} />
+      <AudioDelay />
+    </>
+  )
+}
+
+/** The live delay (J / K change it too); the range matches Settings → Audio → Audio delay. */
+function AudioDelay() {
+  const delay = usePlayer((s) => s.audioDelay)
+  return (
+    <>
+      <div className="flp-fx-row">
+        <div className="flp-fx-row__label">
+          <span>Audio delay</span>
+          <span className="flp-fx-row__value">{Math.round(delay * 1000)} ms</span>
+        </div>
+        <Slider value={delay} min={-10} max={10} step={0.05} origin={0} ticks={[0]} label="Audio delay" onChange={(v) => void player.set('audio-delay', v)} />
+      </div>
+      <Button onClick={() => setSetting('audio.delay', delay)}>Use this delay as the default</Button>
     </>
   )
 }

@@ -61,11 +61,13 @@ const ORDER: Record<SortKey, string> = {
   'size-desc': 'size desc',
   played: 'coalesce(last_played, 0) desc',
   plays: 'play_count desc',
-  artist: 'artist collate nocase, album collate nocase, track',
-  album: 'album collate nocase, track',
-  year: 'year desc, album collate nocase, track',
-  track: 'album collate nocase, track, title collate nocase'
+  artist: 'artist collate nocase, album collate nocase, disc, track',
+  album: 'album collate nocase, disc, track',
+  year: 'year desc, album collate nocase, disc, track',
+  track: 'album collate nocase, disc, track, title collate nocase'
 }
+
+export { ORDER }
 
 export function toItem(r: Row): MediaItem {
   return {
@@ -103,6 +105,16 @@ export class LibraryDb {
     this.db = new DatabaseSync(file)
     this.db.exec('pragma journal_mode = wal; pragma foreign_keys = on;')
     this.db.exec(SCHEMA)
+    this.migrate()
+  }
+
+  private migrate(): void {
+    const cols = new Set((this.db.prepare('pragma table_info(media)').all() as Row[]).map((r) => r.name as string))
+    if (!cols.has('disc')) {
+      this.db.exec('alter table media add column disc integer; alter table media add column album_artist text')
+      // Read tags again so multi-disc albums and album artists are known.
+      this.db.exec("update media set probed = 0 where type = 'audio'")
+    }
   }
 
   tx<T>(fn: () => T): T {
@@ -160,25 +172,25 @@ export class LibraryDb {
     return true
   }
 
-  setProbe(path: string, p: Partial<{ duration: number; width: number; height: number; title: string; artist: string; album: string; genre: string; year: number; track: number }>): void {
+  setProbe(path: string, p: Partial<{ duration: number; width: number; height: number; title: string; artist: string; album: string; albumArtist: string; genre: string; year: number; track: number; disc: number }>): void {
     this.db
       .prepare(
-        `update media set duration = ?, width = ?, height = ?, title = coalesce(?, title), artist = ?, album = ?, genre = ?, year = ?, track = ?, probed = 1 where path = ?`
+        `update media set duration = ?, width = ?, height = ?, title = coalesce(?, title), artist = ?, album = ?, album_artist = ?, genre = ?, year = ?, track = ?, disc = ?, probed = 1 where path = ?`
       )
-      .run(p.duration ?? 0, p.width ?? 0, p.height ?? 0, p.title ?? null, p.artist ?? null, p.album ?? null, p.genre ?? null, p.year ?? null, p.track ?? null, path)
+      .run(p.duration ?? 0, p.width ?? 0, p.height ?? 0, p.title ?? null, p.artist ?? null, p.album ?? null, p.albumArtist ?? null, p.genre ?? null, p.year ?? null, p.track ?? null, p.disc ?? null, path)
   }
 
   setPoster(id: number, poster: string): void {
     this.db.prepare('update media set poster = ? where id = ?').run(poster, id)
   }
 
-  /** Removes library rows under `root` that weren't seen in the latest scan. */
-  prune(root: string, seen: Set<string>): number {
+  /** Removes library rows under `root` that weren't seen in the latest scan (except under folders that couldn't be read). */
+  prune(root: string, seen: Set<string>, unreadable: string[] = []): number {
     const rows = this.db.prepare(`select path from media where in_library = 1 and ${UNDER('path')}`).all(...under(root)) as Row[]
     let removed = 0
     for (const r of rows) {
       const p = r.path as string
-      if (seen.has(p)) continue
+      if (seen.has(p) || unreadable.some((d) => p.startsWith(`${d}/`))) continue
       this.db.prepare('update media set in_library = 0 where path = ?').run(p)
       removed++
     }
@@ -189,9 +201,11 @@ export class LibraryDb {
     return (this.db.prepare('select * from media where probed = 0 and in_library = 1 limit ?').all(limit) as Row[]).map(toItem)
   }
 
-  inFolder(dir: string, types: MediaType[], sort: SortKey): MediaItem[] {
+  /** Files directly in `dir`; `history` also includes played files outside the library folders. */
+  inFolder(dir: string, types: MediaType[], sort: SortKey, history = false): MediaItem[] {
     const t = types.map(() => '?').join(',')
-    return (this.db.prepare(`select * from media where in_library = 1 and folder = ? and type in (${t}) order by ${ORDER[sort]}`).all(dir, ...types) as Row[]).map(toItem)
+    const scope = history ? '(in_library = 1 or last_played is not null)' : 'in_library = 1'
+    return (this.db.prepare(`select * from media where ${scope} and folder = ? and type in (${t}) order by ${ORDER[sort]}`).all(dir, ...types) as Row[]).map(toItem)
   }
 
   /** Library folders below `dir` that contain media of the given types, with counts. */
@@ -221,10 +235,14 @@ export class LibraryDb {
 
   search(q: string, types: MediaType[], limit = 200): MediaItem[] {
     const t = types.map(() => '?').join(',')
-    const like = `%${q.replace(/[%_]/g, (m) => `\\${m}`)}%`
+    const like = `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`
+    // Match the path below its library folder, not the whole path ("Movies" or the user name would match everything).
+    const roots = this.roots()
+    const rel = roots.map(() => `(${UNDER('path')} and substr(path, ?) like ? escape '\\')`).join(' or ') || '0'
+    const relArgs = roots.flatMap((r) => [...under(r), r.length + 2, like])
     return (this.db
-      .prepare(`select * from media where in_library = 1 and type in (${t}) and (title like ? escape '\\' or artist like ? escape '\\' or album like ? escape '\\' or path like ? escape '\\') order by title collate nocase limit ?`)
-      .all(...types, like, like, like, like, limit) as Row[]).map(toItem)
+      .prepare(`select * from media where in_library = 1 and type in (${t}) and (title like ? escape '\\' or artist like ? escape '\\' or album like ? escape '\\' or genre like ? escape '\\' or ${rel}) order by title collate nocase limit ?`)
+      .all(...types, like, like, like, like, ...relArgs, limit) as Row[]).map(toItem)
   }
 
   query(sql: string, ...params: (string | number | null)[]): MediaItem[] {
@@ -245,11 +263,13 @@ export class LibraryDb {
       .run(path, type, title, /^[a-z]+:\/\//i.test(path) ? '' : dirname(path), duration, Date.now(), Date.now())
   }
   savePosition(path: string, position: number, duration: number): void {
-    // Near the end counts as finished.
-    const finished = duration > 0 && (position > duration - Math.min(30, duration * 0.05))
+    // Live streams have no duration and nothing to resume.
+    if (!(duration > 0)) return
+    // Near the end counts as finished; stopping part-way through a rewatch makes it resumable again.
+    const finished = position > duration - Math.min(30, duration * 0.05)
     this.db
-      .prepare('update media set position = ?, watched = case when ? then 1 else watched end, duration = case when ? > 0 then ? else duration end where path = ?')
-      .run(finished ? 0 : position, finished ? 1 : 0, duration, duration, path)
+      .prepare('update media set position = ?, watched = case when ? then 1 when ? > 10 then 0 else watched end, duration = ? where path = ?')
+      .run(finished ? 0 : position, finished ? 1 : 0, finished ? 0 : position, duration, path)
   }
   finished(path: string): void {
     this.db.prepare('update media set position = 0, watched = 1, play_count = play_count + 1 where path = ?').run(path)

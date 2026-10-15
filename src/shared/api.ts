@@ -114,6 +114,7 @@ export interface RendererApi {
     addToPlaylist(id: number, paths: string[]): Promise<void>
     setPlaylistPaths(id: number, paths: string[]): Promise<void>
     renamePlaylist(id: number, name: string): Promise<void>
+    setPlaylistCover(id: number, cover: string | null): Promise<void>
     deletePlaylist(id: number): Promise<void>
     exportPlaylist(id: number): Promise<void>
     bookmarks(path: string): Promise<{ id: number; time: number; name: string }[]>
@@ -144,6 +145,10 @@ export interface RendererApi {
   }
   sources: {
     discs(): Promise<{ path: string; name: string; kind: 'dvd' | 'bluray' | 'audiocd' }[]>
+    /** What a disc folder or .iso holds; null if it isn't a disc. */
+    discKind(path: string): Promise<'dvd' | 'bluray' | 'audiocd' | null>
+    /** Mounts an .iso read-only and returns the folder it appears at. */
+    mountImage(iso: string): Promise<string>
     dvdTitles(path: string): Promise<{ index: number; label: string; url: string; size: number }[]>
     capture(): Promise<{ video: { index: number; name: string }[]; audio: { index: number; name: string }[] }>
     captureUrl(video: number | null, audio: number | null): Promise<string>

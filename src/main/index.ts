@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { basename, join } from 'node:path'
+import { basename, extname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, Notification, powerSaveBlocker, protocol, screen, shell, Tray, type MenuItemConstructorOptions } from 'electron'
 import { BRAND } from '@shared/brand'
@@ -14,13 +14,13 @@ import { defaultLogFile, setLogFile, writeLog } from './app-log'
 import { scheduleSnapshot, setupAudit } from './dev-snapshot'
 import { bin, displayableImage, posterFor, readTags, thumbnailAt, waveform } from './media-tools'
 import { JobQueue, PRESETS, type ConvertOptions } from './convert'
-import { HttpServer, lanAddress } from './http-server'
-import { captureUrl, dvdTitles, listCaptureDevices, listDiscs, mediaInfo } from './sources'
+import { HttpServer, lanAddress, MIME } from './http-server'
+import { captureUrl, discKind, dvdTitles, listCaptureDevices, listDiscs, mediaInfo, mountImage, unmountImages } from './sources'
 import { browse as upnpBrowse, castControl, castSeek, castTo, discover as upnpDiscover, type UpnpDevice } from './upnp'
 import { fetchPodcast, searchStations } from './feeds'
 import { Library } from './library'
 import { PluginManager } from './plugins'
-import type { MusicView, SortKey } from '@shared/library'
+import { typeOf, type MusicView, type SortKey } from '@shared/library'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
 let win: BrowserWindow | null = null
@@ -529,6 +529,11 @@ function registerGlobalShortcuts(map: Record<string, string>): string[] {
   const failed: string[] = []
   for (const [command, key] of Object.entries(map)) {
     const accel = key.split('+').map((p) => ACCEL[p] ?? p).join('+')
+    // A bare key ("Space", "F") would stop working in every other app.
+    if (!/(Mod|Ctrl|Alt|Meta)\+/.test(key) && !/^(F\d{1,2}|Media\w+|Audio\w+)$/.test(key)) {
+      failed.push(command)
+      continue
+    }
     try {
       if (!globalShortcut.register(accel, () => win?.webContents.send('command:run', command))) failed.push(command)
     } catch {
@@ -632,6 +637,10 @@ ipcMain.handle('library:renamePlaylist', (_e, id: number, name: string) => {
   library.db.renamePlaylist(id, name)
   scheduleLibraryNotice()
 })
+ipcMain.handle('library:setPlaylistCover', (_e, id: number, cover: string | null) => {
+  library.db.setPlaylistCover(id, cover)
+  scheduleLibraryNotice()
+})
 ipcMain.handle('library:deletePlaylist', (_e, id: number) => {
   library.db.deletePlaylist(id)
   scheduleLibraryNotice()
@@ -672,6 +681,8 @@ ipcMain.on('plugins:openGuide', () => void shell.openPath(join(app.isPackaged ? 
 
 // Sources: discs, capture, media info
 ipcMain.handle('sources:discs', () => listDiscs())
+ipcMain.handle('sources:discKind', (_e, path: string) => discKind(path))
+ipcMain.handle('sources:mountImage', (_e, iso: string) => mountImage(iso))
 ipcMain.handle('sources:dvdTitles', (_e, path: string) => dvdTitles(path))
 ipcMain.handle('sources:capture', () => listCaptureDevices())
 ipcMain.handle('sources:captureUrl', (_e, video: number | null, audio: number | null) => captureUrl(video, audio))
@@ -715,10 +726,20 @@ ipcMain.handle('upnp:browse', (_e, device: UpnpDevice, id: string) => upnpBrowse
 ipcMain.handle('cast:start', async (_e, device: UpnpDevice) => {
   const s = player?.state
   if (!s?.path) throw new Error('Nothing is playing')
-  const isUrl = /^[a-z]+:\/\//i.test(s.path)
-  if (!isUrl) await ensureServer()
-  const url = isUrl ? s.path : http.shareFile(s.path)
-  const mime = s.kind === 'audio' ? 'audio/mpeg' : s.kind === 'image' ? 'image/jpeg' : 'video/mp4'
+  let url = s.path
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
+    // Web pages (YouTube…) play through yt-dlp; a TV needs the media address it resolved to.
+    const opened = String((await player?.get('stream-open-filename')) ?? '')
+    if (!/^https?:/i.test(url) || (!typeOf(url) && !/^https?:/i.test(opened)))
+      throw new Error("This can't be sent to a TV. Files and web streams can; discs, capture devices and some online videos can't.")
+    if (!typeOf(url)) url = opened
+  } else {
+    await ensureServer()
+    url = http.shareFile(s.path)
+  }
+  // Strict renderers (Sonos, some TVs) refuse a type that doesn't match the file.
+  const ext = extname(/^https?:/i.test(s.path) ? new URL(url).pathname : s.path).toLowerCase()
+  const mime = MIME[ext] ?? (s.kind === 'audio' ? 'audio/mpeg' : s.kind === 'image' ? 'image/jpeg' : 'video/mp4')
   await castTo(device, url, s.title ?? 'FLP', mime)
   castDevice = device
   // Continue on the TV from where we were, and pause here.
@@ -828,6 +849,7 @@ app.on('window-all-closed', () => app.quit())
 app.on('activate', () => win?.show())
 app.on('will-quit', () => globalShortcut.unregisterAll())
 app.on('before-quit', () => {
+  unmountImages()
   plugins.dispose()
   jobs.dispose()
   void http.stop()

@@ -60,8 +60,9 @@ async function playlistSubmenu(paths: () => Promise<string[]>): Promise<MenuEntr
 }
 
 /** Figma "file context menu". */
-export async function fileMenu(item: MediaItem, siblings: MediaItem[]): Promise<MenuEntry[]> {
-  const idx = siblings.findIndex((s) => s.path === item.path)
+export async function fileMenu(item: MediaItem, siblings: MediaItem[], pos?: number): Promise<MenuEntry[]> {
+  // `pos` tells copies of the same file apart (a playlist can hold one file twice).
+  const idx = pos ?? siblings.findIndex((s) => s.path === item.path)
   const local = !/^[a-z]+:\/\//i.test(item.path)
   const playlists = await playlistSubmenu(async () => [item.path])
   return [

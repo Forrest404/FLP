@@ -43,7 +43,7 @@ function Poster({ item, square }: { item: MediaItem; square?: boolean }) {
   )
 }
 
-export function MediaTile({ item, siblings, subtitle }: { item: MediaItem; siblings: MediaItem[]; subtitle?: string }) {
+export function MediaTile({ item, siblings, pos = siblings.indexOf(item), subtitle }: { item: MediaItem; siblings: MediaItem[]; pos?: number; subtitle?: string }) {
   const playing = usePlayer((s) => s.path === item.path)
   const square = item.type === 'audio'
   return (
@@ -53,18 +53,18 @@ export function MediaTile({ item, siblings, subtitle }: { item: MediaItem; sibli
       data-playing={playing}
       title={item.path}
       tabIndex={0}
-      onDoubleClick={() => void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
-      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
+      onDoubleClick={() => void playList(siblings.map((s) => s.path), pos)}
+      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && void playList(siblings.map((s) => s.path), pos)}
       onContextMenu={async (e) => {
         e.preventDefault()
         const at = { clientX: e.clientX, clientY: e.clientY }
-        openMenu(await fileMenu(item, siblings), at)
+        openMenu(await fileMenu(item, siblings, pos), at)
       }}
       draggable
       onDragStart={(e) => e.dataTransfer.setData('text/uri-list', item.path)}
     >
       <Poster item={item} square={square} />
-      <button type="button" className="flp-tile__play" aria-label={`Play ${item.title}`} onClick={() => void playList(siblings.map((s) => s.path), siblings.indexOf(item))}>
+      <button type="button" className="flp-tile__play" aria-label={`Play ${item.title}`} onClick={() => void playList(siblings.map((s) => s.path), pos)}>
         <Icon name="play" size={18} filled />
       </button>
       <div className="flp-tile__name">{square ? item.title : fileLabel(item)}</div>
@@ -79,7 +79,8 @@ function fileLabel(item: MediaItem): string {
   return item.path.split('/').pop() ?? item.title
 }
 
-export function MediaRow({ item, siblings, index, columns }: { item: MediaItem; siblings: MediaItem[]; index?: number; columns?: ('artist' | 'album' | 'duration' | 'folder')[] }) {
+/** `pos`: the item's place in `siblings` (defaults to finding it), what plays on double-click. */
+export function MediaRow({ item, siblings, pos = siblings.indexOf(item), index, columns }: { item: MediaItem; siblings: MediaItem[]; pos?: number; index?: number; columns?: ('artist' | 'album' | 'duration' | 'folder')[] }) {
   const [ref, src] = usePoster(item)
   const playing = usePlayer((s) => s.path === item.path)
   return (
@@ -90,12 +91,12 @@ export function MediaRow({ item, siblings, index, columns }: { item: MediaItem; 
       data-playing={playing}
       title={item.path}
       tabIndex={0}
-      onDoubleClick={() => void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
-      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
+      onDoubleClick={() => void playList(siblings.map((s) => s.path), pos)}
+      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && void playList(siblings.map((s) => s.path), pos)}
       onContextMenu={async (e) => {
         e.preventDefault()
         const at = { clientX: e.clientX, clientY: e.clientY }
-        openMenu(await fileMenu(item, siblings), at)
+        openMenu(await fileMenu(item, siblings, pos), at)
       }}
     >
       {index !== undefined && <span className="flp-row__index">{index + 1}</span>}

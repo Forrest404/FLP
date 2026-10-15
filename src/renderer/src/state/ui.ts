@@ -30,6 +30,8 @@ interface UiState {
   rightPanel: RightPanel
   dialog: DialogId
   dialogArg: unknown
+  /** Bumped on every openDialog, so reopening a dialog starts it fresh. */
+  dialogSeq: number
   settingsPage: string
   paletteOpen: boolean
   hideUi: boolean
@@ -51,6 +53,7 @@ export const useUi = create<UiState>(() => ({
   rightPanel: null,
   dialog: null,
   dialogArg: null,
+  dialogSeq: 0,
   settingsPage: 'general',
   paletteOpen: false,
   hideUi: false,
@@ -68,7 +71,7 @@ export const ui = {
   set: useUi.setState,
   get: useUi.getState,
   openDialog(dialog: DialogId, arg?: unknown) {
-    useUi.setState({ dialog, dialogArg: arg ?? null, paletteOpen: false })
+    useUi.setState((s) => ({ dialog, dialogArg: arg ?? null, dialogSeq: s.dialogSeq + 1, paletteOpen: false }))
   },
   closeDialog() {
     useUi.setState({ dialog: null, dialogArg: null })
@@ -89,6 +92,12 @@ export function showOsd(text: string, ms?: number, force?: boolean) {
   clearTimeout(osdTimer)
   useUi.setState({ osd: { id: ++osdSeq, text, force } })
   osdTimer = setTimeout(() => useUi.setState({ osd: null }), ms ?? (getSetting<number>('subtitles.osdDuration') ?? 1.5) * 1000)
+}
+
+/** An error's message without Electron's "Error invoking remote method 'x': Error: " prefix. */
+export function errorText(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err)
+  return msg.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined

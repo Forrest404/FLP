@@ -6,7 +6,7 @@ import { Dialog } from '@/components/Dialog'
 import { Icon } from '@/components/Icon'
 import { usePlayer } from '@/state/player'
 import { baseName } from '@/state/playback'
-import { showOsd, ui, useUi } from '@/state/ui'
+import { errorText, showOsd, showToast, ui, useUi } from '@/state/ui'
 
 const parseTime = (s: string): number | undefined => {
   if (!s.trim()) return undefined
@@ -69,15 +69,19 @@ export function ConvertDialog() {
   }
 
   const go = async () => {
-    if (tab === 'convert') {
-      await window.flp.jobs.convert(inputs, { preset, height: height || undefined, start: parseTime(start), end: parseTime(end), outDir: outDir || undefined })
-      showOsd(`Converting ${inputs.length} file${inputs.length === 1 ? '' : 's'}`)
-    } else {
-      const url = await window.flp.jobs.stream(inputs[0], target, udp)
-      if (url) {
-        void navigator.clipboard.writeText(url)
-        showOsd('Streaming. Address copied')
+    try {
+      if (tab === 'convert') {
+        await window.flp.jobs.convert(inputs, { preset, height: height || undefined, start: parseTime(start), end: parseTime(end), outDir: outDir || undefined })
+        showOsd(`Converting ${inputs.length} file${inputs.length === 1 ? '' : 's'}`)
+      } else {
+        const url = await window.flp.jobs.stream(inputs[0], target, udp)
+        if (url) {
+          void navigator.clipboard.writeText(url)
+          showOsd('Streaming. Address copied')
+        }
       }
+    } catch (e) {
+      showToast(`Couldn't ${tab === 'convert' ? 'convert' : 'start streaming'}: ${errorText(e)}`)
     }
   }
 

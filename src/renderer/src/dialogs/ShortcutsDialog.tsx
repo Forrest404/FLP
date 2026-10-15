@@ -11,7 +11,17 @@ import { showToast, ui } from '@/state/ui'
 type Map = Record<string, string[]>
 const CATEGORY_ORDER = ['Basic', 'Playback', 'Navigation', 'Audio', 'Video', 'Subtitles', 'Media', 'Library', 'Interface']
 
-function KeyField({ value, onChange, conflict }: { value: string | undefined; onChange(k: string | null): void; conflict?: string }) {
+// A global hotkey works system-wide, so a bare key ("Space", "F") would be stolen from every other app.
+const GLOBAL_OK = /(^|\+)(Mod|Ctrl|Alt)\+|^(Shift\+)?(F([1-9]|1\d|2[0-4])|Media\w+|AudioVolume\w+)$/
+const checkGlobal = (k: string) => (GLOBAL_OK.test(k) ? null : `Global hotkeys need ${formatKey('Mod')}, ${formatKey('Ctrl')} or ${formatKey('Alt')} (or an F-key or media key), so other apps keep that key.`)
+
+function KeyField({ value, onChange, conflict, check }: {
+  value: string | undefined
+  onChange(k: string | null): void
+  conflict?: string
+  /** Returns why a key can't be used, or null. */
+  check?(k: string): string | null
+}) {
   const [recording, setRecording] = useState(false)
   return (
     <button
@@ -19,7 +29,7 @@ function KeyField({ value, onChange, conflict }: { value: string | undefined; on
       className="flp-keyfield"
       data-recording={recording}
       data-conflict={!!conflict}
-      data-capture-keys
+      data-capture-keys={recording || undefined}
       title={conflict ? `Also used by “${conflict}”` : 'Click, then press the keys'}
       onClick={() => setRecording(true)}
       onBlur={() => setRecording(false)}
@@ -34,6 +44,8 @@ function KeyField({ value, onChange, conflict }: { value: string | undefined; on
         }
         const k = eventToKey(e.nativeEvent)
         if (!k) return
+        const problem = check?.(k)
+        if (problem) return showToast(problem) // keep recording
         onChange(k)
         setRecording(false)
       }}
@@ -115,7 +127,7 @@ export function ShortcutsDialog() {
                   <span>{c.title}</span>
                   <KeyField value={k} conflict={others[0] ? commands[others[0]]?.title : undefined}
                     onChange={(nk) => setLocal({ ...local, [c.id]: nk ? [nk, ...keysOf(c).slice(1).filter((x) => x !== nk)] : [] })} />
-                  <KeyField value={global[c.id]} onChange={(nk) => {
+                  <KeyField value={global[c.id]} check={checkGlobal} onChange={(nk) => {
                     const { [c.id]: _, ...rest } = global
                     setGlobal(nk ? { ...rest, [c.id]: nk } : rest)
                   }} />

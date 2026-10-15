@@ -5,14 +5,16 @@ import { player, usePlayer } from '@/state/player'
 import { trackLabel } from '@/state/playback'
 import { setSetting } from '@/state/settings'
 import { ui } from '@/state/ui'
-import { FxSelect, FxSlider, FxToggle, useFx } from './fx'
+import { FxSelect, FxSlider, FxToggle } from './fx'
 import { Section } from './Section'
 
 export function SubtitlesPanel() {
   const tracks = usePlayer((s) => s.tracks).filter((t) => t.type === 'sub')
   const subDelay = usePlayer((s) => s.subDelay)
-  const selected = tracks.find((t) => t.selected)?.id ?? 'no'
-  const [secondary, setSecondary] = useFx<string | number>('ui.secondarySub', 'no')
+  // main-selection tells the primary (0) and secondary (1) subtitle apart; older states lack it.
+  const hasMain = tracks.some((t) => t.mainSelection !== undefined)
+  const selected = (hasMain ? tracks.find((t) => t.mainSelection === 0) : tracks.find((t) => t.selected))?.id ?? 'no'
+  const secondary = (hasMain ? tracks.find((t) => t.mainSelection === 1) : undefined)?.id ?? 'no'
   const options = [{ value: 'no' as string | number, label: 'Off' }, ...tracks.map((t) => ({ value: t.id as string | number, label: trackLabel(t) + (t.external ? ' (file)' : '') }))]
   return (
     <>
@@ -23,10 +25,7 @@ export function SubtitlesPanel() {
         </div>
         <div className="flp-fx-row">
           <div className="flp-fx-row__label"><span>Second subtitles (e.g. another language)</span></div>
-          <Select<string | number> label="Second subtitle track" value={secondary} options={options} onChange={(v) => {
-            setSecondary(v)
-            void player.set('secondary-sid', v)
-          }} />
+          <Select<string | number> label="Second subtitle track" value={secondary} options={options} onChange={(v) => void player.set('secondary-sid', v)} />
         </div>
         <div className="flp-chips">
           <Button onClick={() => void runCommand('subs.add')}><Icon name="add" size={16} /> Add file…</Button>

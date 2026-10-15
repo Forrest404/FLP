@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button, Select } from '@/components/controls'
 import { Dialog } from '@/components/Dialog'
 import { openPaths } from '@/state/playback'
-import { ui } from '@/state/ui'
+import { errorText, showToast, ui } from '@/state/ui'
 
 export function CaptureDialog() {
   const [devices, setDevices] = useState<{ video: { index: number; name: string }[]; audio: { index: number; name: string }[] } | null>(null)
@@ -18,9 +18,13 @@ export function CaptureDialog() {
   }, [])
 
   const open = async () => {
-    const url = await window.flp.sources.captureUrl(video >= 0 ? video : null, audio >= 0 ? audio : null)
-    ui.closeDialog()
-    await openPaths([url])
+    try {
+      const url = await window.flp.sources.captureUrl(video >= 0 ? video : null, audio >= 0 ? audio : null)
+      ui.closeDialog()
+      await openPaths([url])
+    } catch (e) {
+      showToast(`Couldn't open the capture device: ${errorText(e)}`)
+    }
   }
 
   return (

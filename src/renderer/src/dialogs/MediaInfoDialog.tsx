@@ -13,18 +13,32 @@ export function MediaInfoDialog() {
   const arg = useUi((s) => s.dialogArg) as { path?: string } | null
   const playing = usePlayer((s) => s.path)
   const path = arg?.path ?? playing
-  const [info, setInfo] = useState<Info>(null)
+  // Each result remembers its path, so a late reply for the previous file is never shown.
+  const [result, setResult] = useState<{ path: string; info: Info } | null>(null)
   const [live, setLive] = useState<Record<string, string>>({})
+  const info = result?.path === path ? result.info : null
+  const loading = !!path && result?.path !== path
 
   useEffect(() => {
-    if (path) window.flp.sources.mediaInfo(path).then(setInfo)
+    if (!path) return
+    let alive = true
+    window.flp.sources.mediaInfo(path).then(
+      (info) => alive && setResult({ path, info }),
+      () => alive && setResult({ path, info: null })
+    )
+    return () => {
+      alive = false
+    }
   }, [path])
 
   // Live stats while this file is playing.
   useEffect(() => {
+    setLive({})
     if (!path || path !== playing) return
+    let alive = true
     const read = async () => {
       const [hw, fps, dropped, vbr, abr, cache] = await Promise.all(['hwdec-current', 'estimated-vf-fps', 'frame-drop-count', 'video-bitrate', 'audio-bitrate', 'demuxer-cache-duration'].map((p) => player.get(p)))
+      if (!alive) return
       setLive({
         'Hardware decoding': hw && hw !== 'no' ? String(hw) : 'Off',
         'Displayed FPS': fps ? Number(fps).toFixed(2) : '',
@@ -36,7 +50,10 @@ export function MediaInfoDialog() {
     }
     void read()
     const t = setInterval(read, 1000)
-    return () => clearInterval(t)
+    return () => {
+      alive = false
+      clearInterval(t)
+    }
   }, [path, playing])
 
   const Table = ({ rows }: { rows: [string, string][] }) => (
@@ -53,11 +70,12 @@ export function MediaInfoDialog() {
       <div className="flp-form">
         {!path && <p className="flp-muted">Nothing is playing.</p>}
         {path && <div className="flp-form__title" style={{ wordBreak: 'break-all' }}>{baseName(path)}</div>}
-        {path && !info && <p className="flp-muted">Reading…</p>}
+        {loading && <p className="flp-muted">Reading…</p>}
+        {path && !loading && !info && <p className="flp-muted">No details available.</p>}
+        {info && <Table rows={Object.entries(info.format)} />}
+        {!loading && Object.keys(live).length > 0 && <><div className="flp-form__title">Playback</div><Table rows={Object.entries(live)} /></>}
         {info && (
           <>
-            <Table rows={Object.entries(info.format)} />
-            {Object.keys(live).length > 0 && <><div className="flp-form__title">Playback</div><Table rows={Object.entries(live)} /></>}
             {info.streams.map((s) => (
               <div key={s.index}>
                 <div className="flp-form__title">{TYPE[s.type] ?? s.type} · stream {s.index}</div>

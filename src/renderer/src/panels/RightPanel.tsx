@@ -16,10 +16,12 @@ const TABS: { id: 'video' | 'audio' | 'subtitles' | 'playback'; label: string }[
 
 /** Right sidebar: every effect and track option one click away (VLC hides these in Tools). */
 export function RightPanel() {
-  const panel = useUi((s) => s.rightPanel)
+  const chosen = useUi((s) => s.rightPanel)
   const pluginPanels = usePlugins((s) => s.contributions.panels)
-  if (!panel) return null
-  const pluginPanel = pluginPanels.find((p) => `plugin:${p.pluginId}:${p.id}` === panel)
+  if (!chosen) return null
+  const pluginPanel = pluginPanels.find((p) => `plugin:${p.pluginId}:${p.id}` === chosen)
+  // A plugin panel whose plugin was disabled or removed falls back to Video.
+  const panel = chosen.startsWith('plugin:') && !pluginPanel ? 'video' : chosen
   return (
     <aside className="flp-rpanel" aria-label="Effects and tracks">
       <div className="flp-rpanel__head">

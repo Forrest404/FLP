@@ -5,7 +5,7 @@ import type { Playlist } from '@shared/library'
 import { Button, TextField } from '@/components/controls'
 import { Dialog } from '@/components/Dialog'
 import { Icon } from '@/components/Icon'
-import { showOsd, ui, useUi } from '@/state/ui'
+import { errorText, showOsd, showToast, ui, useUi } from '@/state/ui'
 
 export function NewPlaylistDialog() {
   const arg = useUi((s) => s.dialogArg) as { paths?: string[]; rename?: Playlist } | null
@@ -17,14 +17,19 @@ export function NewPlaylistDialog() {
 
   const save = async () => {
     const title = name.trim() || 'New Playlist'
-    if (rename) {
-      await window.flp.library.renamePlaylist(rename.id, title)
-      showOsd('Playlist renamed')
-    } else {
-      await window.flp.library.createPlaylist(title, paths, cover)
-      showOsd(`Created “${title}”`)
+    try {
+      if (rename) {
+        await window.flp.library.renamePlaylist(rename.id, title)
+        if (cover !== (rename.cover ?? null)) await window.flp.library.setPlaylistCover(rename.id, cover)
+        showOsd('Playlist saved')
+      } else {
+        await window.flp.library.createPlaylist(title, paths, cover)
+        showOsd(`Created “${title}”`)
+      }
+      ui.closeDialog()
+    } catch (e) {
+      showToast(`Couldn't save the playlist: ${errorText(e)}`)
     }
-    ui.closeDialog()
   }
 
   const pickFiles = async () => {

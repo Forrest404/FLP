@@ -67,6 +67,8 @@ export type MusicView = 'songs' | 'albums' | 'artists' | 'genres'
 
 export interface MusicGroup {
   name: string
+  /** What to pass back as the filter (albums: album + album artist, so same-named albums stay apart). */
+  key?: string
   subtitle: string
   count: number
   cover: string | null
@@ -115,7 +117,16 @@ export const IMAGE_EXT = new Set([
 ])
 
 export function typeOf(path: string): MediaType | null {
-  const ext = path.split('.').pop()?.toLowerCase() ?? ''
+  // For URLs only the path counts ("ep.mp3?dest=1" is audio, "radio.example/stream" is unknown).
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(path)) {
+    try {
+      path = new URL(path).pathname
+    } catch {
+      return null
+    }
+  }
+  const name = path.split('/').pop() ?? ''
+  const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : ''
   if (VIDEO_EXT.has(ext)) return 'video'
   if (AUDIO_EXT.has(ext)) return 'audio'
   if (IMAGE_EXT.has(ext)) return 'image'

@@ -73,6 +73,7 @@ const api: RendererApi = {
     addToPlaylist: (id, paths) => ipcRenderer.invoke('library:addToPlaylist', id, paths),
     setPlaylistPaths: (id, paths) => ipcRenderer.invoke('library:setPlaylistPaths', id, paths),
     renamePlaylist: (id, name) => ipcRenderer.invoke('library:renamePlaylist', id, name),
+    setPlaylistCover: (id, cover) => ipcRenderer.invoke('library:setPlaylistCover', id, cover),
     deletePlaylist: (id) => ipcRenderer.invoke('library:deletePlaylist', id),
     exportPlaylist: (id) => ipcRenderer.invoke('library:exportPlaylist', id),
     bookmarks: (path) => ipcRenderer.invoke('library:bookmarks', path),
@@ -111,6 +112,8 @@ const api: RendererApi = {
   },
   sources: {
     discs: () => ipcRenderer.invoke('sources:discs'),
+    discKind: (path) => ipcRenderer.invoke('sources:discKind', path),
+    mountImage: (iso) => ipcRenderer.invoke('sources:mountImage', iso),
     dvdTitles: (path) => ipcRenderer.invoke('sources:dvdTitles', path),
     capture: () => ipcRenderer.invoke('sources:capture'),
     captureUrl: (v, a) => ipcRenderer.invoke('sources:captureUrl', v, a),

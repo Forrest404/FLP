@@ -4,6 +4,7 @@ import { PAGES, SETTINGS, type Option, type PageId, type SettingDef } from '@sha
 import { EQ_PRESETS } from '@shared/audio-effects'
 import type { AccentId } from '@shared/theme'
 import { AccentSwatches, Button, ColorField, IconButton, InfoTip, NumberField, SearchField, Segmented, Select, Slider, TextField, Toggle } from '@/components/controls'
+import { useEscapeToClose } from '@/components/Dialog'
 import { Icon, type IconName } from '@/components/Icon'
 import { runCommand } from '@/commands/registry'
 import { player } from '@/state/player'
@@ -188,15 +189,12 @@ export function SettingsDialog() {
     return () => window.removeEventListener('flp:highlight-setting', onHighlight)
   }, [])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && ui.closeDialog()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  const backdrop = useRef<HTMLDivElement>(null)
+  useEscapeToClose(backdrop, ui.closeDialog)
 
   const groups = useMemo(() => ['App', 'Media', 'System'] as const, [])
   return (
-    <div className="ui-backdrop" onMouseDown={(e) => e.target === e.currentTarget && ui.closeDialog()}>
+    <div ref={backdrop} className="ui-backdrop" onMouseDown={(e) => e.target === e.currentTarget && ui.closeDialog()}>
       <div className="flp-settings" role="dialog" aria-modal aria-label="Settings">
         <aside className="flp-settings__side">
           <SearchField placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} width="100%" autoFocus />

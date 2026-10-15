@@ -65,18 +65,41 @@ export async function thumbnailAt(path: string, time: number, width = 240): Prom
   }
 }
 
-/** A representative poster frame for library tiles, cached on disk. */
-export async function posterFor(path: string, duration?: number): Promise<string | null> {
-  const out = join(cacheDir('posters'), `${hash(path)}.jpg`)
-  if (existsSync(out)) return out
-  const at = duration && duration > 30 ? Math.min(duration * 0.2, 300) : 1
+// A grid of tiles asks for many posters at once; a few ffmpegs at a time finish faster than dozens.
+const POSTER_SLOTS = 3
+let postersRunning = 0
+const posterWaiting: (() => void)[] = []
+const posterJobs = new Map<string, Promise<string | null>>()
+
+async function inPosterSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (postersRunning >= POSTER_SLOTS) await new Promise<void>((r) => posterWaiting.push(r))
+  postersRunning++
   try {
-    const jpg = await ffmpegBuffer(['-ss', String(at), '-i', path, '-frames:v', '1', '-vf', 'scale=480:-2', '-f', 'image2pipe', '-c:v', 'mjpeg', '-q:v', '4', '-'], 10000)
-    await writeFile(out, jpg)
-    return out
-  } catch {
-    return null
+    return await fn()
+  } finally {
+    postersRunning--
+    posterWaiting.shift()?.()
   }
+}
+
+/** A representative poster frame for library tiles, cached on disk. */
+export function posterFor(path: string, duration?: number): Promise<string | null> {
+  const out = join(cacheDir('posters'), `${hash(path)}.jpg`)
+  if (existsSync(out)) return Promise.resolve(out)
+  const running = posterJobs.get(path)
+  if (running) return running
+  const at = duration && duration > 30 ? Math.min(duration * 0.2, 300) : 1
+  const job = inPosterSlot(async () => {
+    try {
+      const jpg = await ffmpegBuffer(['-ss', String(at), '-i', path, '-frames:v', '1', '-vf', 'scale=480:-2', '-f', 'image2pipe', '-c:v', 'mjpeg', '-q:v', '4', '-'], 20000)
+      await writeFile(out, jpg)
+      return out
+    } catch {
+      return null
+    }
+  }).finally(() => posterJobs.delete(path))
+  posterJobs.set(path, job)
+  return job
 }
 
 // ── Music waveform ───────────────────────────────────────────────────────────

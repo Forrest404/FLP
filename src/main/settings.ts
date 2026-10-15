@@ -75,19 +75,28 @@ export class Settings extends EventEmitter {
     this.emit('changed', Object.keys(patch))
   }
 
-  resetAll(): void {
-    this.data.values = {}
-    this.data.profiles = structuredClone(DEFAULT_PROFILES)
-    this.data.activeProfile = null
+  /** Runs a change that can touch many keys, then announces only the ones whose value differs, so
+   *  switching profile doesn't reset speed, delays or tracks that the profile leaves alone. */
+  private changeAll(fn: () => void): void {
+    const before = this.values()
+    fn()
     this.save()
-    this.emit('changed', Object.keys(this.defaults))
+    const after = this.values()
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))
+    this.emit('changed', keys)
+  }
+
+  resetAll(): void {
+    this.changeAll(() => {
+      this.data.values = {}
+      this.data.profiles = structuredClone(DEFAULT_PROFILES)
+      this.data.activeProfile = null
+    })
   }
 
   setProfile(id: string | null): void {
     if (id && !this.data.profiles[id]) return
-    this.data.activeProfile = id
-    this.save()
-    this.emit('changed', Object.keys(this.defaults))
+    this.changeAll(() => (this.data.activeProfile = id))
   }
 
   createProfile(name: string): string {
@@ -107,10 +116,10 @@ export class Settings extends EventEmitter {
   }
 
   deleteProfile(id: string): void {
-    delete this.data.profiles[id]
-    if (this.data.activeProfile === id) this.data.activeProfile = null
-    this.save()
-    this.emit('changed', Object.keys(this.defaults))
+    this.changeAll(() => {
+      delete this.data.profiles[id]
+      if (this.data.activeProfile === id) this.data.activeProfile = null
+    })
   }
 
   /** Free-form UI state (control bar layout, shortcuts, sidebar width…). */

@@ -114,7 +114,9 @@ const playback: Command[] = [
   { id: 'player.snapshot', title: 'Take a snapshot', category: 'Video', icon: 'snapshot', keys: ['Shift+S'],
     run: async () => {
       const withSubs = getSetting('video.snapshotSize') === 'window'
-      const res = (await player.command('screenshot', withSubs ? 'subtitles' : 'video').catch(() => null)) as { filename?: string } | null
+      const shoot = () => player.command('screenshot', withSubs ? 'subtitles' : 'video').catch(() => null) as Promise<{ filename?: string } | null>
+      // Right after a picture change (aspect, crop) the video output is briefly busy; try once more.
+      const res = (await shoot()) ?? (await new Promise((r) => setTimeout(r, 300)).then(shoot))
       if (!res) return showOsd("Couldn't take a snapshot")
       // mpv reports the full path (screenshot-dir is set to an absolute folder by the main process).
       const file = res.filename ? await expandHome(res.filename) : ''

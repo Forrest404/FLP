@@ -240,7 +240,7 @@
 }
 
 /* ── Command palette ── */
-.flp-palette-backdrop { place-items: start center; padding-top: 12vh; }
+.flp-palette-backdrop { place-items: start center; padding-top: 12vh; z-index: 920; } /* above dialogs */
 .flp-palette { width: min(640px, calc(100vw - 48px)); border-radius: var(--radius-l); background: var(--bg-panel); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
 .flp-palette__search { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 52px; background: var(--bg-well); color: var(--text-faint); }
 .flp-palette__search input { flex: 1; border: 0; outline: none; background: transparent; color: var(--text-strong); font-size: var(--fs-l); }
@@ -351,9 +351,9 @@
 .flp-customize__item { display: grid; justify-items: center; gap: 8px; text-align: center; color: var(--text-dim); font-size: var(--fs-s); cursor: grab; }
 .flp-customize__item:hover { color: var(--text-strong); }
 .flp-customize__icon { width: 30px; height: 30px; display: grid; place-items: center; border: 1px dashed var(--text-ghost); border-radius: 4px; }
-.flp-editzone { display: flex; align-items: center; gap: 6px; min-width: 60px; min-height: 30px; flex: 1; }
+.flp-editzone { display: flex; align-items: center; gap: 6px; min-width: 60px; min-height: 30px; flex: 1; -webkit-app-region: no-drag; }
 .flp-titlebar__side .flp-editzone { flex: 0 1 auto; }
-.flp-edititem { position: relative; border: 1px dashed var(--text-ghost); border-radius: 4px; padding: 1px; cursor: grab; display: flex; align-items: center; }
+.flp-edititem { position: relative; border: 1px dashed var(--text-ghost); border-radius: 4px; padding: 1px; cursor: grab; display: flex; align-items: center; -webkit-app-region: no-drag; }
 .flp-edititem__inner { pointer-events: none; display: flex; align-items: center; flex: 1; }
 .flp-edititem[data-insert='before']::before, .flp-edititem[data-insert='after']::after {
   content: ''; position: absolute; top: -2px; bottom: -2px; width: 3px; border-radius: 2px; background: var(--accent);

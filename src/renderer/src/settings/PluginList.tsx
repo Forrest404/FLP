@@ -4,7 +4,7 @@ import { toSettingDef, type PluginInfo } from '@shared/plugins'
 import { Button, IconButton, SearchField, TextField, Toggle } from '@/components/controls'
 import { Icon } from '@/components/Icon'
 import { usePlugins } from '@/plugins/state'
-import { confirmAction, showToast } from '@/state/ui'
+import { confirmAction, errorText, showToast } from '@/state/ui'
 import { Control } from './SettingsDialog'
 
 const api = () => window.flp.plugins
@@ -94,7 +94,7 @@ export function PluginList() {
         <span style={{ flex: 1 }} />
         <Button onClick={() => window.flp.shell.openExternal('https://github.com/topics/flp-plugin')}>Find more extensions</Button>
         <Button onClick={async () => {
-          const id = await api().install().catch((e: Error) => (showToast(e.message), null))
+          const id = await api().install().catch((e) => (showToast(errorText(e)), null))
           if (id) setSelected(id)
         }}>Add</Button>
         <Button disabled={!sel || sel.builtIn} title={sel?.builtIn ? 'Built-in add-ons can be turned off but not removed' : undefined}

@@ -6,7 +6,7 @@ import { Icon } from '@/components/Icon'
 import { Empty } from '@/player/Sidebar'
 import { openPaths } from '@/state/playback'
 import { getSetting } from '@/state/settings'
-import { ui } from '@/state/ui'
+import { errorText, showToast, ui } from '@/state/ui'
 
 type Disc = { path: string; name: string; kind: 'dvd' | 'bluray' | 'audiocd' }
 const KIND = { dvd: 'DVD', bluray: 'Blu-ray', audiocd: 'Audio CD' }
@@ -26,11 +26,18 @@ export function DiscDialog() {
   useEffect(() => void refresh(), [])
   useEffect(() => {
     setTitles([])
-    if (disc?.kind === 'dvd') window.flp.sources.dvdTitles(disc.path).then((t) => {
+    setTitle('')
+    if (disc?.kind !== 'dvd') return
+    let alive = true
+    window.flp.sources.dvdTitles(disc.path).then((t) => {
+      if (!alive) return
       setTitles(t)
       setTitle(t[0]?.url ?? '')
     })
-  }, [disc?.path])
+    return () => {
+      alive = false
+    }
+  }, [disc?.path, disc?.kind])
 
   const play = async () => {
     if (!disc) return
@@ -42,19 +49,36 @@ export function DiscDialog() {
     } else await openPaths([disc.path])
   }
 
-  const chooseFolder = async () => {
-    const [p] = await window.flp.dialog.openFiles({ folders: true, multiple: false, title: 'Choose a disc folder (VIDEO_TS / BDMV) or a mounted disc' })
-    if (!p) return
-    const kind = /VIDEO_TS$/i.test(p) ? 'dvd' : /BDMV$/i.test(p) ? 'bluray' : null
-    const d: Disc = { path: kind === 'bluray' ? p.replace(/\/BDMV$/i, '') : p, name: p.split('/').pop() ?? p, kind: kind ?? 'dvd' }
-    setDiscs((cur) => [...(cur ?? []), d])
+  const choose = async (image: boolean) => {
+    const [picked] = await window.flp.dialog.openFiles(image
+      ? { multiple: false, filters: ['iso'], title: 'Choose a disc image' }
+      : { folders: true, multiple: false, title: 'Choose a disc folder (VIDEO_TS / BDMV) or a mounted disc' })
+    if (!picked) return
+    // A BDMV folder stands for the Blu-ray root above it; an image is mounted and read like a disc.
+    let path = picked.replace(/\/BDMV\/?$/i, '')
+    if (image) {
+      try {
+        path = await window.flp.sources.mountImage(picked)
+      } catch (err) {
+        return showToast(errorText(err))
+      }
+    }
+    const known = discs?.find((d) => d.path === path)
+    if (known) return setDisc(known)
+    const kind = await window.flp.sources.discKind(path)
+    if (!kind) return showToast('That isn’t a DVD, Blu-ray or audio CD folder')
+    const d: Disc = { path, name: path.split('/').pop() ?? path, kind }
+    setDiscs((cur) => (cur?.some((x) => x.path === path) ? cur : [...(cur ?? []), d]))
     setDisc(d)
   }
 
   return (
     <Dialog title="Open Disc" width={640} onClose={ui.closeDialog} footer={
       <>
-        <Button variant="ghost" onClick={chooseFolder}><Icon name="folder" size={16} /> Disc folder or image…</Button>
+        <span style={{ display: 'flex', gap: 8 }}>
+          <Button variant="ghost" onClick={() => void choose(false)}><Icon name="folder" size={16} /> Choose folder…</Button>
+          <Button variant="ghost" onClick={() => void choose(true)}><Icon name="disc" size={16} /> Choose image…</Button>
+        </span>
         <span style={{ display: 'flex', gap: 8 }}>
           <Button variant="ghost" onClick={ui.closeDialog}>Cancel</Button>
           <Button variant="primary" disabled={!disc} onClick={play}>Play</Button>

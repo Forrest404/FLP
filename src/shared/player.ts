@@ -7,6 +7,8 @@ export interface Track {
   lang?: string
   codec?: string
   selected: boolean
+  /** For subtitles: 0 = primary (sid), 1 = secondary (secondary-sid). */
+  mainSelection?: number
   external: boolean
   default?: boolean
   /** Embedded cover art (shown as a still "video" track by mpv). */

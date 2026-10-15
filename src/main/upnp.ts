@@ -25,8 +25,13 @@ const SERVICE = {
   renderer: 'urn:schemas-upnp-org:service:AVTransport:1'
 }
 
+const NAMED: Record<string, string> = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' }
 const decode = (s: string) =>
-  s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, '&')
+  s.replace(/&(#x[0-9a-f]+|#\d+|lt|gt|quot|apos|amp);/gi, (m, e: string) => {
+    if (e[0] !== '#') return NAMED[e.toLowerCase()] ?? m
+    const code = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1))
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m
+  })
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const tag = (xml: string, name: string) => xml.match(new RegExp(`<(?:\\w+:)?${name}[^>]*>([\\s\\S]*?)</(?:\\w+:)?${name}>`, 'i'))?.[1]?.trim()
 
@@ -106,10 +111,21 @@ const durationSecs = (d?: string) => (d ? d.split(':').reduce((a, b) => a * 60 +
 
 /** Lists a folder on a media server ("0" is the root). */
 export async function browse(device: UpnpDevice, objectId = '0'): Promise<UpnpEntry[]> {
-  const xml = await soap(device.controlUrl, SERVICE.server, 'Browse',
-    `<ObjectID>${escape(objectId)}</ObjectID><BrowseFlag>BrowseDirectChildren</BrowseFlag><Filter>*</Filter><StartingIndex>0</StartingIndex><RequestedCount>500</RequestedCount><SortCriteria></SortCriteria>`)
-  const didl = decode(tag(xml, 'Result') ?? '')
   const out: UpnpEntry[] = []
+  // Servers return a page at a time (often 100–200), so keep asking until everything is in.
+  for (let start = 0; start < 10000; ) {
+    const xml = await soap(device.controlUrl, SERVICE.server, 'Browse',
+      `<ObjectID>${escape(objectId)}</ObjectID><BrowseFlag>BrowseDirectChildren</BrowseFlag><Filter>*</Filter><StartingIndex>${start}</StartingIndex><RequestedCount>500</RequestedCount><SortCriteria></SortCriteria>`)
+    const returned = Number(tag(xml, 'NumberReturned') ?? 0)
+    const total = Number(tag(xml, 'TotalMatches') ?? 0)
+    parseDidl(decode(tag(xml, 'Result') ?? ''), out)
+    start += returned
+    if (!returned || (total > 0 && start >= total) || total === 0) break
+  }
+  return out
+}
+
+function parseDidl(didl: string, out: UpnpEntry[]): void {
   for (const m of didl.matchAll(/<container([^>]*)>([\s\S]*?)<\/container>/g)) {
     out.push({ id: decode(m[1].match(/id="([^"]*)"/)?.[1] ?? ''), title: decode(tag(m[2], 'title') ?? 'Folder'), kind: 'folder', childCount: Number(m[1].match(/childCount="(\d+)"/)?.[1] ?? 0) })
   }
@@ -124,7 +140,6 @@ export async function browse(device: UpnpDevice, objectId = '0'): Promise<UpnpEn
       duration: durationSecs(res?.[1].match(/duration="([^"]*)"/)?.[1])
     })
   }
-  return out
 }
 
 /** Tells a TV / speaker to play `url`. */

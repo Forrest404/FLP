@@ -1,11 +1,11 @@
 // Figma "Add Subtitles to Playlist/Folder": pick subtitle files, FLP pairs them with the videos in
 // a folder (by episode number, else by order); drag to fix any pairing, pick languages, Save.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Select } from '@/components/controls'
 import { Dialog } from '@/components/Dialog'
 import { Icon } from '@/components/Icon'
 import { usePlayer } from '@/state/player'
-import { showToast, ui, useUi } from '@/state/ui'
+import { errorText, showToast, ui, useUi } from '@/state/ui'
 
 const SUB_EXT = /\.(srt|ass|ssa|vtt|sub|idx|sup|smi|txt)$/i
 const LANGS = [
@@ -15,6 +15,38 @@ const LANGS = [
 ].map(([value, label]) => ({ value, label }))
 
 const name = (p: string) => p.split('/').pop() ?? p
+const droppedSubs = (e: React.DragEvent) => [...e.dataTransfer.files].map((f) => window.flp.pathForFile(f)).filter((f) => SUB_EXT.test(f))
+
+type Pairs = Record<string, { sub: string; lang: string }>
+
+/**
+ * Pairs unpaired videos with unused subtitles (by episode number, else in order), keeping every
+ * existing pair whose files are still listed. Only a new video or a new subtitle gets paired, so
+ * the user's own pairings and unpairings stick.
+ */
+function autoPair(cur: Pairs, videos: string[], subs: string[], isNew: (path: string) => boolean): Pairs {
+  const next: Pairs = {}
+  for (const v of videos) if (cur[v] && subs.includes(cur[v].sub)) next[v] = cur[v]
+  const used = new Set(Object.values(next).map((p) => p.sub))
+  const unused = subs.filter((s) => !used.has(s))
+  const open = videos.filter((v) => !next[v])
+  const take = (v: string, s: string) => {
+    next[v] = { sub: s, lang: guessLang(s) }
+    unused.splice(unused.indexOf(s), 1)
+  }
+  for (const v of open) {
+    const k = episodeKey(v)
+    const s = k && unused.find((x) => episodeKey(x) === k && (isNew(v) || isNew(x)))
+    if (s) take(v, s)
+  }
+  // Leftovers pair in order with videos that have none.
+  for (const v of open) {
+    if (next[v]) continue
+    const s = unused.find((x) => isNew(v) || isNew(x))
+    if (s) take(v, s)
+  }
+  return next
+}
 
 /** "S01E04", "1x04", "E04" or a trailing number → a comparable key. */
 function episodeKey(path: string): string | null {
@@ -38,32 +70,24 @@ export function AddSubtitlesDialog() {
   const [folder, setFolder] = useState<string | null>(arg?.folder ?? (playing && !/^[a-z]+:\/\//i.test(playing) ? playing.replace(/\/[^/]+$/, '') : null))
   const [videos, setVideos] = useState<string[]>([])
   const [subs, setSubs] = useState<string[]>([])
-  const [pairs, setPairs] = useState<Record<string, { sub: string; lang: string }>>({})
+  const [pairs, setPairs] = useState<Pairs>({})
   const [dragSub, setDragSub] = useState<string | null>(null)
+  const seen = useRef(new Set<string>())
 
   useEffect(() => {
-    if (folder) window.flp.subs.listVideos(folder).then(setVideos)
+    if (!folder) return
+    let alive = true
+    window.flp.subs.listVideos(folder).then((v) => alive && setVideos(v))
+    return () => {
+      alive = false
+    }
   }, [folder])
 
-  // Auto-pair whenever the inputs change.
+  // Auto-pair what's new whenever the inputs change.
   useEffect(() => {
-    const next: Record<string, { sub: string; lang: string }> = {}
-    const byKey = new Map(subs.map((s) => [episodeKey(s), s]))
-    const unused = [...subs]
-    for (const v of videos) {
-      const k = episodeKey(v)
-      const s = (k && byKey.get(k)) || undefined
-      if (s) {
-        next[v] = { sub: s, lang: guessLang(s) }
-        unused.splice(unused.indexOf(s), 1)
-      }
-    }
-    // Leftovers pair in order with videos that have none.
-    for (const v of videos) if (!next[v] && unused.length) {
-      const s = unused.shift()!
-      next[v] = { sub: s, lang: guessLang(s) }
-    }
-    setPairs(next)
+    const fresh = new Set([...videos, ...subs].filter((p) => !seen.current.has(p)))
+    seen.current = new Set([...videos, ...subs]) // something removed and added back counts as new again
+    setPairs((cur) => autoPair(cur, videos, subs, (p) => fresh.has(p)))
   }, [subs, videos])
 
   const crumbs = useMemo(() => (folder ? folder.split('/').filter(Boolean).slice(-4).join(' / ') : 'Choose a folder'), [folder])
@@ -75,7 +99,8 @@ export function AddSubtitlesDialog() {
 
   const save = async (overwrite = false) => {
     const list = Object.entries(pairs).map(([video, p]) => ({ video, sub: p.sub, lang: p.lang }))
-    const res = await window.flp.subs.install(list, overwrite)
+    const res = await window.flp.subs.install(list, overwrite).catch((e) => (showToast(`Couldn't add subtitles: ${errorText(e)}`), null))
+    if (!res) return
     const clashes = res.filter((r) => r.error === 'exists')
     const failed = res.filter((r) => !r.ok && r.error !== 'exists')
     if (clashes.length && !overwrite) {
@@ -121,7 +146,7 @@ export function AddSubtitlesDialog() {
             onDrop={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              const dropped = [...e.dataTransfer.files].map((f) => window.flp.pathForFile(f)).filter((f) => SUB_EXT.test(f))
+              const dropped = droppedSubs(e)
               setSubs((cur) => [...cur, ...dropped.filter((f) => !cur.includes(f))])
             }}>
             <div className="flp-addsubs__head">Subtitle files</div>
@@ -136,12 +161,29 @@ export function AddSubtitlesDialog() {
               <div className="flp-addsubs__empty" onClick={addSubs}>Drop subtitle files here, or click “From Computer”.</div>
             )}
           </div>
-          <div className="flp-addsubs__col flp-addsubs__col--videos">
+          <div className="flp-addsubs__col flp-addsubs__col--videos"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              // Subtitle files dropped between rows join the list; nothing reaches the app's "drop to play".
+              e.preventDefault()
+              e.stopPropagation()
+              const dropped = droppedSubs(e)
+              setSubs((cur) => [...cur, ...dropped.filter((f) => !cur.includes(f))])
+            }}>
             <div className="flp-addsubs__head">Videos</div>
             {videos.map((v) => (
               <div key={v} className="flp-addsubs__video" data-target={!!dragSub}
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={() => dragSub && setPairs({ ...pairs, [v]: { sub: dragSub, lang: guessLang(dragSub) } })}>
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  // A subtitle from the list, or a subtitle file dragged in from Finder.
+                  const [file] = droppedSubs(e)
+                  const sub = dragSub ?? file
+                  if (!sub) return
+                  if (file) setSubs((cur) => (cur.includes(file) ? cur : [...cur, file]))
+                  setPairs((cur) => ({ ...cur, [v]: { sub, lang: guessLang(sub) } }))
+                }}>
                 <div className="flp-addsubs__vname"><Icon name="video" size={16} /><span>{name(v)}</span></div>
                 {pairs[v] ? (
                   <div className="flp-addsubs__pair">

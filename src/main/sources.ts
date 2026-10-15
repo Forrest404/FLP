@@ -29,7 +29,33 @@ export async function listDiscs(): Promise<Disc[]> {
   return out
 }
 
+// ── Disc images ──
+
+const mounted = new Map<string, string>()
+
+/** Mounts an .iso read-only (hidden from Finder) and returns the folder it appears at. */
+export async function mountImage(iso: string): Promise<string> {
+  const known = mounted.get(iso)
+  if (known && (await stat(known).catch(() => null))) return known
+  const plist = await new Promise<string>((resolve, reject) =>
+    execFile('/usr/bin/hdiutil', ['attach', '-readonly', '-nobrowse', '-noverify', '-plist', iso], { timeout: 60000 }, (err, out) =>
+      err ? reject(new Error(`Couldn't open the disc image: ${err.message.split('\n').pop()}`)) : resolve(String(out))
+    )
+  )
+  const point = plist.match(/<key>mount-point<\/key>\s*<string>([^<]+)<\/string>/)?.[1]
+  if (!point) throw new Error("The disc image didn't contain a readable disc")
+  mounted.set(iso, point)
+  return point
+}
+
+/** Ejects images FLP mounted (on quit). */
+export function unmountImages(): void {
+  for (const point of mounted.values()) execFile('/usr/bin/hdiutil', ['detach', point, '-quiet'], () => null)
+  mounted.clear()
+}
+
 export async function discKind(path: string): Promise<Disc['kind'] | null> {
+  if (/\.iso$/i.test(path)) return discKind(await mountImage(path).catch(() => ''))
   const items = await readdir(path).catch(() => [] as string[])
   if (items.includes('VIDEO_TS')) return 'dvd'
   if (items.includes('BDMV')) return 'bluray'

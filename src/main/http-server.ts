@@ -7,10 +7,11 @@ import { extname, join, normalize, sep } from 'node:path'
 import type { PlayerBridge } from './player'
 import type { JobQueue } from './convert'
 
-const MIME: Record<string, string> = {
+export const MIME: Record<string, string> = {
   '.m3u8': 'application/vnd.apple.mpegurl', '.ts': 'video/mp2t', '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mkv': 'video/x-matroska',
   '.webm': 'video/webm', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo', '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.m4a': 'audio/mp4',
-  '.aac': 'audio/aac', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.jpg': 'image/jpeg', '.png': 'image/png'
+  '.aac': 'audio/aac', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.aiff': 'audio/aiff', '.alac': 'audio/mp4', '.mpg': 'video/mpeg', '.mpeg': 'video/mpeg', '.wmv': 'video/x-ms-wmv'
 }
 
 export function lanAddress(): string {

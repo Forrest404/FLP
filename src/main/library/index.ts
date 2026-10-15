@@ -1,13 +1,27 @@
 // Media library service: scans and watches folders, probes files, tracks playback progress.
 import { execFile } from 'node:child_process'
 import { watch, type FSWatcher } from 'node:fs'
-import { readdir, stat } from 'node:fs/promises'
+import { open, readdir, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { homedir } from 'node:os'
 import { typeOf, type BrowseResult, type Crumb, type FolderEntry, type HomeData, type MediaItem, type MediaType, type MusicGroup, type MusicView, type ScanStatus, type SortKey } from '@shared/library'
 import { bin, posterFor, readTags } from '../media-tools'
-import { LibraryDb } from './db'
+import { LibraryDb, ORDER } from './db'
+
+/** ".ts" is also TypeScript source; only count it as video if it starts like an MPEG transport stream. */
+async function isTransportStream(path: string, size: number): Promise<boolean> {
+  if (size < 188 * 4) return false
+  const fh = await open(path, 'r').catch(() => null)
+  if (!fh) return false
+  try {
+    const buf = Buffer.alloc(189)
+    await fh.read(buf, 0, 189, 0)
+    return buf[0] === 0x47 && buf[188] === 0x47
+  } finally {
+    await fh.close()
+  }
+}
 
 const TYPES: Record<string, MediaType[]> = { video: ['video'], audio: ['audio'], image: ['image'], all: ['video', 'audio', 'image'] }
 
@@ -78,6 +92,8 @@ export class Library extends EventEmitter {
     this.watchers.get(path)?.close()
     this.watchers.delete(path)
     this.db.removeRoot(path)
+    // A folder inside another library folder: the outer one still covers those files.
+    for (const r of this.db.roots()) if (path.startsWith(`${r}/`)) void this.scan(r)
     this.emit('changed')
   }
 
@@ -113,13 +129,21 @@ export class Library extends EventEmitter {
       return
     }
     if (!this.db.roots().includes(root)) return
+    // An unmounted drive or share: leave its files alone instead of emptying the folder.
+    if (!(await stat(root).catch(() => null))?.isDirectory()) return
+    this.watchRoot(root)
     this.setStatus({ scanning: true, done: 0, total: 0, root })
     const seen = new Set<string>()
+    const unreadable: string[] = []
+    const removed = () => !this.db.roots().includes(root)
     const walk = async (dir: string, depth: number): Promise<void> => {
+      // Folder removed from the library while scanning.
+      if (removed()) return
       let entries
       try {
         entries = await readdir(dir, { withFileTypes: true })
       } catch {
+        unreadable.push(dir)
         return
       }
       for (const e of entries) {
@@ -136,6 +160,8 @@ export class Library extends EventEmitter {
         if (!type) continue
         try {
           const st = await stat(full)
+          if (/\.m?ts$/i.test(e.name) && !(await isTransportStream(full, st.size))) continue
+          if (removed()) return
           seen.add(full)
           this.db.upsertScanned({ path: full, type, size: st.size, mtime: Math.floor(st.mtimeMs) })
           this.status.total = seen.size
@@ -147,7 +173,7 @@ export class Library extends EventEmitter {
     }
     try {
       await walk(root, 0)
-      this.db.prune(root, seen)
+      if (!removed()) this.db.prune(root, seen, unreadable)
     } finally {
       this.setStatus({ scanning: false, done: seen.size, total: seen.size, root: null })
       this.emit('changed')
@@ -172,7 +198,7 @@ export class Library extends EventEmitter {
           batch.map(async (m) => {
             if (m.type === 'audio') {
               const t = await readTags(m.path, this.artworkFromFolder)
-              this.db.setProbe(m.path, { duration: t.duration, title: t.title, artist: t.artist, album: t.album, genre: t.genre, year: t.year, track: t.track })
+              this.db.setProbe(m.path, { duration: t.duration, title: t.title, artist: t.artist, album: t.album, albumArtist: t.albumArtist, genre: t.genre, year: t.year, track: t.track, disc: t.disc })
               if (t.cover) this.db.setPoster(m.id, t.cover)
             } else if (m.type === 'video') {
               this.db.setProbe(m.path, await ffprobe(m.path))
@@ -205,7 +231,16 @@ export class Library extends EventEmitter {
       return t.cover ?? null
     }
     if (m.type !== 'video') return null
-    const p = await posterFor(m.path, m.duration)
+    // Not probed yet: find the length first, so the poster isn't the black frame at 1 s.
+    let duration = m.duration
+    if (!duration) {
+      const info = await ffprobe(m.path)
+      if (info.duration) {
+        this.db.setProbe(m.path, info)
+        duration = info.duration
+      }
+    }
+    const p = await posterFor(m.path, duration)
     if (p) this.db.setPoster(id, p)
     return p
   }
@@ -224,6 +259,7 @@ export class Library extends EventEmitter {
       if (folders.length === 1) return this.browse(kind, folders[0].path, sort)
       return { dir: null, crumbs: [{ name: sectionName, path: null }], folders, items: [] }
     }
+    const inLibrary = roots.some((r) => dir === r || dir.startsWith(`${r}/`))
     const root = roots.find((r) => dir === r || dir.startsWith(`${r}/`)) ?? dir
     const rel = dir.slice(root.length).split('/').filter(Boolean)
     // With only one library folder holding this kind of media, the section name stands in for it.
@@ -233,7 +269,8 @@ export class Library extends EventEmitter {
     rel.forEach((part, i) => crumbs.push({ name: part, path: join(root, ...rel.slice(0, i + 1)) }))
     const folders = [...this.db.subfolderCounts(dir, types)].map(([path, v]) => ({ path, name: basename(path), count: v.count, posters: v.posters, firstId: v.firstId }))
     folders.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-    return { dir, crumbs, folders, items: this.db.inFolder(dir, types, sort) }
+    // Folders outside the library (e.g. from Home → Frequently Visited) show the files played there.
+    return { dir, crumbs, folders, items: this.db.inFolder(dir, types, sort, !inLibrary) }
   }
 
   search(q: string, kind: string): MediaItem[] {
@@ -242,7 +279,7 @@ export class Library extends EventEmitter {
 
   home(): HomeData {
     const continueWatching = this.db.query(
-      `select * from media where type = 'video' and position > 10 and watched = 0 and (duration = 0 or position < duration - 10) order by last_played desc limit 12`
+      `select * from media where type = 'video' and position > 10 and watched = 0 and duration > 0 and position < duration - 10 order by last_played desc limit 12`
     )
     const listenAgain = this.db.query(`select * from media where type = 'audio' and last_played is not null order by last_played desc limit 12`)
     const folderRows = this.db.raw<{ folder: string; n: number }>(
@@ -262,17 +299,30 @@ export class Library extends EventEmitter {
   }
 
   music(view: MusicView, filter: string | null, sort: SortKey): MediaItem[] | MusicGroup[] {
+    // Albums are told apart by album artist too ("Greatest Hits" by different artists).
+    const albumArtist = "coalesce(album_artist, artist, '')"
     if (view === 'songs' || filter !== null) {
-      const where = view === 'albums' ? 'album = ?' : view === 'artists' ? 'coalesce(artist, \'Unknown artist\') = ?' : view === 'genres' ? 'genre = ?' : '1 = 1'
-      const order = view === 'albums' ? 'track, title collate nocase' : { name: 'title collate nocase', added: 'added_at desc', played: 'coalesce(last_played,0) desc', plays: 'play_count desc', artist: 'artist collate nocase, album, track', album: 'album collate nocase, track', year: 'year desc', track: 'track' }[sort as string] ?? 'artist collate nocase, album collate nocase, track'
-      return this.db.query(`select * from media where in_library = 1 and type = 'audio' and ${where} order by ${order}`, ...(filter !== null && view !== 'songs' ? [filter] : []))
+      let where = '1 = 1'
+      let args: string[] = []
+      if (view === 'albums' && filter !== null) {
+        const [album, artist] = filter.split('\u001f')
+        where = artist === undefined ? 'album = ?' : `album = ? and ${albumArtist} = ?`
+        args = artist === undefined ? [album] : [album, artist]
+      } else if (view !== 'songs' && filter !== null) {
+        where = view === 'artists' ? "coalesce(artist, 'Unknown artist') = ?" : 'genre = ?'
+        args = [filter]
+      }
+      const order = view === 'albums' ? 'disc, track, title collate nocase' : ORDER[sort] ?? ORDER.artist
+      return this.db.query(`select * from media where in_library = 1 and type = 'audio' and ${where} order by ${order}`, ...args)
     }
     const col = view === 'albums' ? 'album' : view === 'artists' ? "coalesce(artist, 'Unknown artist')" : 'genre'
+    const group = view === 'albums' ? `album, ${albumArtist}` : col
     const rows = this.db.raw<{ name: string; n: number; cover: string | null; sub: string | null }>(
-      `select ${col} name, count(*) n, max(poster) cover, max(artist) sub from media where in_library = 1 and type = 'audio' and ${col} is not null group by ${col} order by ${col} collate nocase`
+      `select ${col} name, count(*) n, max(poster) cover, max(${albumArtist}) sub from media where in_library = 1 and type = 'audio' and ${col} is not null group by ${group} order by ${col} collate nocase, sub collate nocase`
     )
     return rows.map((r) => ({
       name: r.name,
+      key: view === 'albums' ? `${r.name}\u001f${r.sub ?? ''}` : r.name,
       subtitle: view === 'albums' ? r.sub ?? '' : `${r.n} song${r.n === 1 ? '' : 's'}`,
       count: r.n,
       cover: r.cover
@@ -285,6 +335,7 @@ export class Library extends EventEmitter {
   private lastSave = 0
 
   onFileStarted(path: string, title: string | null, duration: number): void {
+    // Streams without a recognisable extension: online video, radio… (positions are only kept when there's a length).
     const type = typeOf(path) ?? (/^[a-z]+:\/\//i.test(path) ? 'video' : null)
     if (!type) return
     this.current = { path, type }
@@ -316,7 +367,7 @@ export class Library extends EventEmitter {
 
   resumePosition(path: string): number {
     const m = this.db.byPath(path)
-    if (!m || m.watched || m.position < 10) return 0
+    if (!m || m.watched || m.position < 10 || !(m.duration > 0)) return 0
     if (m.duration && m.position > m.duration - 10) return 0
     return m.position
   }

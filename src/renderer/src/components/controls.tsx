@@ -238,11 +238,26 @@ export function NumberField({ value, onChange, min, max, step = 1, suffix }: {
   )
 }
 
+const HEX = /^#?[0-9a-f]{6}$/i
+
 export function ColorField({ value, onChange }: { value: string; onChange(v: string): void }) {
+  // Typing keeps a local draft; only a complete #RRGGBB is saved, and blur reverts anything else.
+  const [draft, setDraft] = useState<string | null>(null)
+  const commit = (v: string) => HEX.test(v) && onChange(`#${v.replace('#', '').toUpperCase()}`)
   return (
     <span className="ui-color">
       <input type="color" value={value} onChange={(e) => onChange(e.target.value.toUpperCase())} />
-      <TextField style={{ width: 120 }} value={value} onChange={(e) => onChange(e.target.value)} />
+      <TextField style={{ width: 120 }} value={draft ?? value}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          commit(e.target.value)
+        }}
+        onBlur={() => setDraft(null)}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter') return
+          commit(e.currentTarget.value)
+          setDraft(null)
+        }} />
     </span>
   )
 }

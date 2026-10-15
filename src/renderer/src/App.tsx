@@ -56,6 +56,34 @@ export function App() {
   const dragDepth = useRef(0)
   const isFileDrag = (e: React.DragEvent) => e.dataTransfer.types.includes('Files')
 
+  // Children that take a drop themselves (and stop it) never reach the root's onDrop, so reset here.
+  useEffect(() => {
+    let leaveTimer: ReturnType<typeof setTimeout> | undefined
+    const reset = () => {
+      clearTimeout(leaveTimer)
+      dragDepth.current = 0
+      setDragging(false)
+    }
+    // Left the window: no dragover follows (it fires every ~50 ms while over the page).
+    const onLeave = (e: DragEvent) => {
+      if (e.relatedTarget) return
+      clearTimeout(leaveTimer)
+      leaveTimer = setTimeout(reset, 150)
+    }
+    const onOver = () => clearTimeout(leaveTimer)
+    window.addEventListener('drop', reset, true)
+    window.addEventListener('dragend', reset, true)
+    window.addEventListener('dragleave', onLeave, true)
+    window.addEventListener('dragover', onOver, true)
+    return () => {
+      clearTimeout(leaveTimer)
+      window.removeEventListener('drop', reset, true)
+      window.removeEventListener('dragend', reset, true)
+      window.removeEventListener('dragleave', onLeave, true)
+      window.removeEventListener('dragover', onOver, true)
+    }
+  }, [])
+
   useEffect(() => document.documentElement.style.setProperty('--fs-controls-opacity', String(fsOpacity / 100)), [fsOpacity])
 
   const showVideo = view === 'player' && kind !== 'image' && kind !== 'audio'
@@ -89,6 +117,7 @@ export function App() {
       onDrop={(e) => {
         dragDepth.current = 0
         setDragging(false)
+        if (e.defaultPrevented) return // a child (e.g. a dialog's drop box) took it
         if (!isFileDrag(e) && !e.dataTransfer.types.includes('text/uri-list')) return
         e.preventDefault()
         const paths = [...e.dataTransfer.files].map((f) => window.flp.pathForFile(f)).filter(Boolean)

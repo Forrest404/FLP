@@ -82,6 +82,7 @@ function toTracks(list: any[] | null): Track[] {
     lang: t.lang,
     codec: t.codec,
     selected: !!t.selected,
+    mainSelection: typeof t['main-selection'] === 'number' ? t['main-selection'] : undefined,
     external: !!t.external,
     default: !!t.default,
     albumart: !!t.albumart,

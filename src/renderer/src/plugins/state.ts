@@ -20,6 +20,9 @@ let unregister: (() => void) | null = null
 
 function applyContributions(c: PluginContributions) {
   usePlugins.setState({ contributions: c })
+  // The open panel's plugin was disabled or removed.
+  const open = ui.get().rightPanel
+  if (open?.startsWith('plugin:') && !c.panels.some((p) => `plugin:${p.pluginId}:${p.id}` === open)) ui.set({ rightPanel: 'video' })
   unregister?.()
   unregister = registerCommands(
     c.commands.map((cmd) => ({

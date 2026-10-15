@@ -31,14 +31,21 @@ export interface Podcast {
 const RADIO_API = 'https://all.api.radio-browser.info/json'
 const UA = { 'user-agent': 'FLP/0.1 (Forrest Labs Play)' }
 
-export async function searchStations(query: string): Promise<Station[]> {
-  const url = query.trim()
-    ? `${RADIO_API}/stations/search?name=${encodeURIComponent(query)}&limit=60&hidebroken=true&order=clickcount&reverse=true`
-    : `${RADIO_API}/stations/topclick/60`
+async function stations(url: string): Promise<Record<string, any>[]> {
   const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(10000) })
   if (!res.ok) throw new Error(`Radio directory unavailable (${res.status})`)
-  const list = (await res.json()) as Record<string, any>[]
-  return list.map((s) => ({
+  return (await res.json()) as Record<string, any>[]
+}
+
+export async function searchStations(query: string): Promise<Station[]> {
+  const q = encodeURIComponent(query.trim())
+  const opts = 'limit=60&hidebroken=true&order=clickcount&reverse=true'
+  // Search names and genres ("jazz", "lofi") together; name matches first.
+  const list = q
+    ? (await Promise.all([stations(`${RADIO_API}/stations/search?name=${q}&${opts}`), stations(`${RADIO_API}/stations/search?tag=${q}&${opts}`).catch(() => [])])).flat()
+    : await stations(`${RADIO_API}/stations/topclick/60`)
+  const seen = new Set<string>()
+  return list.filter((s) => !seen.has(s.stationuuid) && seen.add(s.stationuuid)).slice(0, 80).map((s) => ({
     id: s.stationuuid,
     name: String(s.name).trim(),
     url: s.url_resolved || s.url,
@@ -50,8 +57,23 @@ export async function searchStations(query: string): Promise<Station[]> {
   }))
 }
 
+const NAMED: Record<string, string> = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&', nbsp: ' ', hellip: '…', mdash: '—', ndash: '–', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“' }
+/** Text content of an element: CDATA as-is, everything else with entities decoded (&#8217; &#x2019; &amp; …). */
 const decode = (s: string) =>
-  s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&').trim()
+  s
+    .split(/(<!\[CDATA\[[\s\S]*?\]\]>)/)
+    .map((part) =>
+      part.startsWith('<![CDATA[')
+        ? part.slice(9, -3)
+        : part.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+            if (e[0] !== '#') return NAMED[e.toLowerCase()] ?? m
+            const code = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1))
+            return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m
+          })
+    )
+    .join('')
+    .trim()
+const attr = (el: string, name: string) => el.match(new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i'))?.slice(1).find((v) => v !== undefined)
 const tag = (xml: string, name: string) => {
   const m = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'i'))
   return m ? decode(m[1]) : ''
@@ -67,22 +89,33 @@ function parseDuration(d: string): number {
 export async function fetchPodcast(feed: string): Promise<Podcast> {
   const res = await fetch(feed, { headers: UA, signal: AbortSignal.timeout(15000) })
   if (!res.ok) throw new Error(`Couldn't load the feed (${res.status})`)
-  const xml = await res.text()
+  return parsePodcast(await res.text(), feed)
+}
+
+export function parsePodcast(xml: string, feed: string): Podcast {
   if (!/<rss|<feed/i.test(xml)) throw new Error("That address isn't a podcast feed")
-  const channel = xml.split(/<item[\s>]/i)[0]
-  const image = channel.match(/<itunes:image[^>]*href="([^"]+)"/i)?.[1] ?? tag(tag(channel, 'image'), 'url')
+  // RSS uses <item>, Atom uses <entry> with <link rel="enclosure">.
+  const atom = !/<item[\s>]/i.test(xml) && /<entry[\s>]/i.test(xml)
+  const itemTag = atom ? 'entry' : 'item'
+  const channel = xml.split(new RegExp(`<${itemTag}[\\s>]`, 'i'))[0]
+  const itunesImage = channel.match(/<itunes:image[^>]*>/i)?.[0]
+  const image = (itunesImage && attr(itunesImage, 'href')) || tag(tag(channel, 'image'), 'url') || tag(channel, 'logo') || tag(channel, 'icon')
   const episodes: Episode[] = []
-  for (const m of xml.matchAll(/<item[\s>]([\s\S]*?)<\/item>/gi)) {
+  for (const m of xml.matchAll(new RegExp(`<${itemTag}[\\s>]([\\s\\S]*?)</${itemTag}>`, 'gi'))) {
     const item = m[1]
-    const url = item.match(/<enclosure[^>]*url="([^"]+)"/i)?.[1]
+    const enclosure = atom
+      ? [...item.matchAll(/<link\b[^>]*>/gi)].map((l) => l[0]).find((l) => attr(l, 'rel') === 'enclosure')
+      : item.match(/<enclosure\b[^>]*>/i)?.[0]
+    const url = enclosure && attr(enclosure, atom ? 'href' : 'url')
     if (!url) continue
     episodes.push({
       title: tag(item, 'title'),
       url: decode(url),
-      published: Date.parse(tag(item, 'pubDate')) || 0,
+      published: Date.parse(tag(item, 'pubDate') || tag(item, 'published') || tag(item, 'updated')) || 0,
       duration: parseDuration(tag(item, 'itunes:duration')),
-      description: strip(tag(item, 'itunes:summary') || tag(item, 'description')).slice(0, 400)
+      description: strip(tag(item, 'itunes:summary') || tag(item, 'description') || tag(item, 'summary') || tag(item, 'content')).slice(0, 400)
     })
   }
-  return { feed, title: tag(channel, 'title') || feed, author: tag(channel, 'itunes:author'), image, episodes }
+  const author = tag(channel, 'itunes:author') || tag(tag(channel, 'author'), 'name')
+  return { feed, title: tag(channel, 'title') || feed, author, image, episodes }
 }

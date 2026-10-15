@@ -6,8 +6,12 @@ import { useUi, type LibrarySection } from '@/state/ui'
 
 interface Location {
   dir: string | null
+  /** Music: Songs/Albums/Artists/Genres tab (part of history, so Back restores the right grouping). */
+  musicView?: MusicView
   /** Music: albums/artists/genres group being viewed. */
   group?: string | null
+  /** Browse every kind of media here (a Home folder may hold music), not just the section's own. */
+  allKinds?: boolean
   /** Playlists: open playlist id. */
   playlist?: number | null
 }
@@ -15,7 +19,6 @@ interface Location {
 interface NavState {
   history: Record<LibrarySection, { stack: Location[]; index: number }>
   search: string
-  musicView: MusicView
   version: number
   status: ScanStatus | null
 }
@@ -25,7 +28,6 @@ const start = (): { stack: Location[]; index: number } => ({ stack: [{ dir: null
 export const useLibrary = create<NavState>(() => ({
   history: { home: start(), videos: start(), music: start(), network: start(), playlists: start(), recent: start() },
   search: '',
-  musicView: 'songs',
   version: 0,
   status: null
 }))

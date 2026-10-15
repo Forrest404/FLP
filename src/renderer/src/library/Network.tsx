@@ -1,5 +1,5 @@
 // Network: streams, local media servers (UPnP/DLNA), shared folders, internet radio, podcasts.
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Podcast, Station, UpnpDevice, UpnpEntry } from '@shared/api'
 import { Button, IconButton, SearchField, TextField } from '@/components/controls'
 import { Icon, type IconName } from '@/components/Icon'
@@ -7,7 +7,7 @@ import { openMenu, useMenu } from '@/components/Menu'
 import { Empty } from '@/player/Sidebar'
 import { fmtTime } from '@/state/playback'
 import { getSetting, setUi, useSettings } from '@/state/settings'
-import { showToast, ui } from '@/state/ui'
+import { errorText, showToast, ui } from '@/state/ui'
 import { enqueue, playList } from './actions'
 import { CompactHeader, LibraryHeader } from './Header'
 
@@ -54,19 +54,30 @@ function Upnp() {
   const [devices, setDevices] = useState<UpnpDevice[] | null>(null)
   const [path, setPath] = useState<{ device: UpnpDevice; stack: { id: string; title: string }[] } | null>(null)
   const [entries, setEntries] = useState<UpnpEntry[] | null>(null)
+  const scanSeq = useRef(0)
   const scan = () => {
+    const seq = ++scanSeq.current
     setDevices(null)
-    window.flp.upnp.discover('server').then(setDevices)
+    window.flp.upnp.discover('server').then((d) => seq === scanSeq.current && setDevices(d), () => seq === scanSeq.current && setDevices([]))
   }
   useEffect(scan, [])
   useEffect(() => {
     if (!path) return
+    // A late reply for a folder the user already left must not replace the current one.
+    let alive = true
     setEntries(null)
     const top = path.stack[path.stack.length - 1]
-    window.flp.upnp.browse(path.device, top.id).then(setEntries).catch((e: Error) => {
-      showToast(e.message)
-      setEntries([])
-    })
+    window.flp.upnp.browse(path.device, top.id).then(
+      (list) => alive && setEntries(list),
+      (e) => {
+        if (!alive) return
+        showToast(errorText(e))
+        setEntries([])
+      }
+    )
+    return () => {
+      alive = false
+    }
   }, [path])
 
   if (path) {
@@ -131,14 +142,17 @@ function Radio() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Station[] | null>(null)
   const [searching, setSearching] = useState(false)
+  const searchSeq = useRef(0)
   const search = async (q: string) => {
+    const seq = ++searchSeq.current
     setSearching(true)
     try {
-      setResults(await window.flp.feeds.stations(q))
+      const found = await window.flp.feeds.stations(q)
+      if (seq === searchSeq.current) setResults(found)
     } catch (e) {
-      showToast((e as Error).message)
+      if (seq === searchSeq.current) showToast(errorText(e))
     } finally {
-      setSearching(false)
+      if (seq === searchSeq.current) setSearching(false)
     }
   }
   const isFav = (s: Station) => favorites.some((f) => f.id === s.id)
@@ -173,16 +187,26 @@ function Podcasts() {
   const [url, setUrl] = useState('')
   const [open, setOpen] = useState<Podcast | null>(null)
   const [loading, setLoading] = useState(false)
+  // Bumped by every load and by leaving a podcast, so a slow feed can't open over what the user chose since.
+  const loadSeq = useRef(0)
+  const close = () => {
+    loadSeq.current++
+    setLoading(false)
+    setOpen(null)
+  }
   const load = async (feed: string): Promise<boolean> => {
+    const seq = ++loadSeq.current
     setLoading(true)
     try {
-      setOpen(await window.flp.feeds.podcast(feed))
+      const podcast = await window.flp.feeds.podcast(feed)
+      if (seq !== loadSeq.current) return false
+      setOpen(podcast)
       return true
     } catch (e) {
-      showToast((e as Error).message)
+      if (seq === loadSeq.current) showToast(errorText(e))
       return false
     } finally {
-      setLoading(false)
+      if (seq === loadSeq.current) setLoading(false)
     }
   }
   const subscribe = async () => {
@@ -195,10 +219,10 @@ function Podcasts() {
     return (
       <>
         <div className="flp-tabs">
-          <Button onClick={() => setOpen(null)}><Icon name="arrow-left" size={16} /> Back</Button>
+          <Button onClick={close}><Icon name="arrow-left" size={16} /> Back</Button>
           <span className="flp-form__title">{open.title}</span>
           <span className="flp-muted">{open.author}</span>
-          <IconButton icon="remove" label="Unsubscribe" onClick={() => { setUi('podcasts', feeds.filter((f) => f !== open.feed)); setOpen(null) }} />
+          <IconButton icon="remove" label="Unsubscribe" onClick={() => { setUi('podcasts', feeds.filter((f) => f !== open.feed)); close() }} />
         </div>
         <div className="flp-rows">
           {open.episodes.map((ep, i) => (
@@ -266,7 +290,7 @@ export async function openCastMenu(at: { clientX: number; clientY: number } | HT
           ...devices.map((d) => ({
             label: d.name,
             icon: 'tv' as const,
-            run: () => window.flp.cast.start(d).then(() => showToast(`Playing on ${d.name}`, { label: 'Stop casting', run: () => void window.flp.cast.stop() })).catch((e: Error) => showToast(`Couldn't cast: ${e.message}`))
+            run: () => window.flp.cast.start(d).then(() => showToast(`Playing on ${d.name}`, { label: 'Stop casting', run: () => void window.flp.cast.stop() })).catch((e) => showToast(`Couldn't cast: ${errorText(e)}`))
           })),
           'separator' as const,
           { label: 'Stop casting', icon: 'stop' as const, run: () => void window.flp.cast.stop() }

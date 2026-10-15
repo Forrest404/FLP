@@ -16,9 +16,11 @@ import { OnboardingDialog } from './OnboardingDialog'
 import { ConfirmDialog } from './ConfirmDialog'
 
 export function Dialogs() {
+  // A new key on every openDialog, so reopening (or switching tabs via another command) starts fresh.
+  const seq = useUi((s) => s.dialogSeq)
   return (
     <>
-      <MainDialog />
+      <MainDialog key={seq} />
       <ConfirmDialog />
     </>
   )

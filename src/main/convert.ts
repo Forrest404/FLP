@@ -1,5 +1,5 @@
 // Convert / save and stream-out jobs (ffmpeg), with live progress.
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { basename, dirname, extname, join } from 'node:path'
@@ -8,15 +8,16 @@ import { EventEmitter } from 'node:events'
 import { bin } from './media-tools'
 import { mediaInfo } from './sources'
 
-type PresetOpts = { preset: string; height?: number }
+type PresetOpts = { preset: string; height?: number; textSubs?: boolean }
 const scaled = (o: PresetOpts) => (o.height ? ['-vf', `scale=-2:${o.height}`] : [])
 
 export const PRESETS = {
-  'mp4-h264': { label: 'Video – MP4 (H.264 + AAC)', ext: 'mp4', args: (o: PresetOpts) => [...scaled(o), '-c:v', 'libx264', '-preset', o.preset, '-crf', '21', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'] },
+  'mp4-h264': { label: 'Video – MP4 (H.264 + AAC)', ext: 'mp4', args: (o: PresetOpts) => [...scaled(o), '-c:v', 'libx264', '-preset', o.preset, '-crf', '21', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'] },
   'mp4-hevc': { label: 'Video – MP4 (HEVC, smaller files)', ext: 'mp4', args: (o: PresetOpts) => [...scaled(o), '-c:v', 'libx265', '-preset', o.preset, '-crf', '24', '-tag:v', 'hvc1', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'] },
-  'mp4-fast': { label: 'Video – MP4 (hardware, fastest)', ext: 'mp4', args: (o: PresetOpts) => [...scaled(o), '-c:v', 'h264_videotoolbox', '-b:v', '8M', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'] },
+  'mp4-fast': { label: 'Video – MP4 (hardware, fastest)', ext: 'mp4', args: (o: PresetOpts) => [...scaled(o), '-c:v', 'h264_videotoolbox', '-b:v', '8M', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'] },
   webm: { label: 'Video – WebM (VP9 + Opus)', ext: 'webm', args: (o: PresetOpts) => [...scaled(o), '-c:v', 'libvpx-vp9', '-crf', '32', '-b:v', '0', '-row-mt', '1', '-c:a', 'libopus', '-b:a', '128k'] },
-  remux: { label: 'Video – MKV, no re-encoding (instant)', ext: 'mkv', args: () => ['-map', '0', '-c', 'copy'] },
+  // Data tracks (iPhone metadata) can't go into MKV, and MP4 text subtitles (mov_text) become SRT.
+  remux: { label: 'Video – MKV, no re-encoding (instant)', ext: 'mkv', args: (o: PresetOpts) => ['-map', '0', '-map', '-0:d', '-c', 'copy', ...(o.textSubs ? ['-c:s', 'srt'] : [])] },
   mp3: { label: 'Audio – MP3', ext: 'mp3', args: () => ['-vn', '-c:a', 'libmp3lame', '-q:a', '2'] },
   m4a: { label: 'Audio – M4A (AAC)', ext: 'm4a', args: () => ['-vn', '-c:a', 'aac', '-b:a', '256k'] },
   flac: { label: 'Audio – FLAC (lossless)', ext: 'flac', args: () => ['-vn', '-c:a', 'flac'] },
@@ -30,6 +31,14 @@ export const PRESETS = {
 } as const
 
 export type PresetId = keyof typeof PRESETS
+
+function subtitleCodecs(input: string): Promise<string[]> {
+  return new Promise((resolve) =>
+    execFile(bin('ffprobe'), ['-v', 'error', '-select_streams', 's', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', input], { timeout: 15000 }, (err, out) =>
+      resolve(err ? [] : String(out).split('\n').map((s) => s.trim()).filter(Boolean))
+    )
+  )
+}
 
 export interface ConvertOptions {
   preset: PresetId
@@ -82,9 +91,10 @@ export class JobQueue extends EventEmitter {
     if (opts.start) args.push('-ss', String(opts.start))
     args.push('-i', input)
     if (opts.end) args.push('-t', String(Math.max(0.1, opts.end - (opts.start ?? 0))))
-    args.push(...preset.args({ preset: opts.encoderPreset ?? 'medium', height: opts.height }))
-    args.push('-progress', 'pipe:1', '-nostats', output)
     const info = await mediaInfo(input)
+    const textSubs = (await subtitleCodecs(input)).includes('mov_text')
+    args.push(...preset.args({ preset: opts.encoderPreset ?? 'medium', height: opts.height, textSubs }))
+    args.push('-progress', 'pipe:1', '-nostats', output)
     const total = info?.format.Duration ? info.format.Duration.split(':').reduce((a, b) => a * 60 + Number(b), 0) : 0
     const duration = opts.end ? opts.end - (opts.start ?? 0) : total - (opts.start ?? 0)
     const job: Job = { id: this.nextId++, kind: 'convert', input, output, label: preset.label, progress: 0, status: 'queued' }
