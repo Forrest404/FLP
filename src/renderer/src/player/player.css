@@ -357,3 +357,4 @@
 }
 .flp-edititem[data-insert='before']::before { left: -5px; }
 .flp-edititem[data-insert='after']::after { right: -5px; }
+.flp-pluginpanel { width: 100%; min-height: 420px; height: calc(100vh - 220px); border: 0; border-radius: var(--radius-l); background: var(--bg-panel); }

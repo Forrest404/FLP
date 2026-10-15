@@ -1,0 +1,26 @@
+<style>
+  .time { font-size: 34px; color: var(--text); font-variant-numeric: tabular-nums; margin: 6px 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  p { margin: 12px 0 0; color: var(--text-faint); }
+</style>
+<div>Sleep timer</div>
+<div class="time" id="time">Off</div>
+<div class="grid">
+  <button onclick="flp.postMessage({ start: 15 })">15 min</button>
+  <button onclick="flp.postMessage({ start: 30 })">30 min</button>
+  <button onclick="flp.postMessage({ start: 45 })">45 min</button>
+  <button onclick="flp.postMessage({ start: 60 })">1 hour</button>
+  <button onclick="flp.postMessage({ start: 90 })">1½ hours</button>
+  <button onclick="flp.postMessage({ start: 'end' })">End of item</button>
+</div>
+<p><button class="primary" onclick="flp.postMessage({ cancel: true })">Cancel timer</button></p>
+<p>Change what happens at the end under Settings → Extensions → Sleep Timer.</p>
+<script>
+  const el = document.getElementById('time')
+  flp.onMessage(({ remaining }) => {
+    if (remaining === -1) el.textContent = 'End of item'
+    else if (!remaining) el.textContent = 'Off'
+    else el.textContent = Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0')
+  })
+  flp.postMessage({ hello: true })
+</script>

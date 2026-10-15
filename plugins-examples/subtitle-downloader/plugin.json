@@ -1,0 +1,8 @@
+{
+  "id": "subtitle-downloader",
+  "name": "Subtitle Downloader",
+  "version": "1.0.0",
+  "description": "Search OpenSubtitles.com for the playing video and load the subtitle you pick. Needs a free OpenSubtitles API key.",
+  "author": "Forrest Labs",
+  "permissions": ["network", "files"]
+}

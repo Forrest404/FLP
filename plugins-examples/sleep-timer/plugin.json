@@ -1,0 +1,8 @@
+{
+  "id": "sleep-timer",
+  "name": "Sleep Timer",
+  "version": "1.0.0",
+  "description": "Pause or stop playback after a set time or at the end of the current item, with a gentle volume fade.",
+  "author": "Forrest Labs",
+  "permissions": []
+}

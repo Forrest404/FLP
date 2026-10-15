@@ -37,7 +37,7 @@ export function useKeyboardShortcuts() {
       void runCommand(id)
     }
     window.addEventListener('keydown', onKey)
-    const offMenu = window.flp.menu.onCommand((id) => void runCommand(id))
+    const offMenu = window.flp.menu.onCommand((id, arg) => void runCommand(id, arg))
     return () => {
       window.removeEventListener('keydown', onKey)
       offMenu()

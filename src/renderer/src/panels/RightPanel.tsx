@@ -4,8 +4,10 @@ import { AudioPanel } from './AudioPanel'
 import { PlaybackPanel } from './PlaybackPanel'
 import { SubtitlesPanel } from './SubtitlesPanel'
 import { VideoPanel } from './VideoPanel'
+import { usePlugins } from '@/plugins/state'
+import { PluginPanel } from '@/plugins/PluginPanel'
 
-const TABS: { id: Exclude<PanelId, null>; label: string }[] = [
+const TABS: { id: 'video' | 'audio' | 'subtitles' | 'playback'; label: string }[] = [
   { id: 'video', label: 'Video' },
   { id: 'audio', label: 'Audio' },
   { id: 'subtitles', label: 'Subtitles' },
@@ -15,7 +17,9 @@ const TABS: { id: Exclude<PanelId, null>; label: string }[] = [
 /** Right sidebar: every effect and track option one click away (VLC hides these in Tools). */
 export function RightPanel() {
   const panel = useUi((s) => s.rightPanel)
+  const pluginPanels = usePlugins((s) => s.contributions.panels)
   if (!panel) return null
+  const pluginPanel = pluginPanels.find((p) => `plugin:${p.pluginId}:${p.id}` === panel)
   return (
     <aside className="flp-rpanel" aria-label="Effects and tracks">
       <div className="flp-rpanel__head">
@@ -23,6 +27,10 @@ export function RightPanel() {
           {TABS.map((t) => (
             <button key={t.id} type="button" role="tab" aria-selected={panel === t.id} onClick={() => ui.set({ rightPanel: t.id })}>{t.label}</button>
           ))}
+          {pluginPanels.map((p) => {
+            const id = `plugin:${p.pluginId}:${p.id}` as PanelId
+            return <button key={id} type="button" role="tab" aria-selected={panel === id} onClick={() => ui.set({ rightPanel: id })}>{p.title}</button>
+          })}
         </div>
         <IconButton icon="close" label="Close panel" onClick={() => ui.set({ rightPanel: null })} />
       </div>
@@ -31,6 +39,7 @@ export function RightPanel() {
         {panel === 'audio' && <AudioPanel />}
         {panel === 'subtitles' && <SubtitlesPanel />}
         {panel === 'playback' && <PlaybackPanel />}
+        {pluginPanel && <PluginPanel key={panel} panel={pluginPanel} />}
       </div>
     </aside>
   )

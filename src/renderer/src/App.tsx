@@ -18,6 +18,7 @@ import { fmtTime, openPaths } from '@/state/playback'
 import { getSetting, useSetting, useSettings } from '@/state/settings'
 import { showToast, ui, useUi } from '@/state/ui'
 import '@/player/widgets'
+import '@/plugins/state'
 
 registerCoreCommands()
 

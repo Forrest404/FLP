@@ -324,6 +324,15 @@ const windowCmds: Command[] = [
       await window.flp.settings.setUi('globalShortcuts', {})
       showOsd('Keyboard shortcuts reset')
     } },
+  { id: 'plugins.manage', title: 'Manage plugins', category: 'Plugins', icon: 'plugins', run: () => ui.openSettings('extensions') },
+  { id: 'plugins.reload', title: 'Reload plugins', category: 'Plugins', icon: 'refresh', run: () => window.flp.plugins.reload() },
+  { id: 'plugins.openFolder', title: 'Open the plugins folder', category: 'Plugins', icon: 'folder', run: () => window.flp.plugins.openFolder() },
+  { id: 'plugins.create', title: 'Create a plugin…', category: 'Plugins', icon: 'add',
+    run: () => {
+      ui.openSettings('extensions')
+      setTimeout(() => window.dispatchEvent(new Event('flp:create-plugin')), 100)
+    } },
+  { id: 'plugins.guide', title: 'Plugin guide', category: 'Plugins', icon: 'info', run: () => window.flp.plugins.openGuide() },
   { id: 'app.about', title: 'About FLP', category: 'Interface', icon: 'info', keys: ['Shift+F1'], run: () => ui.openDialog('about') }
 ]
 

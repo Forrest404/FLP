@@ -1,0 +1,35 @@
+<style>
+  form { display: flex; gap: 6px; margin-bottom: 10px; }
+  input { flex: 1; min-width: 0; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  li { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; background: var(--bg-raised); }
+  li span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  small { color: var(--text-faint); }
+  .msg { color: var(--text-faint); margin: 6px 0; }
+</style>
+<form onsubmit="event.preventDefault(); flp.postMessage({ search: q.value })">
+  <input id="q" placeholder="Title (blank = playing video)" />
+  <button class="primary">Search</button>
+</form>
+<div class="msg" id="msg">Search OpenSubtitles.com for subtitles.</div>
+<ul id="list"></ul>
+<script>
+  const msg = document.getElementById('msg'), list = document.getElementById('list')
+  flp.onMessage((m) => {
+    if (m.error) { msg.textContent = m.error; return }
+    if (m.searching) { msg.textContent = 'Searching for “' + m.searching + '”…'; list.innerHTML = ''; return }
+    if (m.done) { msg.textContent = 'Loaded ' + m.done; return }
+    if (m.results) {
+      msg.textContent = m.results.length ? m.results.length + ' results for “' + m.query + '”' : 'Nothing found for “' + m.query + '”.'
+      list.innerHTML = ''
+      for (const r of m.results) {
+        const li = document.createElement('li')
+        li.innerHTML = '<span></span><small></small><button>Get</button>'
+        li.querySelector('span').textContent = r.name
+        li.querySelector('small').textContent = r.lang
+        li.querySelector('button').onclick = () => { msg.textContent = 'Downloading…'; flp.postMessage({ download: r.fileId, lang: r.lang }) }
+        list.appendChild(li)
+      }
+    }
+  })
+</script>

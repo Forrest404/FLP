@@ -10,6 +10,7 @@ import { cropString } from '@shared/video-effects'
 import { scheduleSnapshot } from './dev-snapshot'
 import { displayableImage, posterFor, readTags, thumbnailAt, waveform } from './media-tools'
 import { Library } from './library'
+import { PluginManager } from './plugins'
 import type { MusicView, SortKey } from '@shared/library'
 
 const here = fileURLToPath(new URL('.', import.meta.url))
@@ -22,10 +23,27 @@ if (process.env.FLP_USER_DATA) app.setPath('userData', process.env.FLP_USER_DATA
 
 // flp-media://file/<absolute path> serves local files (images, covers, posters) to the UI.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'flp-media', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } }
+  { scheme: 'flp-media', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } },
+  // Plugin panels get their own origin and a strict policy: inline code only, no network.
+  { scheme: 'flp-plugin', privileges: { secure: true, standard: true } }
 ])
+
+const PANEL_BRIDGE = `<script>
+window.flp = {
+  postMessage: (data) => parent.postMessage({ __flpPanel: true, data }, '*'),
+  onMessage: (cb) => addEventListener('message', (e) => { if (e.data && e.data.__flpToPanel) cb(e.data.data) })
+};
+addEventListener('message', (e) => {
+  if (e.data && e.data.__flpTheme) {
+    let s = document.getElementById('__flp-theme');
+    if (!s) { s = document.createElement('style'); s.id = '__flp-theme'; document.head.prepend(s) }
+    s.textContent = e.data.__flpTheme
+  }
+});
+</script>`
 const settings = new Settings()
 const library = new Library()
+const plugins = new PluginManager(settings, () => player, library, (channel, ...args) => win?.webContents.send(channel, ...args))
 
 function snapshot(): SettingsSnapshot {
   return {
@@ -46,6 +64,7 @@ async function applyCrop(): Promise<void> {
 
 settings.on('changed', (keys: string[]) => {
   if (player) applySettings(player, settings.values(), keys)
+  plugins.settingsChanged(keys)
   if (keys.some((k) => CROP_KEYS.includes(k))) void applyCrop()
   if (keys.includes('library.showHidden') || keys.includes('library.folderMode')) {
     library.showHidden = !!settings.get('library.showHidden')
@@ -66,6 +85,18 @@ function scheduleLibraryNotice() {
 settings.on('ui-changed', (key: string) => {
   if (key !== 'lastVolume') win?.webContents.send('settings:changed', snapshot())
 })
+
+/** mpv's own Lua/JS scripts, from <userData>/mpv-scripts. */
+async function loadMpvScripts(bridge: PlayerBridge): Promise<void> {
+  if (settings.get('extensions.mpvScripts') === false) return
+  const { readdir, mkdir } = await import('node:fs/promises')
+  const dir = join(app.getPath('userData'), 'mpv-scripts')
+  await mkdir(dir, { recursive: true })
+  for (const name of await readdir(dir).catch(() => [] as string[])) {
+    if (!/\.(lua|js)$/.test(name)) continue
+    await bridge.command(['load-script', join(dir, name)]).catch((err: Error) => console.warn(`[mpv-scripts] ${name}: ${err.message}`))
+  }
+}
 
 function rememberRecent(path: string): void {
   const never = String(settings.get('privacy.neverRemember') ?? '')
@@ -102,12 +133,14 @@ function createWindow(): void {
 
   player = new PlayerBridge(win)
   applySettings(player, settings.values())
+  void loadMpvScripts(player)
   void player.set(
     'volume',
     settings.get('audio.rememberVolume') ? settings.getUi('lastVolume', 100) : settings.get('audio.startupVolume')
   )
   player.on('state', (patch) => {
     win?.webContents.send('player:state', patch)
+    plugins.playerState(patch)
     if ('volume' in patch && settings.get('audio.rememberVolume')) settings.setUi('lastVolume', patch.volume)
     if (patch.path && settings.get('privacy.saveRecent')) rememberRecent(patch.path)
     if (patch.time !== undefined && settings.get('privacy.rememberPosition')) library.onTime(patch.time, player!.state.duration)
@@ -121,12 +154,14 @@ function createWindow(): void {
     if (!path) return
     if (settings.get('privacy.saveRecent')) library.onFileStarted(path, title, duration ?? 0)
     const resume = settings.get('playback.resume')
+    plugins.playerEvent('file-loaded', { path, title, duration })
     const position = settings.get('privacy.rememberPosition') ? library.resumePosition(path) : 0
     if (position > 0 && resume === 'always') void bridge.command(['seek', position, 'absolute'])
     else if (position > 0 && resume === 'ask') win?.webContents.send('player:resume-offer', { path, position })
   })
   player.on('end-file', (reason: string) => {
-    const { time, duration } = player!.state
+    const { time, duration, path } = player!.state
+    plugins.playerEvent('ended', { path, reason })
     library.onStopped(time, duration, reason === 'eof')
   })
 
@@ -271,6 +306,9 @@ ipcMain.handle('subs:install', async (_e, pairs: { sub: string; video: string; l
   return results
 })
 ipcMain.on('shell:showInFolder', (_e, path: string) => shell.showItemInFolder(path))
+ipcMain.on('shell:openExternal', (_e, url: string) => {
+  if (/^https:\/\//.test(url)) void shell.openExternal(url)
+})
 ipcMain.on('shell:openPath', (_e, path: string) => void shell.openPath(path))
 
 // Library
@@ -335,6 +373,28 @@ ipcMain.handle('library:bookmarks', (_e, path: string) => library.db.bookmarks(p
 ipcMain.handle('library:addBookmark', (_e, path: string, time: number, name: string) => library.db.addBookmark(path, time, name))
 ipcMain.handle('library:removeBookmark', (_e, id: number) => library.db.removeBookmark(id))
 
+// Plugins
+ipcMain.handle('plugins:list', () => plugins.list())
+ipcMain.handle('plugins:contributions', () => plugins.contributions)
+ipcMain.handle('plugins:logs', () => plugins.logs)
+ipcMain.handle('plugins:setEnabled', (_e, id: string, on: boolean) => plugins.setEnabled(id, on))
+ipcMain.handle('plugins:reload', (_e, id?: string) => plugins.reload(id))
+ipcMain.handle('plugins:invoke', (_e, pluginId: string, command: string, arg?: unknown) => plugins.invoke(pluginId, command, arg))
+ipcMain.on('plugins:panelMessage', (_e, pluginId: string, panelId: string, data: unknown) => plugins.panelMessage(pluginId, panelId, data))
+ipcMain.handle('plugins:remove', (_e, id: string) => plugins.remove(id))
+ipcMain.handle('plugins:install', async () => {
+  if (!win) return null
+  const res = await dialog.showOpenDialog(win, { title: 'Choose a plugin folder (it contains plugin.json)', properties: ['openDirectory'] })
+  return res.canceled ? null : plugins.install(res.filePaths[0])
+})
+ipcMain.handle('plugins:create', async (_e, name: string) => {
+  const dir = await plugins.create(name)
+  void shell.openPath(dir)
+  return dir
+})
+ipcMain.on('plugins:openFolder', () => void shell.openPath(plugins.userDir))
+ipcMain.on('plugins:openGuide', () => void shell.openPath(join(app.getAppPath(), 'docs', 'PLUGINS.md')))
+
 // Media helpers
 ipcMain.handle('media:thumbnail', (_e, path: string, time: number) => thumbnailAt(path, time))
 ipcMain.handle('media:waveform', (_e, path: string) => waveform(path).catch(() => []))
@@ -388,6 +448,21 @@ ipcMain.on('menu:set', (_e, specs: MenuSpec[]) => {
 })
 
 app.whenReady().then(() => {
+  protocol.handle('flp-plugin', (req) => {
+    const url = new URL(req.url)
+    const [, pluginId, panelId] = url.pathname.split('/')
+    const panel = plugins.contributions.panels.find((p) => p.pluginId === pluginId && p.id === panelId)
+    if (!panel) return new Response('Panel not found', { status: 404 })
+    // Matching colour scheme keeps the frame transparent (a mismatch makes Chromium paint it white).
+    const scheme = url.searchParams.get('scheme') === 'light' ? 'light' : 'dark'
+    const base = `<style>:root{color-scheme:${scheme}}html,body{background:transparent}</style>`
+    return new Response(`<!doctype html><meta charset="utf-8">${base}${PANEL_BRIDGE}${panel.html}`, {
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'content-security-policy': "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https:; font-src data:"
+      }
+    })
+  })
   protocol.handle('flp-media', (req) => {
     const path = decodeURIComponent(new URL(req.url).pathname)
     return net.fetch(pathToFileURL(path).toString(), { headers: req.headers })
@@ -396,11 +471,13 @@ app.whenReady().then(() => {
   library.recursive = settings.get('library.folderMode') !== 'flat'
   library.start()
   createWindow()
+  void plugins.start()
   registerGlobalShortcuts(settings.getUi<Record<string, string>>('globalShortcuts', {}))
 })
 app.on('window-all-closed', () => app.quit())
 app.on('will-quit', () => globalShortcut.unregisterAll())
 app.on('before-quit', () => {
+  plugins.dispose()
   if (player) library.onStopped(player.state.time, player.state.duration, false)
   settings.flush()
 })

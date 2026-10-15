@@ -1,5 +1,6 @@
 import type { Bounds, PlayerState } from './player'
 import type { SettingsSnapshot } from './settings-store'
+import type { PluginContributions, PluginInfo } from './plugins'
 import type { BrowseResult, HomeData, MediaItem, MusicGroup, MusicView, Playlist, ScanStatus, SortKey } from './library'
 
 export interface AudioTags {
@@ -104,10 +105,31 @@ export interface RendererApi {
     onChanged(cb: () => void): () => void
     onStatus(cb: (s: ScanStatus) => void): () => void
   }
+  plugins: {
+    list(): Promise<PluginInfo[]>
+    contributions(): Promise<PluginContributions>
+    logs(): Promise<{ pluginId: string; level: string; text: string; at: number }[]>
+    setEnabled(id: string, enabled: boolean): Promise<void>
+    reload(id?: string): Promise<void>
+    invoke(pluginId: string, command: string, arg?: unknown): Promise<{ result?: unknown; error?: string }>
+    panelMessage(pluginId: string, panelId: string, data: unknown): void
+    install(): Promise<string | null>
+    remove(id: string): Promise<void>
+    create(name: string): Promise<string>
+    openFolder(): void
+    openGuide(): void
+    onList(cb: (list: PluginInfo[]) => void): () => void
+    onContributions(cb: (c: PluginContributions) => void): () => void
+    onNotify(cb: (plugin: string, text: string, action: { label: string; command: string } | null) => void): () => void
+    onOsd(cb: (text: string) => void): () => void
+    onPanelMessage(cb: (pluginId: string, panelId: string, data: unknown) => void): () => void
+    onLog(cb: (entry: { pluginId: string; level: string; text: string; at: number }) => void): () => void
+  }
+  onView(cb: (view: 'player' | 'library') => void): () => void
   onResumeOffer(cb: (offer: { path: string; position: number }) => void): () => void
   menu: {
     set(specs: MenuSpec[]): void
-    onCommand(cb: (id: string) => void): () => void
+    onCommand(cb: (id: string, arg?: unknown) => void): () => void
   }
   app: {
     homeDir(): Promise<string>
@@ -123,6 +145,7 @@ export interface RendererApi {
   }
   shell: {
     showInFolder(path: string): void
+    openExternal(url: string): void
     openPath(path: string): void
   }
   /** Absolute path of a dropped File. */

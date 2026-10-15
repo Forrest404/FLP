@@ -1,0 +1,8 @@
+{
+  "id": "skip-intro",
+  "name": "Skip Intro",
+  "version": "1.0.0",
+  "description": "Mark where a show's intro ends (and its credits start) once; FLP offers to skip them in every episode in that folder.",
+  "author": "Forrest Labs",
+  "permissions": []
+}

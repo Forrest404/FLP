@@ -69,3 +69,20 @@
 .flp-profiles__name { flex: 1; }
 .flp-profiles__actions { display: inline-flex; opacity: 0; }
 .flp-profiles li:hover .flp-profiles__actions { opacity: 1; }
+
+/* Extensions */
+.flp-plugins { display: grid; gap: 10px; width: 100%; }
+.flp-plugins__box { min-height: 190px; max-height: 420px; overflow: auto; border-radius: var(--radius-l); background: var(--bg-well); border: 1px solid var(--border); padding: 4px; }
+.flp-plugin { border-radius: var(--radius); }
+.flp-plugin[data-selected='true'] { background: var(--bg-panel); }
+.flp-plugin__row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; cursor: pointer; }
+.flp-plugin__name { flex: 1; display: grid; gap: 2px; color: var(--text); font-size: var(--fs-m); }
+.flp-plugin__name small { color: var(--text-faint); font-size: var(--fs-s); }
+.flp-plugin__details { padding: 0 14px 14px 42px; display: grid; gap: 10px; color: var(--text-dim); font-size: var(--fs); }
+.flp-plugin__details p { margin: 0; line-height: 1.5; }
+.flp-plugin__meta { display: flex; gap: 14px; color: var(--text-faint); font-size: var(--fs-s); flex-wrap: wrap; }
+.flp-plugin__perms { display: flex; align-items: center; gap: 8px; color: var(--text-dim); }
+.flp-plugin__error, .flp-plugin__log { margin: 0; padding: 10px; border-radius: var(--radius); background: var(--bg-well); font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; max-height: 160px; overflow: auto; user-select: text; }
+.flp-plugin__error { color: #e08a6f; }
+.flp-plugins__bar { display: flex; align-items: center; gap: 8px; }
+.flp-plugins__bar .ui-btn { height: 34px; font-size: var(--fs); }

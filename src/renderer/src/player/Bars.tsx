@@ -5,6 +5,7 @@ import { useUi } from '@/state/ui'
 import { DEFAULT_LAYOUT, getItem, type LayoutZone } from './items'
 import { TitleText } from './widgets'
 import { customize, useCustomize } from './customize'
+import { usePlugins } from '@/plugins/state'
 
 const NO_LAYOUT = {}
 
@@ -111,7 +112,11 @@ export function TitleBar() {
 
 export function ControlBar() {
   const kind = usePlayer((s) => s.kind)
-  const layout = useLayout(kind === 'audio' ? 'musicControls' : 'controls')
+  const base = useLayout(kind === 'audio' ? 'musicControls' : 'controls')
+  const editing = useCustomize((s) => !!s.draft)
+  const pluginButtons = usePlugins((s) => s.contributions.controlButtons)
+  // Buttons plugins add go at the end unless the user already placed them.
+  const layout = editing ? base : [...base, ...pluginButtons.map((b) => b.command).filter((c) => !base.includes(c))]
   // A still image has no timeline.
   const ids = kind === 'image' ? layout.filter((id) => !['time', 'duration'].includes(id)).map((id) => (id === 'seek' ? 'spacer' : id)) : layout
   return (

@@ -4,6 +4,7 @@ import { Button, IconButton } from '@/components/controls'
 import { Icon } from '@/components/Icon'
 import { useLibraryData } from '@/library/state'
 import { addLibraryFolder } from '@/library/LibraryPanel'
+import { PluginList } from './PluginList'
 
 function MediaFolders() {
   const roots = useLibraryData(() => window.flp.library.roots(), [])
@@ -22,7 +23,7 @@ function MediaFolders() {
   )
 }
 
-/** Filled in by the plugin system (milestone 6). */
 export const CUSTOM_ROWS: Record<string, ComponentType> = {
-  'media-folders': MediaFolders
+  'media-folders': MediaFolders,
+  'plugin-list': PluginList
 }

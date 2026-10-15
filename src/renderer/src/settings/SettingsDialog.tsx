@@ -37,8 +37,9 @@ function useDynamicOptions(kind: string | null): Option[] {
   return opts
 }
 
-function Control({ def }: { def: SettingDef }) {
-  const value = useSetting<unknown>(def.key)
+export function Control({ def }: { def: SettingDef }) {
+  // Unsaved settings (e.g. a plugin's new options) show their default.
+  const value = useSetting<unknown>(def.key) ?? ('default' in def ? def.default : undefined)
   const set = (v: unknown) => setSetting(def.key, v)
   const dynamic = 'options' in def && !Array.isArray(def.options) ? def.options.dynamic : null
   const dynOpts = useDynamicOptions(dynamic)

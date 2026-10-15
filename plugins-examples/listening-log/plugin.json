@@ -1,0 +1,8 @@
+{
+  "id": "listening-log",
+  "name": "Listening Log",
+  "version": "1.0.0",
+  "description": "Keeps a simple diary of what you played and when.",
+  "author": "Forrest Labs",
+  "permissions": []
+}

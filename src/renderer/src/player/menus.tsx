@@ -8,6 +8,7 @@ import { getSetting, setSetting, useSettings } from '@/state/settings'
 import { openPaths, setSpeed, trackLabel } from '@/state/playback'
 import { ui, useUi } from '@/state/ui'
 import type { IconName } from '@/components/Icon'
+import { usePlugins } from '@/plugins/state'
 
 /** A menu entry for a command, with its icon and current shortcut. */
 export function cmd(id: string, label?: string, icon?: IconName): MenuEntry {
@@ -149,7 +150,17 @@ export function rightClickMenu(): MenuEntry[] {
         cmd('media.openDisc', 'Open Disc'), cmd('media.openCapture', 'Open Capture Device'), { label: 'Open Recent', icon: 'recent', submenu: recentMenu }
       ]
     },
+    ...pluginMenu(),
     'separator',
     { label: 'Quit FLP', icon: 'quit', hint: '⌘Q', run: () => window.flp.window.close() }
   ]
+}
+
+/** Items plugins add to the right-click menu, plus their commands, under "Plugins". */
+function pluginMenu(): MenuEntry[] {
+  const { menuItems, commands } = usePlugins.getState().contributions
+  if (!menuItems.length && !commands.length) return []
+  const items: MenuEntry[] = menuItems.map((m) => ({ label: m.label, run: () => void runCommand(m.command) }))
+  const extra = commands.filter((c) => !menuItems.some((m) => m.command === c.id)).map((c) => cmd(c.id))
+  return [{ label: 'Plugins', icon: 'plugins', submenu: [...items, ...(items.length && extra.length ? ['separator' as const] : []), ...extra] }]
 }

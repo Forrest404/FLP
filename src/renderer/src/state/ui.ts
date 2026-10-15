@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type View = 'player' | 'library'
 export type LibrarySection = 'home' | 'videos' | 'music' | 'network' | 'playlists' | 'recent'
-export type RightPanel = 'video' | 'audio' | 'subtitles' | 'playback' | null
+export type RightPanel = 'video' | 'audio' | 'subtitles' | 'playback' | `plugin:${string}` | null
 export type DialogId =
   | 'settings' | 'shortcuts' | 'customize' | 'network' | 'newPlaylist' | 'profiles' | 'about'
   | 'mediaInfo' | 'convert' | 'capture' | 'disc' | 'addSubtitles' | 'plugins' | 'onboarding' | null
