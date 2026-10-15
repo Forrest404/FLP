@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events'
 import { app } from 'electron'
 import { defaultValues, type SettingValues } from '@shared/settings-schema'
 import { FX_DEFAULTS } from '@shared/audio-effects'
+import { VFX_DEFAULTS } from '@shared/video-effects'
 import type { Profile, SettingsFile } from '@shared/settings-store'
 
 const DEFAULT_PROFILES: Record<string, Profile> = {
@@ -18,7 +19,7 @@ const DEFAULT_PROFILES: Record<string, Profile> = {
 export class Settings extends EventEmitter {
   private file: string
   data: SettingsFile
-  private defaults: SettingValues = { ...defaultValues(), ...FX_DEFAULTS }
+  private defaults: SettingValues = { ...defaultValues(), ...FX_DEFAULTS, ...VFX_DEFAULTS }
   private saveTimer: NodeJS.Timeout | null = null
 
   constructor() {

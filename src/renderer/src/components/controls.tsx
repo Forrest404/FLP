@@ -246,3 +246,62 @@ export function InfoTip({ text }: { text: ReactNode }) {
     </span>
   )
 }
+
+/** Vertical slider for the equalizer bands. */
+export function VSlider({ value, min, max, step = 0.1, onChange, label, height = 150 }: {
+  value: number
+  min: number
+  max: number
+  step?: number
+  onChange(v: number): void
+  label: string
+  height?: number
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const pct = ((value - min) / (max - min)) * 100
+  const zero = ((0 - min) / (max - min)) * 100
+  const valueAt = (clientY: number) => {
+    const r = ref.current!.getBoundingClientRect()
+    const raw = max - ((clientY - r.top) / r.height) * (max - min)
+    return Math.min(max, Math.max(min, Math.round(raw / step) * step))
+  }
+  const onPointerDown = (e: React.PointerEvent) => {
+    const el = e.currentTarget as HTMLElement
+    el.setPointerCapture(e.pointerId)
+    onChange(valueAt(e.clientY))
+    const move = (ev: PointerEvent) => onChange(valueAt(ev.clientY))
+    const up = () => {
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', up)
+    }
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', up)
+  }
+  return (
+    <div
+      ref={ref}
+      className="ui-vslider"
+      style={{ height }}
+      role="slider"
+      tabIndex={0}
+      aria-label={label}
+      aria-orientation="vertical"
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => onChange(0)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowUp') onChange(Math.min(max, value + step))
+        else if (e.key === 'ArrowDown') onChange(Math.max(min, value - step))
+        else return
+        e.preventDefault()
+      }}
+      title={`${label}: ${value > 0 ? '+' : ''}${value.toFixed(1)} dB (double-click to reset)`}
+    >
+      <div className="ui-vslider__fill" style={{ bottom: `${Math.min(pct, zero)}%`, height: `${Math.abs(pct - zero)}%` }} />
+      <i className="ui-vslider__zero" style={{ bottom: `${zero}%` }} />
+      <div className="ui-vslider__thumb" style={{ bottom: `${pct}%` }} />
+    </div>
+  )
+}

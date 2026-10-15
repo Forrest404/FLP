@@ -2,6 +2,7 @@
 // the mpv properties to set; it's re-run whenever one of those keys changes.
 import { homedir } from 'node:os'
 import { buildAudioFilters } from '@shared/audio-effects'
+import { buildVideoFilters, videoProps, VFX_KEYS } from '@shared/video-effects'
 import type { SettingValues } from '@shared/settings-schema'
 import type { PlayerBridge } from './player'
 
@@ -38,27 +39,36 @@ export const RULES: Rule[] = [
   { keys: ['video.enabled'], apply: (v) => ({ vid: v['video.enabled'] ? 'auto' : 'no' }) },
   { keys: ['video.stopScreensaver'], apply: (v) => ({ 'stop-screensaver': v['video.stopScreensaver'] ? 'yes' : 'no' }) },
   {
-    keys: ['video.deinterlace', 'video.deinterlaceMethod'],
+    // One video filter chain: deinterlacing + software effects. Software filters need decoded
+    // frames in memory, so hardware decoding switches to its copy mode while any are active.
+    keys: ['video.deinterlace', 'video.deinterlaceMethod', 'performance.hwdec', ...VFX_KEYS],
     apply: (v) => {
       const mode = v['video.deinterlace']
       const method = String(v['video.deinterlaceMethod'])
-      if (mode === 'off') return { deinterlace: 'no', vf: '' }
-      if (method !== 'auto') {
+      const vf: string[] = []
+      let deinterlace: string = mode === 'off' ? 'no' : mode === 'on' ? 'yes' : 'auto'
+      if (mode !== 'off' && method !== 'auto') {
         const filter = method === 'yadif-double' ? 'yadif=mode=send_field' : method
-        return { deinterlace: 'no', vf: `@deint:lavfi=[${filter}${mode === 'auto' ? '=deint=interlaced' : ''}]` }
+        vf.push(`@deint:lavfi=[${filter}${mode === 'auto' ? '=deint=interlaced' : ''}]`)
+        deinterlace = 'no'
       }
-      return { deinterlace: mode === 'on' ? 'yes' : 'auto' }
+      vf.push(...buildVideoFilters(v))
+      const hw = String(v['performance.hwdec'] ?? 'auto-safe')
+      const hwdec = vf.length && hw !== 'no' ? (hw === 'videotoolbox' ? 'videotoolbox-copy' : 'auto-copy-safe') : hw
+      return { deinterlace, vf: vf.join(','), hwdec }
     }
+  },
+  {
+    keys: ['performance.postProcessing', 'video.zoom', ...VFX_KEYS],
+    apply: (v) => videoProps(v, v['performance.postProcessing'] !== 'off')
   },
   { keys: ['video.aspect'], apply: (v) => ({ 'video-aspect-override': v['video.aspect'] === 'auto' ? 'no' : v['video.aspect'] }) },
   {
     keys: ['video.zoom', 'video.scaleToWindow'],
     apply: (v) => {
       const z = String(v['video.zoom'])
-      if (!v['video.scaleToWindow']) return { 'video-unscaled': 'yes', panscan: 0, 'video-zoom': 0 }
-      if (z === 'fill') return { 'video-unscaled': 'no', panscan: 1, 'video-zoom': 0 }
-      if (z === 'fit') return { 'video-unscaled': 'no', panscan: 0, 'video-zoom': 0 }
-      return { 'video-unscaled': 'no', panscan: 0, 'video-zoom': Math.log2(Number(z) || 1) }
+      if (!v['video.scaleToWindow']) return { 'video-unscaled': 'yes', panscan: 0 }
+      return { 'video-unscaled': 'no', panscan: z === 'fill' ? 1 : 0 }
     }
   },
   {
@@ -166,12 +176,11 @@ export const RULES: Rule[] = [
   { keys: ['network.userAgent'], apply: (v) => (v['network.userAgent'] ? { 'user-agent': v['network.userAgent'] } : {}) },
 
   // Performance
-  { keys: ['performance.hwdec'], apply: (v) => ({ hwdec: v['performance.hwdec'] }) },
   {
     keys: ['performance.postProcessing'],
     apply: (v) => {
       const p = v['performance.postProcessing']
-      return { deband: p !== 'off', scale: p === 'high' ? 'ewa_lanczossharp' : 'bilinear', cscale: p === 'high' ? 'ewa_lanczossharp' : 'bilinear' }
+      return { scale: p === 'high' ? 'ewa_lanczossharp' : 'bilinear', cscale: p === 'high' ? 'ewa_lanczossharp' : 'bilinear' }
     }
   },
   { keys: ['performance.skipLoopFilter'], apply: (v) => ({ 'vd-lavc-skiploopfilter': v['performance.skipLoopFilter'] }) },
@@ -208,11 +217,7 @@ export function applySettings(player: PlayerBridge, values: SettingValues, chang
   for (const rule of RULES) {
     if (touched && !rule.keys.some((k) => touched.has(k))) continue
     for (const [prop, value] of Object.entries(rule.apply(values))) {
-      try {
-        player.set(prop, value)
-      } catch (err) {
-        console.warn(`[settings] ${prop}=${JSON.stringify(value)}: ${(err as Error).message}`)
-      }
+      player.set(prop, value).catch((err: Error) => console.warn(`[settings] ${prop}=${JSON.stringify(value)}: ${err.message}`))
     }
   }
 }

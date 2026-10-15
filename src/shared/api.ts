@@ -111,6 +111,10 @@ export interface RendererApi {
   app: {
     homeDir(): Promise<string>
   }
+  subs: {
+    listVideos(dir: string): Promise<string[]>
+    install(pairs: { sub: string; video: string; lang: string }[], overwrite: boolean): Promise<{ video: string; target: string; ok: boolean; error?: string }[]>
+  }
   shell: {
     showInFolder(path: string): void
     openPath(path: string): void

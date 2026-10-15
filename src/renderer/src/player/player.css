@@ -302,3 +302,39 @@
 .flp-onboard__key { display: flex; justify-content: space-between; align-items: center; color: var(--text-dim); font-size: var(--fs-m); }
 .flp-onboard__key kbd { display: inline-block; min-width: 28px; padding: 4px 8px; border-radius: 4px; background: var(--bg-well); border: 1px solid var(--border); color: var(--text); font-family: var(--font); font-size: var(--fs); text-align: center; }
 .flp-onboard__key em { font-style: normal; color: var(--text-faint); padding: 0 4px; }
+
+/* Effects panel extras */
+.flp-rpanel__tabs { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius); background: var(--bg-well); }
+.flp-rpanel__tabs button { border: 0; background: transparent; color: var(--text-faint); font-size: var(--fs); padding: 5px 10px; border-radius: var(--radius-s); cursor: pointer; }
+.flp-rpanel__tabs button[aria-selected='true'] { background: var(--bg-panel); color: var(--text); }
+.flp-rpanel__head { padding: 0 2px 0 4px; }
+.flp-rpanel .ui-select { width: 100%; }
+.flp-presets { display: flex; align-items: center; gap: 6px; }
+.flp-presets .ui-select { flex: 1; }
+.flp-fx-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-dim); font-size: var(--fs-m); }
+.flp-eq { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; padding: 6px 0; }
+.flp-eq__band { display: grid; justify-items: center; gap: 6px; }
+.flp-eq__val, .flp-eq__freq { font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.flp-rpanel .ui-btn { height: 32px; font-size: var(--fs); }
+
+/* Add Subtitles dialog */
+.flp-addsubs { display: flex; flex-direction: column; height: 100%; padding: 16px 20px 0; gap: 14px; }
+.flp-addsubs__bar { display: flex; align-items: center; gap: 12px; }
+.flp-addsubs__crumb { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--text-dim); font-size: var(--fs-m); cursor: pointer; }
+.flp-addsubs__crumb:hover { color: var(--text-strong); }
+.flp-addsubs__cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 320px 1fr; gap: 14px; }
+.flp-addsubs__col { min-height: 0; overflow: auto; border-radius: var(--radius-l); background: var(--bg-well); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.flp-addsubs__head { color: var(--text); font-size: var(--fs); padding: 4px 6px 8px; }
+.flp-addsubs__sub, .flp-addsubs__video { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius); background: var(--bg-panel); color: var(--text-dim); font-size: var(--fs); }
+.flp-addsubs__sub { cursor: grab; }
+.flp-addsubs__sub[data-used='true'] { color: var(--accent); }
+.flp-addsubs__sub span, .flp-addsubs__vname span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flp-addsubs__sub button, .flp-addsubs__pair button { border: 0; background: transparent; color: var(--text-faint); cursor: pointer; display: grid; }
+.flp-addsubs__video { justify-content: space-between; min-height: 52px; }
+.flp-addsubs__video[data-target='true'] { outline: 1px dashed var(--text-ghost); }
+.flp-addsubs__video[data-target='true']:hover { outline-color: var(--accent); }
+.flp-addsubs__vname { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.flp-addsubs__pair { display: flex; align-items: center; gap: 8px; }
+.flp-addsubs__pair .ui-select { width: 150px; height: 32px; }
+.flp-addsubs__chip { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--accent); }
+.flp-addsubs__empty { flex: 1; display: grid; place-items: center; text-align: center; color: var(--text-faint); padding: 24px; cursor: pointer; }

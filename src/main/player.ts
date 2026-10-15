@@ -6,6 +6,9 @@ import { initialPlayerState, mediaKind, type Chapter, type PlayerState, type Tra
 
 interface NativePlayer {
   command(args: unknown[]): unknown
+  commandAsync(id: number, args: unknown[]): number
+  setPropertyAsync(id: number, name: string, value: unknown): number
+  getPropertyAsync(id: number, name: string): number
   setProperty(name: string, value: unknown): void
   getProperty(name: string): unknown
   observe(name: string): void
@@ -18,6 +21,7 @@ interface NativePlayer {
 
 interface MpvEvent {
   event: string
+  id?: number
   name?: string
   data?: unknown
   reason?: string
@@ -87,6 +91,8 @@ function toTracks(list: any[] | null): Track[] {
 export class PlayerBridge extends EventEmitter {
   private native: NativePlayer
   private lastTimeEmit = 0
+  private nextId = 1
+  private pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void; what: string }>()
   // Full merged state, so a renderer that (re)loads can catch up.
   state: PlayerState = { ...initialPlayerState }
 
@@ -108,6 +114,14 @@ export class PlayerBridge extends EventEmitter {
 
   private drain(): void {
     for (const ev of this.native.poll()) {
+      if (process.env.FLP_DEBUG_MPV && ev.name !== 'time-pos') console.log('[mpv event]', JSON.stringify(ev).slice(0, 200))
+      if (ev.id && this.pending.has(ev.id)) {
+        const p = this.pending.get(ev.id)!
+        this.pending.delete(ev.id)
+        if (ev.error) p.reject(new Error(`${p.what}: ${ev.error}`))
+        else p.resolve(ev.data ?? null)
+        continue
+      }
       if (ev.event === 'property-change' && ev.name) {
         // time-pos fires every frame; ~10 updates a second is plenty for the UI.
         if (ev.name === 'time-pos') {
@@ -132,14 +146,28 @@ export class PlayerBridge extends EventEmitter {
     }
   }
 
-  command(args: unknown[]): unknown {
-    return this.native.command(args)
+  // All calls are asynchronous: the main thread is also mpv's render thread, so a blocking call
+  // that waits on the video output would deadlock.
+  private call(what: string, start: (id: number) => number): Promise<unknown> {
+    const id = this.nextId++
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject, what })
+      const err = start(id)
+      if (process.env.FLP_DEBUG_MPV) console.log('[mpv call]', id, what, err)
+      if (typeof err === 'number' && err < 0) {
+        this.pending.delete(id)
+        reject(new Error(`${what}: error ${err}`))
+      }
+    })
   }
-  set(name: string, value: unknown): void {
-    this.native.setProperty(name, value)
+  command(args: unknown[]): Promise<unknown> {
+    return this.call(String(args[0]), (id) => this.native.commandAsync(id, args))
   }
-  get(name: string): unknown {
-    return this.native.getProperty(name)
+  set(name: string, value: unknown): Promise<unknown> {
+    return this.call(name, (id) => this.native.setPropertyAsync(id, name, value))
+  }
+  get(name: string): Promise<unknown> {
+    return this.call(name, (id) => this.native.getPropertyAsync(id, name)).catch(() => null)
   }
   setBounds(x: number, y: number, w: number, h: number): void {
     this.native.setBounds(x, y, w, h)

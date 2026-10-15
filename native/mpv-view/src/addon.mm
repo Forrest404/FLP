@@ -5,6 +5,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import <OpenGL/gl3.h>
 #include <dlfcn.h>
+#include <atomic>
 #include <deque>
 #include <string>
 #include <vector>
@@ -223,6 +224,9 @@ class Player : public Napi::ObjectWrap<Player> {
   static Napi::Object Init(Napi::Env env, Napi::Object exports) {
     auto cls = DefineClass(env, "Player",
                            {InstanceMethod("command", &Player::Command),
+                            InstanceMethod("commandAsync", &Player::CommandAsync),
+                            InstanceMethod("setPropertyAsync", &Player::SetPropertyAsync),
+                            InstanceMethod("getPropertyAsync", &Player::GetPropertyAsync),
                             InstanceMethod("setProperty", &Player::SetProperty),
                             InstanceMethod("getProperty", &Player::GetProperty),
                             InstanceMethod("observe", &Player::Observe),
@@ -295,13 +299,14 @@ class Player : public Napi::ObjectWrap<Player> {
   FLPVideoLayer *layer_ = nil;
   FLPVideoView *view_ = nil;
   Napi::ThreadSafeFunction wakeup_;
-  bool pending_ = false;
+  std::atomic<bool> pending_{false};
+  bool visible_ = true;
+  NSRect shownFrame_ = NSZeroRect;
 
   static void OnWakeup(void *ctx) {
     auto *self = static_cast<Player *>(ctx);
     // Coalesce: one JS callback drains every queued event.
-    if (self->pending_) return;
-    self->pending_ = true;
+    if (self->pending_.exchange(true)) return;
     self->wakeup_.NonBlockingCall();
   }
 
@@ -337,6 +342,34 @@ class Player : public Napi::ObjectWrap<Player> {
     auto out = nodeToJs(info.Env(), &result);
     mpv_free_node_contents(&result);
     return out;
+  }
+
+  // Async variants never block the main thread, which is also mpv's render thread. Results arrive
+  // through poll() as *-reply events carrying the same id.
+  Napi::Value CommandAsync(const Napi::CallbackInfo &info) {
+    if (!Alive(info)) return info.Env().Undefined();
+    uint64_t id = (uint64_t)info[0].ToNumber().Int64Value();
+    NodeBuilder b;
+    mpv_node args;
+    b.build(info[1], &args);
+    return Napi::Number::New(info.Env(), mpv_command_node_async(mpv_, id, &args));
+  }
+
+  Napi::Value SetPropertyAsync(const Napi::CallbackInfo &info) {
+    if (!Alive(info)) return info.Env().Undefined();
+    uint64_t id = (uint64_t)info[0].ToNumber().Int64Value();
+    std::string name = info[1].ToString().Utf8Value();
+    NodeBuilder b;
+    mpv_node value;
+    b.build(info[2], &value);
+    return Napi::Number::New(info.Env(), mpv_set_property_async(mpv_, id, name.c_str(), MPV_FORMAT_NODE, &value));
+  }
+
+  Napi::Value GetPropertyAsync(const Napi::CallbackInfo &info) {
+    if (!Alive(info)) return info.Env().Undefined();
+    uint64_t id = (uint64_t)info[0].ToNumber().Int64Value();
+    std::string name = info[1].ToString().Utf8Value();
+    return Napi::Number::New(info.Env(), mpv_get_property_async(mpv_, id, name.c_str(), MPV_FORMAT_NODE));
   }
 
   Napi::Value SetProperty(const Napi::CallbackInfo &info) {
@@ -381,7 +414,19 @@ class Player : public Napi::ObjectWrap<Player> {
       auto o = Napi::Object::New(env);
       o.Set("event", mpv_event_name(ev->event_id));
       if (ev->error < 0) o.Set("error", mpv_error_string(ev->error));
+      if (ev->reply_userdata) o.Set("id", Napi::Number::New(env, (double)ev->reply_userdata));
       switch (ev->event_id) {
+        case MPV_EVENT_COMMAND_REPLY: {
+          auto *c = (mpv_event_command *)ev->data;
+          o.Set("data", nodeToJs(env, &c->result));
+          break;
+        }
+        case MPV_EVENT_GET_PROPERTY_REPLY: {
+          auto *p = (mpv_event_property *)ev->data;
+          o.Set("name", p->name);
+          o.Set("data", p->format == MPV_FORMAT_NODE ? nodeToJs(env, (mpv_node *)p->data) : env.Null());
+          break;
+        }
         case MPV_EVENT_PROPERTY_CHANGE: {
           auto *p = (mpv_event_property *)ev->data;
           o.Set("name", p->name);
@@ -425,12 +470,26 @@ class Player : public Napi::ObjectWrap<Player> {
     double w = info[2].ToNumber(), h = info[3].ToNumber();
     NSView *parent = view_.superview;
     double top = parent.isFlipped ? y : parent.bounds.size.height - y - h;
-    view_.frame = NSMakeRect(x, top, w, h);
+    shownFrame_ = NSMakeRect(x, top, w, h);
+    if (visible_) view_.frame = shownFrame_;
     return info.Env().Undefined();
   }
 
+  // "Hidden" shrinks the view to one pixel instead of hiding it, so mpv's video output keeps
+  // rendering (a hidden layer never draws, which would stall the video pipeline).
   Napi::Value SetVisible(const Napi::CallbackInfo &info) {
-    if (view_) view_.hidden = !info[0].ToBoolean().Value();
+    if (!view_) return info.Env().Undefined();
+    bool visible = info[0].ToBoolean().Value();
+    if (visible == visible_) return info.Env().Undefined();
+    visible_ = visible;
+    if (visible) {
+      view_.frame = shownFrame_;
+      view_.alphaValue = 1;
+    } else {
+      shownFrame_ = view_.frame;
+      view_.frame = NSMakeRect(0, 0, 1, 1);
+      view_.alphaValue = 0.01;
+    }
     return info.Env().Undefined();
   }
 

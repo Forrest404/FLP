@@ -6,6 +6,7 @@ import type { SettingsSnapshot } from '@shared/settings-store'
 import { PlayerBridge } from './player'
 import { Settings } from './settings'
 import { applySettings } from './settings-apply'
+import { cropString } from '@shared/video-effects'
 import { scheduleSnapshot } from './dev-snapshot'
 import { displayableImage, posterFor, readTags, thumbnailAt, waveform } from './media-tools'
 import { Library } from './library'
@@ -35,8 +36,17 @@ function snapshot(): SettingsSnapshot {
   }
 }
 
+const CROP_KEYS = ['video.crop', 'vfx.cropLeft', 'vfx.cropRight', 'vfx.cropTop', 'vfx.cropBottom']
+async function applyCrop(): Promise<void> {
+  if (!player) return
+  const w = Number(await player.get('video-params/w')) || 0
+  const h = Number(await player.get('video-params/h')) || 0
+  await player?.set('video-crop', cropString(w, h, settings.values())).catch((err: Error) => console.warn('[crop]', err.message))
+}
+
 settings.on('changed', (keys: string[]) => {
   if (player) applySettings(player, settings.values(), keys)
+  if (keys.some((k) => CROP_KEYS.includes(k))) void applyCrop()
   if (keys.includes('library.showHidden') || keys.includes('library.folderMode')) {
     library.showHidden = !!settings.get('library.showHidden')
     library.recursive = settings.get('library.folderMode') !== 'flat'
@@ -92,7 +102,7 @@ function createWindow(): void {
 
   player = new PlayerBridge(win)
   applySettings(player, settings.values())
-  player.set(
+  void player.set(
     'volume',
     settings.get('audio.rememberVolume') ? settings.getUi('lastVolume', 100) : settings.get('audio.startupVolume')
   )
@@ -101,17 +111,18 @@ function createWindow(): void {
     if ('volume' in patch && settings.get('audio.rememberVolume')) settings.setUi('lastVolume', patch.volume)
     if (patch.path && settings.get('privacy.saveRecent')) rememberRecent(patch.path)
     if (patch.time !== undefined && settings.get('privacy.rememberPosition')) library.onTime(patch.time, player!.state.duration)
+    if (patch.videoWidth !== undefined) void applyCrop()
   })
-  player.on('file-loaded', () => {
+  player.on('file-loaded', async () => {
     // Property updates can arrive after this event, so ask mpv directly.
-    const path = player!.get('path') as string | null
-    const title = player!.get('media-title') as string | null
-    const duration = (player!.get('duration') as number | null) ?? 0
+    const bridge = player
+    if (!bridge) return
+    const [path, title, duration] = (await Promise.all([bridge.get('path'), bridge.get('media-title'), bridge.get('duration')])) as [string | null, string | null, number | null]
     if (!path) return
-    if (settings.get('privacy.saveRecent')) library.onFileStarted(path, title, duration)
+    if (settings.get('privacy.saveRecent')) library.onFileStarted(path, title, duration ?? 0)
     const resume = settings.get('playback.resume')
     const position = settings.get('privacy.rememberPosition') ? library.resumePosition(path) : 0
-    if (position > 0 && resume === 'always') player!.command(['seek', position, 'absolute'])
+    if (position > 0 && resume === 'always') void bridge.command(['seek', position, 'absolute'])
     else if (position > 0 && resume === 'ask') win?.webContents.send('player:resume-offer', { path, position })
   })
   player.on('end-file', (reason: string) => {
@@ -139,7 +150,7 @@ function createWindow(): void {
 
   // Dev convenience: FLP_OPEN=/path/to/file npm run dev
   const initial = process.env.FLP_OPEN
-  if (initial) win.webContents.once('did-finish-load', () => player?.command(['loadfile', initial]))
+  if (initial) win.webContents.once('did-finish-load', () => void player?.command(['loadfile', initial]))
   scheduleSnapshot(win, player)
 }
 
@@ -201,6 +212,31 @@ ipcMain.on('window:pip', (_e, on: boolean) => {
   }
 })
 ipcMain.handle('app:homeDir', () => app.getPath('home'))
+
+// Subtitles: list a folder's videos, and copy subtitle files next to them as "<video>.<lang>.<ext>"
+// so every player picks them up automatically. Existing files are never overwritten silently.
+ipcMain.handle('subs:listVideos', async (_e, dir: string) => {
+  const { readdir } = await import('node:fs/promises')
+  const { typeOf } = await import('@shared/library')
+  const names = await readdir(dir).catch(() => [] as string[])
+  return names.filter((n) => typeOf(n) === 'video').sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((n) => join(dir, n))
+})
+ipcMain.handle('subs:install', async (_e, pairs: { sub: string; video: string; lang: string }[], overwrite: boolean) => {
+  const { copyFile, constants } = await import('node:fs/promises')
+  const { extname } = await import('node:path')
+  const results: { video: string; target: string; ok: boolean; error?: string }[] = []
+  for (const { sub, video, lang } of pairs) {
+    const base = video.replace(/\.[^./]+$/, '')
+    const target = `${base}${lang ? `.${lang}` : ''}${extname(sub).toLowerCase()}`
+    try {
+      await copyFile(sub, target, overwrite ? 0 : constants.COPYFILE_EXCL)
+      results.push({ video, target, ok: true })
+    } catch (err) {
+      results.push({ video, target, ok: false, error: (err as NodeJS.ErrnoException).code === 'EEXIST' ? 'exists' : (err as Error).message })
+    }
+  }
+  return results
+})
 ipcMain.on('shell:showInFolder', (_e, path: string) => shell.showItemInFolder(path))
 ipcMain.on('shell:openPath', (_e, path: string) => void shell.openPath(path))
 

@@ -124,6 +124,32 @@ const playback: Command[] = [
     } }
 ]
 
+const library: Command[] = [
+  { id: 'player.bookmark', title: 'Add bookmark', category: 'Playback', icon: 'bookmark', keys: ['Mod+B'],
+    run: async () => {
+      const { path, time } = p()
+      if (!path) return
+      const { fmtTime } = await import('@/state/playback')
+      await window.flp.library.addBookmark(path, time, `Bookmark at ${fmtTime(time)}`)
+      window.dispatchEvent(new Event('flp:bookmarks-changed'))
+      showOsd(`Bookmarked ${fmtTime(time)}`)
+    } },
+  { id: 'ui.bookmarks', title: 'Bookmarks', category: 'Playback', icon: 'bookmarks', run: () => ui.set({ rightPanel: 'playback' }) },
+  { id: 'ui.chapters', title: 'Chapters', category: 'Navigation', icon: 'chapters', run: () => ui.set({ rightPanel: 'playback' }) },
+  { id: 'library.favorite', title: 'Favorite', category: 'Library', icon: 'favorite', keys: ['Mod+Shift+F'],
+    run: async () => {
+      const path = p().path
+      if (!path) return
+      const item = await window.flp.library.item(path)
+      const on = !item?.favorite
+      await window.flp.library.setFavorite(path, on)
+      showOsd(on ? 'Added to favorites' : 'Removed from favorites')
+    } },
+  { id: 'library.rescan', title: 'Rescan media folders', category: 'Library', icon: 'refresh', run: () => window.flp.library.rescan() },
+  { id: 'library.clearHistory', title: 'Clear playback history', category: 'Library', icon: 'remove', run: () => window.flp.library.clearHistory() },
+  { id: 'library.addFolder', title: 'Add a media folder…', category: 'Library', icon: 'new-folder', run: () => window.dispatchEvent(new CustomEvent('flp:add-library-folder')) }
+]
+
 const audio: Command[] = [
   { id: 'audio.volumeUp', title: 'Volume up', category: 'Audio', keys: ['ArrowUp'], run: () => changeVolume(getSetting<number>('audio.volumeStep') ?? 5) },
   { id: 'audio.volumeDown', title: 'Volume down', category: 'Audio', keys: ['ArrowDown'], run: () => changeVolume(-(getSetting<number>('audio.volumeStep') ?? 5)) },
@@ -201,21 +227,23 @@ const video: Command[] = [
   { id: 'video.cycleZoom', title: 'Cycle zoom', category: 'Video', icon: 'zoom', keys: ['Z'],
     run: () => cycleSetting('video.zoom', ['fit', 'fill', '0.5', '1', '2'], 'Zoom') },
   { id: 'video.rotate', title: 'Rotate 90°', category: 'Video', keys: ['Mod+Shift+R'],
-    run: async () => {
-      const cur = Number(await player.get('video-rotate')) || 0
-      await player.set('video-rotate', (cur + 90) % 360)
-      showOsd(`Rotation ${(cur + 90) % 360}°`)
+    run: () => {
+      const deg = ((getSetting<number>('vfx.rotate') ?? 0) + 90) % 360
+      setSetting('vfx.rotate', deg)
+      showOsd(`Rotation ${deg}°`)
     } },
-  { id: 'video.flip', title: 'Flip horizontally', category: 'Video',
-    run: async () => {
-      const vf = String((await player.get('vf')) ?? '')
-      await player.command('vf', 'toggle', '@flip:hflip')
-      showOsd(vf.includes('@flip') ? 'Flip off' : 'Flipped')
+  { id: 'video.flip', title: 'Flip horizontally', category: 'Video', active: () => !!getSetting('vfx.flipH'),
+    run: () => {
+      const on = !getSetting('vfx.flipH')
+      setSetting('vfx.flipH', on)
+      showOsd(on ? 'Flipped' : 'Flip off')
     } },
+  { id: 'video.flipV', title: 'Flip vertically', category: 'Video', active: () => !!getSetting('vfx.flipV'),
+    run: () => setSetting('vfx.flipV', !getSetting('vfx.flipV')) },
   { id: 'video.resetPicture', title: 'Reset picture', category: 'Video',
     run: async () => {
-      for (const prop of ['brightness', 'contrast', 'saturation', 'gamma', 'hue']) await player.set(prop, 0)
-      await player.set('sharpen', 0)
+      const { VFX_DEFAULTS } = await import('@shared/video-effects')
+      await window.flp.settings.setMany({ ...VFX_DEFAULTS, 'video.crop': 'none', 'video.aspect': 'auto', 'video.zoom': 'fit' })
       showOsd('Picture reset')
     } },
   { id: 'video.hdr', title: 'HDR options', category: 'Video', icon: 'hdr', run: () => ui.togglePanel('video') }
@@ -299,5 +327,5 @@ const media: Command[] = [
 ]
 
 export function registerCoreCommands() {
-  return registerCommands([...playback, ...audio, ...subtitles, ...video, ...windowCmds, ...media])
+  return registerCommands([...playback, ...library, ...audio, ...subtitles, ...video, ...windowCmds, ...media])
 }

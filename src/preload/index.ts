@@ -88,6 +88,10 @@ const api: RendererApi = {
   app: {
     homeDir: () => ipcRenderer.invoke('app:homeDir')
   },
+  subs: {
+    listVideos: (dir) => ipcRenderer.invoke('subs:listVideos', dir),
+    install: (pairs, overwrite) => ipcRenderer.invoke('subs:install', pairs, overwrite)
+  },
   shell: {
     showInFolder: (path) => ipcRenderer.send('shell:showInFolder', path),
     openPath: (path) => ipcRenderer.send('shell:openPath', path)

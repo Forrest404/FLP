@@ -222,3 +222,9 @@
   color: var(--text);
   box-shadow: var(--shadow);
 }
+
+/* Vertical slider (equalizer) */
+.ui-vslider { position: relative; width: 16px; border-radius: var(--radius-s); background: var(--bg-well); cursor: pointer; margin: 0 auto; }
+.ui-vslider__fill { position: absolute; left: 0; right: 0; background: var(--accent-dim); border-radius: 2px; }
+.ui-vslider__zero { position: absolute; left: -3px; right: -3px; height: 1px; background: var(--text-ghost); }
+.ui-vslider__thumb { position: absolute; left: -4px; right: -4px; height: 8px; margin-bottom: -4px; border-radius: 2px; background: var(--accent-mid); }
