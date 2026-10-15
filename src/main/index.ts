@@ -885,7 +885,10 @@ app.whenReady().then(() => {
   // Run from the project (not the built app), macOS would show Electron's icon in the Dock.
   if (!app.isPackaged && app.dock) app.dock.setIcon(nativeImage.createFromPath(join(resourcesDir(), 'icon.png')))
   // A display's refresh rate changed, or the one the window was on went away.
-  for (const ev of ['display-metrics-changed', 'display-added', 'display-removed'] as const) screen.on(ev, () => setTimeout(syncDisplayFps, 500))
+  const resync = () => setTimeout(syncDisplayFps, 500)
+  screen.on('display-metrics-changed', resync)
+  screen.on('display-added', resync)
+  screen.on('display-removed', resync)
   protocol.handle('flp-plugin', (req) => {
     const url = new URL(req.url)
     const [, pluginId, panelId] = url.pathname.split('/')
