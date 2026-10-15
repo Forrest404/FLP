@@ -38,7 +38,7 @@ export function activate(flp) {
     id: 'half-speed',
     title: 'Half speed',
     icon: 'speed',
-    keys: ['Mod+Shift+H'],
+    keys: ['Mod+Alt+Shift+G'],
     run: () => flp.player.set('speed', 0.5)
   })
   flp.ui.addControlButton('half-speed')
@@ -53,8 +53,8 @@ That's a complete plugin. The command appears in the menu bar's Plugins menu, th
 
 The full typed API is in `plugin-api.d.ts` (copied into new plugins, so your editor autocompletes it). In short:
 
-- **Player:** `play`, `pause`, `toggle`, `seek`, `next`, `previous`, `open(paths)`, `state()`. You also get every mpv property and command through `get`/`set`/`command`, and events through `on('time' | 'pause' | 'file-loaded' | 'ended' | 'state', cb)`.
-- **Commands:** `register({ id, title, icon, keys, run })`, and `run('player.snapshot')` to trigger any built-in action.
+- **Player:** `play`, `pause`, `toggle`, `seek`, `next`, `previous`, `open(paths)`, `state()`. You also get every mpv property and command through `get`/`set`/`command`, and events through `on('time' | 'pause' | 'file-loaded' | 'ended' | 'state', cb)`. `file-loaded` gives `{ path, title, duration, private }`; skip files with `private: true` if you keep any history. `ended` gives `{ path, reason }`, with `reason: 'eof'` when a file plays to the end (including the last one in the queue).
+- **Commands:** `register({ id, title, icon, keys, run })`, and `run('player.snapshot')` to trigger any built-in action. `run('ui.showPanel', 'plugin:<your id>:<panel id>')` opens one of your panels.
 - **UI:**
   - `notify(text, { action })` shows a message at the bottom of the window, optionally with a button.
   - `osd(text)` shows a short message in the corner.
@@ -63,7 +63,7 @@ The full typed API is in `plugin-api.d.ts` (copied into new plugins, so your edi
   - `addPanel({ id, title, file })` adds your own HTML as a tab in the effects sidebar.
 - **Settings:** `define([...])` declares settings; FLP builds their page for you. Read them with `get(key)`, write with `set(key, value)`, and react with `onChange(cb)`.
 - **Storage:** `get(key, fallback)` / `set(key, value)` give each plugin its own JSON store.
-- **Library:** `search`, `recent`, `playlists`, `createPlaylist`.
+- **Library:** `search`, `recent`, `playlists`, `createPlaylist`, with the `library` permission.
 - **Network:** `fetch(url)`, with the `network` permission.
 
 ### Panels
@@ -81,7 +81,9 @@ In `main.js`, `const panel = flp.ui.addPanel(...)`, then `panel.onMessage(cb)` a
 
 - Plugins run in their own process. If one crashes, playback keeps going and FLP restarts the plugins.
 - When a plugin is turned off or reloaded, everything it registered (commands, buttons, panels, listeners) is removed for you. Export `deactivate()` only for your own timers and connections.
-- Plugins run with full Node.js access, like VS Code extensions. Only install plugins you trust; FLP shows each plugin's declared permissions before you enable it.
+- Plugins run with full Node.js access, like VS Code extensions. Only install plugins you trust. An added plugin starts turned off; FLP shows its declared permissions when you turn it on.
+- Saving a file reloads the plugin. A plugin made of several `.js` files reloads by restarting the plugin process (Node caches imported modules), so all plugins restart briefly.
+- Pick command shortcuts that FLP doesn't use (see Keyboard Shortcuts); a plugin's shortcut replaces a built-in one with the same keys.
 - mpv's own Lua/JS scripts also work. Put them in the `mpv-scripts` folder next to `plugins`.
 
 ## Examples

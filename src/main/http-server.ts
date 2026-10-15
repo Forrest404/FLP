@@ -124,6 +124,10 @@ export class HttpServer {
     }
 
     if (!this.remoteEnabled) return this.send(res, 404, 'The web remote is turned off in FLP Settings → Controls.')
+    // DNS rebinding: a website that points its own name at this computer passes the Origin check, so only
+    // answer when addressed by IP, localhost or a .local name.
+    const host = (req.headers.host ?? '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '')
+    if (!/^(\d{1,3}(\.\d{1,3}){3}|[0-9a-f:]+|localhost|[a-z0-9-]+\.local)$/i.test(host)) return this.send(res, 403, 'Forbidden')
     // Block other websites from driving the remote through the user's browser.
     const origin = req.headers.origin
     if (origin && new URL(origin).host !== req.headers.host) return this.send(res, 403, 'Forbidden')

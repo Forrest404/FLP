@@ -27,8 +27,8 @@ export type PlayerEvent =
   | 'state' // any change; receives a partial PlayerState
   | 'time' // receives seconds (about 4 times a second while playing)
   | 'pause' // receives true/false
-  | 'file-loaded' // receives { path, title, duration }
-  | 'ended' // receives { path, reason: 'eof' | 'stop' | 'error' | … }
+  | 'file-loaded' // receives { path, title, duration, private } — private: Privacy settings say not to remember this file
+  | 'ended' // receives { path, reason: 'eof' | 'stop' | 'error' | … }; 'eof' also fires when the last item finishes
 
 export type SettingDef = { key: string; label: string; info?: string } & (
   | { type: 'toggle'; default: boolean }
@@ -110,6 +110,7 @@ export interface FLP {
     delete(key: string): void
   }
 
+  /** Needs "library" in plugin.json permissions. */
   library: {
     search(query: string): Promise<{ path: string; title: string; type: string; duration: number }[]>
     recent(): Promise<{ path: string; title: string; lastPlayed: number | null }[]>

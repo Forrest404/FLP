@@ -3,23 +3,19 @@ import type { MenuEntry } from '@/components/Menu'
 import { player } from '@/state/player'
 import { confirmAction, showOsd, showToast, ui } from '@/state/ui'
 import { getSetting } from '@/state/settings'
+import { shuffleQueue } from '@/state/playback'
 
 const lib = () => window.flp.library
 
 /** Plays `paths` as the queue, starting at `start`. */
 export async function playList(paths: string[], start = 0) {
   if (!paths.length) return
-  if (getSetting('playback.shuffle') && paths.length > 1) {
-    // Keep the chosen item first, shuffle the rest.
-    const first = paths[start]
-    const rest = paths.filter((_, i) => i !== start).sort(() => Math.random() - 0.5)
-    paths = [first, ...rest]
-    start = 0
-  }
   await player.command('stop')
   await player.command('playlist-clear')
   for (const p of paths) await player.command('loadfile', p, 'append')
   await player.command('playlist-play-index', start)
+  // Shuffled by mpv (not here), so turning shuffle off (playlist-unshuffle) restores the order.
+  if (getSetting('playback.shuffle') && paths.length > 1) await shuffleQueue()
   await player.set('pause', false)
   ui.set({ view: 'player' })
 }

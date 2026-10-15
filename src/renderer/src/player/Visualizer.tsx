@@ -9,7 +9,13 @@ export function Visualizer({ mode }: { mode: string }) {
   const [peaks, setPeaks] = useState<number[]>([])
 
   useEffect(() => {
-    if (path && !/^[a-z]+:\/\//i.test(path)) window.flp.media.waveform(path).then(setPeaks)
+    setPeaks([])
+    if (!path || /^[a-z]+:\/\//i.test(path)) return
+    let alive = true
+    window.flp.media.waveform(path).then((p) => alive && setPeaks(p))
+    return () => {
+      alive = false
+    }
   }, [path])
 
   useEffect(() => {

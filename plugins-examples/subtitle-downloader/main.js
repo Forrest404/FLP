@@ -49,10 +49,30 @@ export function activate(flp) {
     panel.postMessage({ done: target.split('/').pop() })
   }
 
+  // "Find subtitles online" opens the panel first; the search runs once the panel says hello
+  // (or straight away if it was already open).
+  let pending = null
+  const runPending = () => {
+    if (pending === null) return
+    const q = pending
+    pending = null
+    search(q).catch((e) => panel.postMessage({ error: e.message }))
+  }
+
   panel.onMessage((msg) => {
+    if (msg.hello) runPending()
     if (msg.search !== undefined) search(msg.search).catch((e) => panel.postMessage({ error: e.message }))
     if (msg.download) download(msg.download, msg.lang).catch((e) => panel.postMessage({ error: e.message }))
   })
 
-  flp.commands.register({ id: 'find', title: 'Find subtitles online', icon: 'subtitles', run: () => search('') })
+  flp.commands.register({
+    id: 'find',
+    title: 'Find subtitles online',
+    icon: 'subtitles',
+    run: async () => {
+      pending = ''
+      await flp.commands.run('ui.showPanel', 'plugin:subtitle-downloader:search')
+      setTimeout(runPending, 600)
+    }
+  })
 }

@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon'
 import { Button } from '@/components/controls'
 import { LibraryView } from '@/library/LibraryView'
 import { ControlBar, TitleBar } from '@/player/Bars'
-import { ImageViewer } from '@/player/ImageViewer'
+import { ImageViewer, useImageHold } from '@/player/ImageViewer'
 import { Miniplayer } from '@/player/Miniplayer'
 import { MusicView } from '@/player/MusicView'
 import { PlayerSidebar } from '@/player/Sidebar'
@@ -30,7 +30,7 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has('dev')) {
   void Promise.all([import('@/commands/registry'), import('@/components/Menu'), import('@/player/menus'), import('@/state/playback')]).then(
     ([reg, menu, menus, playback]) => {
       void import('@/player/customize').then((c) => ((window as unknown as { __flpCustomize: unknown }).__flpCustomize = c))
-      ;(window as unknown as { __flp: unknown }).__flp = { runCommand: reg.runCommand, ui, openMenu: menu.openMenu, menus, playback }
+      ;(window as unknown as { __flp: unknown }).__flp = { runCommand: reg.runCommand, commands: () => Object.values(reg.useCommands.getState().commands), ui, openMenu: menu.openMenu, menus, playback }
     }
   )
 }
@@ -45,6 +45,7 @@ export function App() {
   useSkin()
   useFilenameOsd()
   usePlayErrors()
+  useImageHold()
 
   const { view, leftOpen, hideUi, fullscreen } = useUi()
   const kind = usePlayer((s) => s.kind)
@@ -54,7 +55,10 @@ export function App() {
   const { idle, nearEdge } = useIdle(fullscreen)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
-  const isFileDrag = (e: React.DragEvent) => e.dataTransfer.types.includes('Files')
+  // Library tiles also carry text/uri-list; only drags from outside the window (files, browser links) open media.
+  const internalDrag = useRef(false)
+  const isMediaDrag = (e: React.DragEvent) =>
+    e.dataTransfer.types.includes('Files') || (e.dataTransfer.types.includes('text/uri-list') && !internalDrag.current)
 
   // Children that take a drop themselves (and stop it) never reach the root's onDrop, so reset here.
   useEffect(() => {
@@ -71,12 +75,18 @@ export function App() {
       leaveTimer = setTimeout(reset, 150)
     }
     const onOver = () => clearTimeout(leaveTimer)
+    const onStart = () => (internalDrag.current = true)
+    const onEnd = () => (internalDrag.current = false)
+    window.addEventListener('dragstart', onStart, true)
+    window.addEventListener('dragend', onEnd, true)
     window.addEventListener('drop', reset, true)
     window.addEventListener('dragend', reset, true)
     window.addEventListener('dragleave', onLeave, true)
     window.addEventListener('dragover', onOver, true)
     return () => {
       clearTimeout(leaveTimer)
+      window.removeEventListener('dragstart', onStart, true)
+      window.removeEventListener('dragend', onEnd, true)
       window.removeEventListener('drop', reset, true)
       window.removeEventListener('dragend', reset, true)
       window.removeEventListener('dragleave', onLeave, true)
@@ -104,13 +114,13 @@ export function App() {
       data-fullscreen={fullscreen}
       data-view={view}
       onDragEnter={(e) => {
-        if (!isFileDrag(e)) return
+        if (!isMediaDrag(e)) return
         dragDepth.current++
         setDragging(true)
       }}
-      onDragOver={(e) => isFileDrag(e) && e.preventDefault()}
+      onDragOver={(e) => isMediaDrag(e) && e.preventDefault()}
       onDragLeave={(e) => {
-        if (!isFileDrag(e)) return
+        if (!isMediaDrag(e)) return
         dragDepth.current = Math.max(0, dragDepth.current - 1)
         if (!dragDepth.current) setDragging(false)
       }}
@@ -118,12 +128,13 @@ export function App() {
         dragDepth.current = 0
         setDragging(false)
         if (e.defaultPrevented) return // a child (e.g. a dialog's drop box) took it
-        if (!isFileDrag(e) && !e.dataTransfer.types.includes('text/uri-list')) return
+        if (!isMediaDrag(e)) return
         e.preventDefault()
         const paths = [...e.dataTransfer.files].map((f) => window.flp.pathForFile(f)).filter(Boolean)
-        const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')
+        // text/uri-list can hold several lines and # comments; take the first link.
+        const url = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')).split(/\r?\n/).find((l) => l.trim() && !l.startsWith('#'))?.trim() ?? ''
         if (paths.length) void openPaths(paths, { append: e.altKey || undefined })
-        else if (/^[a-z]+:\/\//i.test(url)) void openPaths([url.trim()])
+        else if (/^[a-z]+:\/\//i.test(url)) void openPaths([url], { append: e.altKey || undefined })
       }}
     >
       {!hideUi && <TitleBar />}

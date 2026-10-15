@@ -16,7 +16,12 @@ export function MusicView() {
 
   useEffect(() => {
     setTags({})
-    if (path && !/^[a-z]+:\/\//i.test(path)) window.flp.media.tags(path).then(setTags)
+    if (!path || /^[a-z]+:\/\//i.test(path)) return
+    let alive = true
+    window.flp.media.tags(path).then((t) => alive && setTags(t))
+    return () => {
+      alive = false
+    }
   }, [path])
 
   const title = tags.title || meta.title || meta.TITLE || mediaTitle || baseName(path)

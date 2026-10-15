@@ -5,7 +5,29 @@ import { IconButton } from '@/components/controls'
 import { openMenu } from '@/components/Menu'
 import { runCommand } from '@/commands/registry'
 import { player, usePlayer } from '@/state/player'
+import { getSetting, useSetting } from '@/state/settings'
 import { rightClickMenu } from './menus'
+
+const SLIDE_SECONDS = 5
+
+/** An animated GIF/WebP/APNG plays as a multi-frame video (not an mpv "image" track). */
+const isAnimated = (s: { kind: string | null; tracks: { type: string; albumart?: boolean; image?: boolean }[] }) =>
+  s.kind === 'image' && s.tracks.some((t) => t.type === 'video' && !t.albumart && !t.image)
+
+/** Mounted at the app root (an image can be playing in the miniplayer too). Stills stay up until the user moves on
+ *  (the slideshow timer is ImageViewer's), and animated images loop instead of advancing when they end. */
+export function useImageHold() {
+  // mpv reads image-display-duration when an image starts, so it's set up front rather than per image.
+  useEffect(() => void player.set('image-display-duration', 'inf').catch(() => {}), [])
+  const animated = usePlayer(isAnimated)
+  const repeat = useSetting<string>('playback.repeat')
+  useEffect(() => {
+    if (!animated) return
+    void player.set('loop-file', 'inf')
+    // Back to what the Repeat setting gives (settings-apply only re-applies it when the setting changes).
+    return () => void player.set('loop-file', getSetting('playback.repeat') === 'one' ? 'inf' : 'no')
+  }, [animated, repeat])
+}
 
 /** Images are shown by the web layer (zoom, pan, rotate); mpv keeps the playlist. */
 export function ImageViewer() {
@@ -24,16 +46,23 @@ export function ImageViewer() {
     setSrc(null)
     if (!path || !isImagePath(path)) return
     if (/^[a-z]+:\/\//i.test(path)) return setSrc(path)
-    window.flp.media.displayableImage(path).then((p) => setSrc(mediaUrl(p))).catch(() => setSrc(mediaUrl(path)))
-    // Keep mpv on the image indefinitely unless a slideshow is running.
-    void player.set('image-display-duration', slideshow ? 5 : 'inf')
+    let alive = true
+    window.flp.media.displayableImage(path).then((p) => alive && setSrc(mediaUrl(p))).catch(() => alive && setSrc(mediaUrl(path)))
+    return () => {
+      alive = false
+    }
   }, [path])
 
+  // The slideshow runs here, not via image-display-duration: mpv only reads that when an image starts.
   useEffect(() => {
-    void player.set('image-display-duration', slideshow ? 5 : 'inf')
-  }, [slideshow])
+    if (!slideshow || !path) return
+    const t = setTimeout(() => void runCommand('player.next'), SLIDE_SECONDS * 1000)
+    return () => clearTimeout(t)
+  }, [slideshow, path])
 
   const onWheel = (e: React.WheelEvent) => {
+    // Zooming the image mustn't also reach the video surface (volume / seek).
+    e.stopPropagation()
     const next = Math.min(16, Math.max(0.1, zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)))
     setZoom(next)
     if (next <= 1) setPan({ x: 0, y: 0 })

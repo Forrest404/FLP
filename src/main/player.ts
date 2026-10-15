@@ -150,6 +150,11 @@ export class PlayerBridge extends EventEmitter {
         this.emit('state', OBSERVED[ev.name]?.(ev.data) ?? {})
       } else if (ev.event === 'start-file') {
         this.emit('state', { error: null })
+        // A-B loop points are global in mpv; a loop from the last file mustn't carry over.
+        if (this.state.abA !== null || this.state.abB !== null) {
+          void this.set('ab-loop-a', 'no').catch(() => null)
+          void this.set('ab-loop-b', 'no').catch(() => null)
+        }
       } else if (ev.event === 'file-loaded') {
         this.emit('file-loaded')
       } else if (ev.event === 'end-file') {

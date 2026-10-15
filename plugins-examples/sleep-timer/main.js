@@ -1,9 +1,11 @@
 // Sleep Timer: commands + a panel + settings + a control-bar button.
 
+// Module-level so deactivate() can stop it when the plugin is turned off or reloaded.
+let tick = null
+
 /** @param {import('../../docs/plugin-api').FLP} flp */
 export function activate(flp) {
   let endsAt = 0 // timestamp, or -1 for "end of current item"
-  let tick = null
 
   flp.settings.define([
     { key: 'action', label: 'When the timer ends', type: 'select', default: 'pause', options: [
@@ -29,12 +31,16 @@ export function activate(flp) {
     clearInterval(tick)
     tick = null
     endsAt = 0
+    // Cancelled during the fade: put the volume back.
+    if (announce && startVolume !== null) void flp.player.set('volume', startVolume)
+    if (announce) startVolume = null
     update()
     if (announce) flp.ui.osd('Sleep timer off')
   }
 
   async function start(minutes) {
     clearInterval(tick)
+    if (startVolume !== null) await flp.player.set('volume', startVolume)
     endsAt = minutes === 'end' ? -1 : Date.now() + minutes * 60000
     startVolume = null
     flp.ui.osd(minutes === 'end' ? 'Sleep at the end of this item' : `Sleep in ${minutes} min`)
@@ -60,8 +66,9 @@ export function activate(flp) {
     id: 'open',
     title: 'Sleep timer',
     icon: 'recent',
-    run: () => flp.commands.run('ui.rightSidebar')
+    run: () => flp.commands.run('ui.showPanel', 'plugin:sleep-timer:timer')
   })
+  flp.ui.addControlButton('open')
 
   panel.onMessage((msg) => {
     if (msg.start) start(msg.start)
@@ -72,4 +79,9 @@ export function activate(flp) {
   flp.player.on('ended', (e) => {
     if (endsAt === -1 && e.reason === 'eof') finish()
   })
+}
+
+export function deactivate() {
+  clearInterval(tick)
+  tick = null
 }

@@ -23,6 +23,7 @@ export function setLogFile(path: string | null): void {
     stream.on('error', (err) => {
       console.warn('[log]', err.message)
       stream = null
+      streamPath = '' // so turning it on again (same path) retries
     })
     writeLog('flp', 'info', `${app.getName()} ${app.getVersion()} started`)
   } catch (err) {

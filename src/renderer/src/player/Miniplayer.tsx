@@ -37,8 +37,11 @@ export function Miniplayer() {
   const pct = duration > 0 ? (time / duration) * 100 : 0
   return (
     <div className="flp-mini">
-      <div className="flp-mini__video" onDoubleClick={() => ui.set({ view: 'player' })}>
-        <VideoSurface showVideo={showVideo} onRect={showVideo ? cutHole : undefined}>
+      <div className="flp-mini__video" onDoubleClick={(e) => {
+        e.stopPropagation()
+        if (!(e.target as HTMLElement).closest('button')) ui.set({ view: 'player' })
+      }}>
+        <VideoSurface mini showVideo={showVideo} onRect={showVideo ? cutHole : undefined}>
           {kind !== 'video' && <div className="flp-mini__art"><Icon name="music" size={40} /></div>}
           <div className="flp-mini__hover">
             <IconButton icon={paused ? 'play' : 'pause'} label={paused ? 'Play' : 'Pause'} onClick={() => void runCommand('player.playPause')} />

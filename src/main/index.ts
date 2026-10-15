@@ -207,13 +207,27 @@ function openExternally(paths: string[]): void {
   }
   const enqueue = settings.get('library.enqueueFromFinder') !== false && settings.get('library.enqueue') && !player.state.idle
   paths.forEach((p, i) => void player!.command(['loadfile', p, enqueue || i > 0 ? 'append-play' : 'replace']))
+  if (!enqueue) win.webContents.send('command:run', 'ui.showPlayer')
+  showWindow()
+}
+function showWindow(): void {
+  if (!win) return
   if (win.isMinimized()) win.restore()
   win.show()
   win.focus()
 }
+// Finder sends one open-file per selected file; gather them so they open as one queue.
+let openBatch: string[] = []
+let openTimer: NodeJS.Timeout | undefined
 app.on('open-file', (e, path) => {
   e.preventDefault()
-  openExternally([path])
+  openBatch.push(path)
+  clearTimeout(openTimer)
+  openTimer = setTimeout(() => {
+    const batch = openBatch
+    openBatch = []
+    openExternally(batch)
+  }, 60)
 })
 
 /** Files matching Settings → Privacy → "Never remember" stay out of history and resume points. */
@@ -287,8 +301,10 @@ let dockCover: string | null = null
 async function updateDockIcon(): Promise<void> {
   if (process.platform !== 'darwin' || !app.dock) return
   const st = player?.state
-  const want = settings.get('interface.allowIconChange') && st?.kind === 'audio' && st.path ? (await readTags(st.path, settings.get('library.metadataSource') !== 'file')).cover ?? null : null
-  if (want === dockCover) return
+  const path = st?.path
+  const want = settings.get('interface.allowIconChange') && st?.kind === 'audio' && path ? (await readTags(path, settings.get('library.metadataSource') !== 'file')).cover ?? null : null
+  // Another track started while the tags were being read.
+  if (player?.state.path !== path || want === dockCover) return
   dockCover = want
   const icon = want ? nativeImage.createFromPath(want) : nativeImage.createFromPath(join(resourcesDir(), 'icon.png'))
   if (!icon.isEmpty()) app.dock.setIcon(icon)
@@ -326,7 +342,10 @@ function saveWindowBounds(): void {
 }
 
 function createWindow(): void {
-  const bounds = settings.get('interface.rememberWindow') !== false ? settings.getUi<Electron.Rectangle | null>('windowBounds', null) : null
+  let bounds = settings.get('interface.rememberWindow') !== false ? settings.getUi<Electron.Rectangle | null>('windowBounds', null) : null
+  // Saved on a display that's no longer connected: open centred instead.
+  if (bounds && !screen.getAllDisplays().some(({ workArea: a }) => bounds!.x < a.x + a.width - 80 && bounds!.x + bounds!.width > a.x + 80 && bounds!.y < a.y + a.height - 40 && bounds!.y + bounds!.height > a.y))
+    bounds = { ...bounds, x: undefined as unknown as number, y: undefined as unknown as number }
   win = new BrowserWindow({
     width: bounds?.width ?? 1280,
     height: bounds?.height ?? 760,
@@ -349,13 +368,16 @@ function createWindow(): void {
   })
 
   // ytdl_hook reads its options at startup, so yt-dlp's path goes in before mpv initializes.
+  const extra = extraMpvOptions()
   player = new PlayerBridge(win, {
-    ...extraMpvOptions(),
-    'script-opts': `ytdl_hook-ytdl_path=${bin('yt-dlp')}`,
     // macOS Now Playing (Control Center, lock screen) and the keyboard's media keys.
-    'media-controls': settings.get('controls.mediaKeys') === false ? 'no' : 'yes'
+    'media-controls': settings.get('controls.mediaKeys') === false ? 'no' : 'yes',
+    ...extra,
+    'script-opts': [`ytdl_hook-ytdl_path=${bin('yt-dlp')}`, extra['script-opts']].filter(Boolean).join(',')
   })
   applySettings(player, settings.values())
+  // The user's own options win over FLP's settings (applySettings just set many of the same properties).
+  for (const [k, v] of Object.entries(extra)) if (k !== 'script-opts') void player.set(k, v).catch(() => null)
   player.on('log', (m: { level: string; prefix: string; text: string }) => writeLog(m.prefix, m.level, m.text))
   configureLog()
   void loadMpvScripts(player)
@@ -373,10 +395,11 @@ function createWindow(): void {
       void applyCrop()
       resizeToVideo()
     }
-    if ('kind' in patch) void updateDockIcon()
+    if ('kind' in patch || 'path' in patch) void updateDockIcon()
     // keep-open holds the last frame without an end-file event, so the end of the list shows up here.
     if (patch.eof === true) {
       library.onEofReached()
+      plugins.playerEvent('ended', { path: player!.state.path, reason: 'eof' })
       playbackFinished()
     }
   })
@@ -388,26 +411,32 @@ function createWindow(): void {
     if (!bridge) return
     const [path, title, duration] = (await Promise.all([bridge.get('path'), bridge.get('media-title'), bridge.get('duration')])) as [string | null, string | null, number | null]
     if (!path) return
-    // Moving on by itself keeps playing (unless "Stop after each item"); anything the user opens follows "autoplay".
-    const auto = lastEnd === 'eof' || lastEnd === 'redirect'
+    // Moving on by itself keeps playing (unless "Stop after each item"); anything the user opens
+    // (including a playlist file or folder, which ends with 'redirect') follows "autoplay".
+    const auto = lastEnd === 'eof'
     lastEnd = null
+    // Read the resume point before tracking starts, so an early time update can't overwrite it.
+    const position = settings.get('privacy.rememberPosition') && !isPrivate(path) ? library.resumePosition(path) : 0
     if (auto ? settings.get('playback.stopAfterEach') : settings.get('playback.autoplay') === false) void bridge.set('pause', true)
     else if (!auto) void bridge.set('pause', false)
     const tracked = !isPrivate(path) && (settings.get('privacy.saveRecent') || settings.get('privacy.rememberPosition'))
     if (tracked) library.onFileStarted(path, title, duration ?? 0)
     const resume = settings.get('playback.resume')
-    plugins.playerEvent('file-loaded', { path, title, duration })
+    // `private`: Privacy settings say not to remember this file (history plugins should skip it).
+    plugins.playerEvent('file-loaded', { path, title, duration, private: isPrivate(path) || !settings.get('privacy.saveRecent') })
     trackPopup(title || basename(path))
-    if (settings.get('video.startFullscreen') && (await bridge.get('vid')) && !win?.isFullScreen()) setFullScreen(true)
+    // Cover art and still images show up as a video track; only real video counts here.
+    const vt = (await bridge.get('current-tracks/video')) as { albumart?: boolean; image?: boolean } | null
+    const isVideo = !!vt && !vt.albumart && !vt.image
+    if (settings.get('video.startFullscreen') && isVideo && !win?.isFullScreen()) setFullScreen(true)
     const raise = settings.get('interface.raiseOnPlay')
-    if (raise === 'always' || (raise === 'video' && (await bridge.get('vid')))) win?.show()
-    const position = settings.get('privacy.rememberPosition') && !isPrivate(path) ? library.resumePosition(path) : 0
+    if (raise === 'always' || (raise === 'video' && isVideo)) win?.show()
     if (position > 0 && resume === 'always') void bridge.command(['seek', position, 'absolute'])
     else if (position > 0 && resume === 'ask') win?.webContents.send('player:resume-offer', { path, position })
   })
   let sleepBlocker: number | null = null
   player.on('state', (patch) => {
-    if (!('paused' in patch || 'kind' in patch || 'idle' in patch)) return
+    if (!('paused' in patch || 'kind' in patch || 'idle' in patch || 'title' in patch)) return
     const st = player!.state
     const playingVideo = !st.paused && !st.idle && st.kind === 'video'
     if (playingVideo && settings.get('video.stopScreensaver') !== false && sleepBlocker === null) sleepBlocker = powerSaveBlocker.start('prevent-display-sleep')
@@ -433,7 +462,11 @@ function createWindow(): void {
   })
   win.on('enter-full-screen', () => win?.webContents.send('window:fullscreen', true))
   win.on('leave-full-screen', () => win?.webContents.send('window:fullscreen', false))
-  win.on('close', saveWindowBounds)
+  win.on('close', () => {
+    saveWindowBounds()
+    // The player is destroyed with the window, before before-quit; keep the resume point now.
+    if (player) library.onStopped(player.state.time, player.state.duration, false, !!settings.get('privacy.rememberPosition'))
+  })
   win.on('closed', () => {
     player?.destroy()
     player = null
@@ -481,6 +514,7 @@ ipcMain.handle('settings:setUi', (_e, key: string, value: unknown) => settings.s
 // Dialogs, window, shell
 ipcMain.handle('dialog:openFiles', async (_e, opts: { folders?: boolean; multiple?: boolean; title?: string; filters?: string[] } = {}) => {
   if (!win) return []
+  showWindow()
   const res = await dialog.showOpenDialog(win, {
     title: opts.title,
     filters: opts.filters?.length && !opts.folders ? [{ name: opts.filters.join(', ').toUpperCase(), extensions: opts.filters }] : undefined,
@@ -497,10 +531,15 @@ ipcMain.on('window:close', () => win?.close())
 
 // Picture in picture: a small always-on-top window in the screen corner; restores afterwards.
 let beforePip: { bounds: Electron.Rectangle; onTop: boolean } | null = null
-ipcMain.on('window:pip', (_e, on: boolean) => {
+ipcMain.on('window:pip', function pip(_e: unknown, on: boolean) {
   if (!win) return
   if (on && !beforePip) {
-    if (win.isFullScreen()) win.setFullScreen(false)
+    // Leaving fullscreen is animated; size the small window once it has finished.
+    if (win.isFullScreen()) {
+      win.once('leave-full-screen', () => setTimeout(() => pip(_e, true), 50))
+      win.setFullScreen(false)
+      return
+    }
     beforePip = { bounds: win.getBounds(), onTop: win.isAlwaysOnTop() }
     const area = screen.getDisplayMatching(win.getBounds()).workArea
     const w = 480
@@ -522,7 +561,11 @@ ipcMain.handle('app:displays', () => screen.getAllDisplays().map((d, i) => ({ id
 // System-wide hotkeys work even when FLP isn't focused (e.g. play/pause from any app).
 const ACCEL: Record<string, string> = {
   Mod: 'CommandOrControl', Ctrl: 'Control', ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
-  BracketLeft: '[', BracketRight: ']', Equal: '=', Minus: '-', Comma: ',', Period: '.', Slash: '/', Backslash: '\\', Escape: 'Esc'
+  BracketLeft: '[', BracketRight: ']', Equal: '=', Minus: '-', Comma: ',', Period: '.', Slash: '/', Backslash: '\\', Escape: 'Esc',
+  Quote: "'", Semicolon: ';', Backquote: '`', MediaTrackNext: 'MediaNextTrack', MediaTrackPrevious: 'MediaPreviousTrack', MediaPlayPause: 'MediaPlayPause',
+  MediaStop: 'MediaStop', AudioVolumeUp: 'VolumeUp', AudioVolumeDown: 'VolumeDown', AudioVolumeMute: 'VolumeMute',
+  NumpadAdd: 'numadd', NumpadSubtract: 'numsub', NumpadMultiply: 'nummult', NumpadDivide: 'numdiv', NumpadDecimal: 'numdec', NumpadEnter: 'Enter',
+  ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`Numpad${i}`, `num${i}`]))
 }
 function registerGlobalShortcuts(map: Record<string, string>): string[] {
   globalShortcut.unregisterAll()
@@ -593,7 +636,8 @@ ipcMain.on('shell:openPath', (_e, path: string) => void shell.openPath(path))
 
 // Library
 ipcMain.handle('library:roots', () => library.roots())
-ipcMain.handle('library:addRoot', (_e, path: string) => library.addRoot(path))
+// Returns once the folder is added; the scan carries on in the background (status events report it).
+ipcMain.handle('library:addRoot', (_e, path: string) => void library.addRoot(path))
 ipcMain.handle('library:removeRoot', (_e, path: string) => library.removeRoot(path))
 ipcMain.handle('library:rescan', () => library.scanAll())
 ipcMain.handle('library:status', () => library.status)
@@ -648,6 +692,7 @@ ipcMain.handle('library:deletePlaylist', (_e, id: number) => {
 ipcMain.handle('library:exportPlaylist', async (_e, id: number) => {
   const pl = library.db.playlists().find((p) => p.id === id)
   if (!pl || !win) return
+  showWindow()
   const res = await dialog.showSaveDialog(win, { defaultPath: `${pl.name}.m3u8`, filters: [{ name: 'Playlist', extensions: ['m3u8'] }] })
   if (res.canceled || !res.filePath) return
   const { writeFile } = await import('node:fs/promises')
@@ -668,6 +713,7 @@ ipcMain.on('plugins:panelMessage', (_e, pluginId: string, panelId: string, data:
 ipcMain.handle('plugins:remove', (_e, id: string) => plugins.remove(id))
 ipcMain.handle('plugins:install', async () => {
   if (!win) return null
+  showWindow()
   const res = await dialog.showOpenDialog(win, { title: 'Choose a plugin folder (it contains plugin.json)', properties: ['openDirectory'] })
   return res.canceled ? null : plugins.install(res.filePaths[0])
 })
@@ -757,7 +803,7 @@ ipcMain.handle('cast:stop', async () => {
 // Radio & podcasts
 ipcMain.handle('feeds:stations', (_e, query: string) => searchStations(query))
 ipcMain.handle('feeds:podcast', (_e, url: string) => fetchPodcast(url))
-ipcMain.handle('remote:info', () => ({ enabled: http.remoteEnabled, url: http.remoteEnabled ? `http://${lanAddress()}:${http.port}/` : null }))
+ipcMain.handle('remote:info', () => ({ enabled: http.remoteEnabled, url: http.remoteEnabled && http.port ? `http://${lanAddress()}:${http.port}/` : null }))
 
 // Media helpers
 ipcMain.handle('media:thumbnail', (_e, path: string, time: number) => thumbnailAt(path, time))
@@ -812,8 +858,12 @@ ipcMain.on('menu:set', (_e, specs: MenuSpec[]) => {
 })
 
 // One window: a second launch (e.g. opening another file from Finder) hands its files to this one.
-if (settings.get('library.singleInstance') !== false && !process.env.FLP_SNAPSHOT && !process.env.FLP_AUDIT_DIR && !app.requestSingleInstanceLock()) app.quit()
-app.on('second-instance', (_e, argv) => openExternally(argv.slice(1).filter((a) => !a.startsWith('-') && a !== '.')))
+// A second copy hands its files to the running one and exits at once (before opening windows or ports).
+if (settings.get('library.singleInstance') !== false && !process.env.FLP_SNAPSHOT && !process.env.FLP_AUDIT_DIR && !app.requestSingleInstanceLock()) app.exit(0)
+app.on('second-instance', (_e, argv) => {
+  openExternally(argv.slice(1).filter((a) => !a.startsWith('-') && a !== '.'))
+  showWindow()
+})
 
 app.whenReady().then(() => {
   protocol.handle('flp-plugin', (req) => {

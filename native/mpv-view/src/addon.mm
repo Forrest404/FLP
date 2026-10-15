@@ -25,13 +25,14 @@ static void *glProcAddress(void *, const char *name) {
 @property(nonatomic) mpv_render_context *renderCtx;
 @property(nonatomic) CGLContextObj cglCtx;
 - (void)teardown;
+- (void)serviceUpdate;
 @end
 
 static void onRenderUpdate(void *ctx) {
-  // Called from an mpv thread; schedule a redraw on the main thread.
+  // Called from an mpv thread; handle it on the main (render) thread.
   FLPVideoLayer *layer = (__bridge FLPVideoLayer *)ctx;
   dispatch_async(dispatch_get_main_queue(), ^{
-    [layer setNeedsDisplay];
+    [layer serviceUpdate];
   });
 }
 
@@ -59,6 +60,9 @@ static void onRenderUpdate(void *ctx) {
 }
 
 - (CGLContextObj)copyCGLContextForPixelFormat:(CGLPixelFormatObj)pf {
+  // mpv's GL objects live in one context; if Core Animation asks again (GPU switch, display change),
+  // hand back that same context rather than a fresh one mpv knows nothing about.
+  if (self.cglCtx) return CGLRetainContext(self.cglCtx);
   CGLContextObj ctx = [super copyCGLContextForPixelFormat:pf];
   if (!self.renderCtx && self.mpv) {
     CGLSetCurrentContext(ctx);
@@ -72,11 +76,21 @@ static void onRenderUpdate(void *ctx) {
     mpv_render_context *rc = nullptr;
     if (mpv_render_context_create(&rc, self.mpv, params) >= 0) {
       self.renderCtx = rc;
-      self.cglCtx = ctx;
+      self.cglCtx = CGLRetainContext(ctx); // our own reference, released with the layer
       mpv_render_context_set_update_callback(rc, onRenderUpdate, (__bridge void *)self);
     }
   }
   return ctx;
+}
+
+// With advanced control, mpv's core can wait until mpv_render_context_update() is called (e.g. when
+// cover art starts a video track). Core Animation doesn't draw a hidden or tiny view, so answer here
+// rather than only when drawing — otherwise the player stops responding.
+- (void)serviceUpdate {
+  if (!self.renderCtx || !self.cglCtx) return;
+  CGLSetCurrentContext(self.cglCtx);
+  uint64_t flags = mpv_render_context_update(self.renderCtx);
+  if (flags & MPV_RENDER_UPDATE_FRAME) [self setNeedsDisplay];
 }
 
 - (BOOL)canDrawInCGLContext:(CGLContextObj)ctx pixelFormat:(CGLPixelFormatObj)pf
@@ -113,6 +127,10 @@ static void onRenderUpdate(void *ctx) {
     if (self.cglCtx) CGLSetCurrentContext(self.cglCtx);
     mpv_render_context_free(self.renderCtx);
     self.renderCtx = nullptr;
+  }
+  if (self.cglCtx) {
+    CGLReleaseContext(self.cglCtx);
+    self.cglCtx = nullptr;
   }
 }
 

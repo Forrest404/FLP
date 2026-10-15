@@ -9,6 +9,9 @@ import { FX_DEFAULTS } from '@shared/audio-effects'
 import { VFX_DEFAULTS } from '@shared/video-effects'
 import type { Profile, SettingsFile } from '@shared/settings-store'
 
+/** Settings that belong to the app, not to a profile. */
+const GLOBAL_KEY = /^(controls\.webRemote|plugin\.)/
+
 const DEFAULT_PROFILES: Record<string, Profile> = {
   movies: { name: 'Movies', values: { 'subtitles.enabled': true, 'audio.nightMode': false, 'playback.resume': 'always' } },
   shows: { name: 'Shows', values: { 'playback.resume': 'always', 'playback.whenFinished': 'stop' } },
@@ -44,11 +47,21 @@ export class Settings extends EventEmitter {
   private save(): void {
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => {
+      this.saveTimer = null
+      this.persist()
+    }, 200)
+  }
+
+  /** Atomic replace, so a crash mid-write can't leave a half-written file; a full disk is logged, not fatal. */
+  private persist(): void {
+    try {
       mkdirSync(dirname(this.file), { recursive: true })
       const tmp = `${this.file}.tmp`
       writeFileSync(tmp, JSON.stringify(this.data, null, 2))
-      renameSync(tmp, this.file) // atomic replace
-    }, 200)
+      renameSync(tmp, this.file)
+    } catch (err) {
+      console.error("Couldn't save settings:", (err as Error).message)
+    }
   }
 
   /** Effective values for the active profile. */
@@ -61,16 +74,25 @@ export class Settings extends EventEmitter {
     return this.values()[key]
   }
 
+  /** Writes into the active profile, except app-wide keys (remote access, add-on keys and passwords),
+   *  which must not change or disappear when switching profile. */
+  private write(key: string, value: unknown): void {
+    const profile = this.data.activeProfile ? this.data.profiles[this.data.activeProfile]?.values : undefined
+    if (profile && !GLOBAL_KEY.test(key)) profile[key] = value
+    else {
+      this.data.values[key] = value
+      if (profile) delete profile[key]
+    }
+  }
+
   set(key: string, value: unknown): void {
-    const target = this.data.activeProfile ? this.data.profiles[this.data.activeProfile]?.values : this.data.values
-    ;(target ?? this.data.values)[key] = value
+    this.write(key, value)
     this.save()
     this.emit('changed', [key])
   }
 
   setMany(patch: SettingValues): void {
-    const target = (this.data.activeProfile && this.data.profiles[this.data.activeProfile]?.values) || this.data.values
-    Object.assign(target, patch)
+    for (const [k, v] of Object.entries(patch)) this.write(k, v)
     this.save()
     this.emit('changed', Object.keys(patch))
   }
@@ -137,7 +159,6 @@ export class Settings extends EventEmitter {
     if (!this.saveTimer) return
     clearTimeout(this.saveTimer)
     this.saveTimer = null
-    mkdirSync(dirname(this.file), { recursive: true })
-    writeFileSync(this.file, JSON.stringify(this.data, null, 2))
+    this.persist()
   }
 }

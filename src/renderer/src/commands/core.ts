@@ -1,30 +1,33 @@
 // Built-in commands. Default shortcuts follow VLC where it has one, so muscle memory carries over.
 import { player, usePlayer } from '@/state/player'
 import { getSetting, setSetting } from '@/state/settings'
-import { confirmAction, showOsd, showToast, ui, useUi } from '@/state/ui'
-import { changeVolume, nextSpeed, openPaths, seekBy, setSpeed, trackLabel } from '@/state/playback'
+import { confirmAction, showOsd, showToast, ui, useUi, type RightPanel } from '@/state/ui'
+import { changeVolume, nextSpeed, openPaths, seekBy, setSpeed, shuffleQueue, trackLabel } from '@/state/playback'
 import { expandHome } from '@/state/paths'
 import { BUILTIN_ASPECTS, BUILTIN_CROPS, withCustom } from '@/state/ratios'
 import { registerCommands, runCommand, type Command } from './registry'
 
 const p = () => usePlayer.getState()
 const skip = (key: string, fallback: number) => getSetting<number>(key) ?? fallback
+/** Runs only while something is loaded (seeking an empty player is an mpv error). */
+const withMedia = (fn: () => unknown) => () => (p().idle ? undefined : fn())
 
 async function cycleTrack(type: 'audio' | 'sub' | 'video') {
   const prop = type === 'audio' ? 'aid' : type === 'sub' ? 'sid' : 'vid'
   await player.command('cycle', prop)
   setTimeout(() => {
-    const t = p().tracks.find((x) => x.type === type && x.selected)
+    // The secondary subtitle track is selected too; the primary is the one that counts.
+    const t = p().tracks.find((x) => x.type === type && x.selected && x.mainSelection !== 1)
     const what = type === 'audio' ? 'Audio' : type === 'sub' ? 'Subtitles' : 'Video'
     showOsd(t ? `${what}: ${trackLabel(t)}` : `${what}: Off`)
   }, 120)
 }
 
-async function cycleSetting(key: string, values: string[], label: string) {
+async function cycleSetting(key: string, values: string[], label: string, names: Record<string, string> = {}) {
   const cur = String(getSetting(key))
   const next = values[(values.indexOf(cur) + 1) % values.length]
   setSetting(key, next)
-  showOsd(`${label}: ${next === 'auto' || next === 'none' || next === 'fit' ? 'Default' : next}`)
+  showOsd(`${label}: ${names[next] ?? (next === 'auto' || next === 'none' || next === 'fit' ? 'Default' : next)}`)
 }
 
 const playback: Command[] = [
@@ -38,17 +41,19 @@ const playback: Command[] = [
   { id: 'player.pause', title: 'Pause', category: 'Playback', icon: 'pause', hidden: true, run: () => player.set('pause', true) },
   { id: 'player.stop', title: 'Stop playback', category: 'Playback', icon: 'stop', keys: ['S'],
     run: async () => {
-      await player.command('stop')
+      await player.command('stop', 'keep-playlist')
       ui.set({ view: 'library' })
     } },
-  { id: 'player.next', title: 'Next item', category: 'Playback', icon: 'next', keys: ['N', 'Shift+Period'], run: () => player.command('playlist-next', 'force') },
+  // Weak (not 'force'): at the end of the queue mpv refuses instead of stopping playback.
+  { id: 'player.next', title: 'Next item', category: 'Playback', icon: 'next', keys: ['N', 'Shift+Period'],
+    run: () => player.command('playlist-next').catch(() => !p().idle && showOsd('End of the queue')) },
   { id: 'player.previous', title: 'Previous item', category: 'Playback', icon: 'previous', keys: ['P', 'Shift+Comma'],
     run: async () => {
-      // Like most players: restart the item if we're more than a few seconds in.
+      // Like most players: restart the item if we're more than a few seconds in (or it's the first one).
       if (p().time > 3) await player.command('seek', 0, 'absolute')
-      else await player.command('playlist-prev', 'force')
+      else await player.command('playlist-prev').catch(() => !p().idle && player.command('seek', 0, 'absolute'))
     } },
-  { id: 'player.replay', title: 'Replay from the start', category: 'Playback', icon: 'replay', run: () => player.command('seek', 0, 'absolute') },
+  { id: 'player.replay', title: 'Replay from the start', category: 'Playback', icon: 'replay', run: withMedia(() => player.command('seek', 0, 'absolute')) },
   { id: 'player.forwardVeryShort', title: 'Jump forward (very short)', category: 'Navigation', keys: ['Shift+ArrowRight'], run: () => seekBy(skip('controls.skipVeryShort', 3)) },
   { id: 'player.backVeryShort', title: 'Jump back (very short)', category: 'Navigation', keys: ['Shift+ArrowLeft'], run: () => seekBy(-skip('controls.skipVeryShort', 3)) },
   { id: 'player.forwardShort', title: 'Jump forward (short)', category: 'Navigation', keys: ['ArrowRight'], run: () => seekBy(skip('controls.skipShort', 10)) },
@@ -61,11 +66,10 @@ const playback: Command[] = [
   { id: 'player.back10', title: 'Backward 10 seconds', category: 'Navigation', icon: 'backward-10-sec', run: () => seekBy(-10) },
   { id: 'player.forward15', title: 'Forward 15 seconds', category: 'Navigation', icon: 'forward-15-sec', run: () => seekBy(15) },
   { id: 'player.back15', title: 'Backward 15 seconds', category: 'Navigation', icon: 'backward-15-sec', run: () => seekBy(-15) },
-  { id: 'player.frameStep', title: 'Next frame', category: 'Navigation', keys: ['Period', 'E'], run: () => player.command('frame-step') },
-  { id: 'player.frameBack', title: 'Previous frame', category: 'Navigation', keys: ['Comma', 'Shift+E'], run: () => player.command('frame-back-step') },
-  { id: 'player.nextChapter', title: 'Next chapter', category: 'Navigation', icon: 'chapters', keys: ['Shift+N'], run: () => player.command('add', 'chapter', 1) },
-  { id: 'player.prevChapter', title: 'Previous chapter', category: 'Navigation', keys: ['Shift+P'], run: () => player.command('add', 'chapter', -1) },
-  { id: 'player.nextProgram', title: 'Next program / Service ID', category: 'Navigation', keys: ['X'], run: () => player.command('cycle', 'program') },
+  { id: 'player.frameStep', title: 'Next frame', category: 'Navigation', keys: ['Period', 'E'], run: withMedia(() => player.command('frame-step')) },
+  { id: 'player.frameBack', title: 'Previous frame', category: 'Navigation', keys: ['Comma', 'Shift+E'], run: withMedia(() => player.command('frame-back-step')) },
+  { id: 'player.nextChapter', title: 'Next chapter', category: 'Navigation', icon: 'chapters', keys: ['Shift+N'], run: withMedia(() => (p().chapters.length ? player.command('add', 'chapter', 1) : showOsd('This file has no chapters'))) },
+  { id: 'player.prevChapter', title: 'Previous chapter', category: 'Navigation', keys: ['Shift+P'], run: withMedia(() => (p().chapters.length ? player.command('add', 'chapter', -1) : showOsd('This file has no chapters'))) },
   { id: 'player.speedUp', title: 'Faster', category: 'Playback', icon: 'speed', keys: ['BracketRight'], run: () => setSpeed(nextSpeed(1)) },
   { id: 'player.speedDown', title: 'Slower', category: 'Playback', keys: ['BracketLeft'], run: () => setSpeed(nextSpeed(-1)) },
   { id: 'player.speedFineUp', title: 'Faster (fine)', category: 'Playback', keys: ['Shift+BracketRight'], run: () => setSpeed(p().speed + 0.05) },
@@ -73,7 +77,8 @@ const playback: Command[] = [
   { id: 'player.speedReset', title: 'Normal speed', category: 'Playback', keys: ['Equal'], run: () => setSpeed(1) },
   { id: 'player.speedMenu', title: 'Playback speed', category: 'Playback', icon: 'speed', run: () => ui.togglePanel('playback') },
   { id: 'player.repeat', title: 'Repeat (off / one / all)', category: 'Playback', icon: 'repeat', keys: ['R'],
-    active: () => p().loopFile || p().loopPlaylist,
+    // The setting, not loop-file: animated images loop regardless (see useAnimatedImageLoop).
+    active: () => (getSetting('playback.repeat') ?? 'off') !== 'off',
     run: () => {
       // Saved as a setting, so it's remembered (per profile) and applied to the engine by the main process.
       const next = { off: 'all', all: 'one', one: 'off' }[String(getSetting('playback.repeat') ?? 'off')] ?? 'off'
@@ -85,7 +90,7 @@ const playback: Command[] = [
     run: async () => {
       const on = !getSetting('playback.shuffle')
       setSetting('playback.shuffle', on)
-      await player.command(on ? 'playlist-shuffle' : 'playlist-unshuffle')
+      await (on ? shuffleQueue() : player.command('playlist-unshuffle'))
       showOsd(on ? 'Shuffle on' : 'Shuffle off')
     } },
   { id: 'player.abLoop', title: 'A-B loop (set A, set B, clear)', category: 'Playback', keys: ['Shift+L'],
@@ -101,14 +106,15 @@ const playback: Command[] = [
     active: () => p().recording,
     run: async () => {
       if (p().recording) {
-        await player.set('stream-record', '')
+        await player.set('file-local-options/stream-record', '')
         showOsd('Recording saved')
         return
       }
+      if (p().idle) return showOsd('Nothing to record')
       const dir = (await expandHome(String(getSetting('recording.folder') || '~/Movies'))).replace(/\/+$/, '')
       if (!(await window.flp.app.ensureDir(dir))) return showOsd(`Can't save recordings to ${dir}`)
       const name = `FLP Recording ${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)}.mkv`
-      await player.set('stream-record', `${dir}/${name}`)
+      await player.set('file-local-options/stream-record', `${dir}/${name}`) // ends with this file
       showOsd('Recording…')
     } },
   { id: 'player.snapshot', title: 'Take a snapshot', category: 'Video', icon: 'snapshot', keys: ['Shift+S'],
@@ -178,7 +184,7 @@ const audio: Command[] = [
     } },
   { id: 'audio.effects', title: 'Audio effects & equalizer', category: 'Audio', icon: 'eq', keywords: ['equalizer', 'eq', 'compressor', 'spatializer', 'widener'],
     keys: ['Mod+E'], active: () => useUi.getState().rightPanel === 'audio', run: () => ui.togglePanel('audio') },
-  { id: 'audio.toggleEq', title: 'Equalizer on/off', category: 'Audio', keywords: ['eq'],
+  { id: 'audio.toggleEq', title: 'Equalizer on/off', category: 'Audio', keywords: ['eq'], active: () => !!getSetting('audio.eq'),
     run: () => {
       const on = !getSetting('audio.eq')
       setSetting('audio.eq', on)
@@ -232,7 +238,7 @@ const video: Command[] = [
   { id: 'video.cycleDeinterlace', title: 'Cycle deinterlacing', category: 'Video', keys: ['D'],
     run: () => cycleSetting('video.deinterlace', ['auto', 'on', 'off'], 'Deinterlacing') },
   { id: 'video.cycleZoom', title: 'Cycle zoom', category: 'Video', icon: 'zoom', keys: ['Z'],
-    run: () => cycleSetting('video.zoom', ['fit', 'fill', '0.5', '1', '2'], 'Zoom') },
+    run: () => cycleSetting('video.zoom', ['fit', 'fill', '0.5', '1', '2'], 'Zoom', { fit: 'Fit', fill: 'Fill', '0.5': '50%', '1': '100%', '2': '200%' }) },
   { id: 'video.rotate', title: 'Rotate 90°', category: 'Video', keys: ['Mod+Shift+R'],
     run: () => {
       const deg = ((getSetting<number>('vfx.rotate') ?? 0) + 90) % 360
@@ -273,7 +279,8 @@ const windowCmds: Command[] = [
     run: async () => {
       const { fmtTime } = await import('@/state/playback')
       const { time, duration } = p()
-      showOsd(`${fmtTime(time)} / ${fmtTime(duration)}`, 2500)
+      // Live streams have no duration.
+      showOsd(duration > 0 ? `${fmtTime(time)} / ${fmtTime(duration)}` : fmtTime(time), 2500)
     } },
   { id: 'ui.showControls', title: 'Show interface controls in fullscreen', category: 'Basic', keys: ['I'], run: () => ui.set({ idle: false, hideUi: false }) },
   { id: 'ui.hideUi', title: 'Hide UI', category: 'Interface', icon: 'ui', keys: ['Mod+Backslash'], active: () => useUi.getState().hideUi,
@@ -295,12 +302,20 @@ const windowCmds: Command[] = [
     } },
   { id: 'ui.rightSidebar', title: 'Right sidebar (effects)', category: 'Interface', icon: 'sidebar-right', active: () => useUi.getState().rightPanel !== null,
     run: () => ui.set({ rightPanel: useUi.getState().rightPanel ? null : 'video' }) },
+  // Plugins call this with "plugin:<plugin id>:<panel id>" (or a built-in tab) to show a panel.
+  { id: 'ui.showPanel', title: 'Show a sidebar panel', category: 'Interface', hidden: true, bar: false,
+    run: (arg) => {
+      const panel = String(arg ?? 'video')
+      ui.set({ view: 'player', rightPanel: panel as RightPanel })
+    } },
   { id: 'ui.playlist', title: 'Show / hide queue', category: 'Interface', icon: 'playlist', keys: ['Q', 'Mod+L'],
     run: () => {
       const s = useUi.getState()
       ui.set(s.view === 'player' && s.leftOpen && s.section === 'playlists' ? { leftOpen: false } : { view: 'player', leftOpen: true, section: 'playlists' })
     } },
   { id: 'ui.home', title: 'Go home', category: 'Interface', icon: 'home', keys: ['Mod+Alt+H'], run: () => ui.set({ view: 'library', section: 'home' }) },
+  // Sent by the main process when a file is opened from Finder.
+  { id: 'ui.showPlayer', title: 'Show the player', category: 'Interface', hidden: true, bar: false, run: () => ui.set({ view: 'player' }) },
   { id: 'ui.library', title: 'Toggle library / player', category: 'Interface', icon: 'library', keys: ['Mod+Shift+H'],
     run: () => ui.set({ view: useUi.getState().view === 'library' ? 'player' : 'library' }) },
   { id: 'ui.miniplayer', title: 'Miniplayer (browse the library while watching)', category: 'Interface', icon: 'thumbnail', keys: ['Mod+Shift+M'],
@@ -311,7 +326,7 @@ const windowCmds: Command[] = [
       ui.set({ pip: on, hideUi: on, view: 'player' })
       window.flp.window.pip(on)
     } },
-  { id: 'ui.alwaysOnTop', title: 'Keep window on top', category: 'Interface',
+  { id: 'ui.alwaysOnTop', title: 'Keep window on top', category: 'Interface', active: () => getSetting('interface.alwaysOnTop') === 'always',
     run: () => {
       const on = getSetting('interface.alwaysOnTop') !== 'always'
       setSetting('interface.alwaysOnTop', on ? 'always' : 'never')
@@ -375,6 +390,19 @@ const media: Command[] = [
     } }
 ]
 
+/** Recording is a per-file option, so mpv ends it when the file changes; say so. */
+function stopRecordingOnFileChange() {
+  return usePlayer.subscribe((s, prev) => {
+    if (!prev.recording || s.path === prev.path) return
+    showOsd('Recording saved')
+  })
+}
+
 export function registerCoreCommands() {
-  return registerCommands([...playback, ...library, ...audio, ...subtitles, ...video, ...windowCmds, ...media])
+  const off = stopRecordingOnFileChange()
+  const unregister = registerCommands([...playback, ...library, ...audio, ...subtitles, ...video, ...windowCmds, ...media])
+  return () => {
+    off()
+    unregister()
+  }
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { getSetting } from './settings'
+import { getSetting, setUi } from './settings'
 
 export type View = 'player' | 'library'
 export type LibrarySection = 'home' | 'videos' | 'music' | 'network' | 'playlists' | 'recent'
@@ -84,6 +84,11 @@ export const ui = {
   }
 }
 
+// However onboarding goes away (Skip, Finish, Escape, ⌘, opening another dialog), don't show it again.
+useUi.subscribe((s, prev) => {
+  if (prev.dialog === 'onboarding' && s.dialog !== 'onboarding') setUi('onboarded', true)
+})
+
 let osdTimer: ReturnType<typeof setTimeout> | undefined
 let osdSeq = 0
 
@@ -109,8 +114,9 @@ export function showToast(text: string, action?: { label: string; run(): void },
 }
 
 /** Asks before a destructive action (in-app dialog). Resolves true at once when general.confirmDialogs is off. */
-export function confirmAction(opts: { title: string; message?: string; confirmLabel?: string }): Promise<boolean> {
-  if (getSetting('general.confirmDialogs') === false) return Promise.resolve(true)
+/** `always`: ask even when confirmation dialogs are turned off (e.g. granting an add-on access). */
+export function confirmAction(opts: { title: string; message?: string; confirmLabel?: string; always?: boolean }): Promise<boolean> {
+  if (getSetting('general.confirmDialogs') === false && !opts.always) return Promise.resolve(true)
   return new Promise((resolve) => {
     useUi.getState().confirm?.resolve(false)
     useUi.setState({ confirm: { ...opts, resolve } })

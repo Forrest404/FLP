@@ -2,7 +2,7 @@
 // API requests, forwards player events, and hot-reloads plugins when their files change.
 import { cp, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { existsSync, watch, type FSWatcher } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EventEmitter } from 'node:events'
 import { app, shell, utilityProcess, type UtilityProcess } from 'electron'
@@ -25,7 +25,7 @@ const here = fileURLToPath(new URL('.', import.meta.url))
 /** Built-in examples that start enabled. */
 const ENABLED_BY_DEFAULT = new Set(['sleep-timer', 'skip-intro'])
 
-const RESERVED_IDS = new Set(['app', 'audio', 'fx', 'library', 'media', 'network', 'playback', 'player', 'playlist', 'plugins', 'settings', 'shortcuts', 'subtitles', 'ui', 'video', 'vfx', 'flp'])
+const RESERVED_IDS = new Set(['app', 'audio', 'cast', 'fx', 'library', 'media', 'network', 'playback', 'player', 'playlist', 'plugins', 'settings', 'shortcuts', 'subs', 'subtitles', 'ui', 'video', 'vfx', 'window', 'flp'])
 
 export class PluginManager extends EventEmitter {
   plugins = new Map<string, PluginInfo>()
@@ -68,8 +68,11 @@ export class PluginManager extends EventEmitter {
       if (!m.id || !/^[a-z0-9][a-z0-9-]*$/.test(m.id)) throw new Error('plugin.json needs an "id" of lowercase letters, numbers and dashes')
       // Plugin commands are "<id>.<name>", so an id like "player" could replace built-in commands.
       if (RESERVED_IDS.has(m.id)) throw new Error(`"${m.id}" is used by FLP itself; pick another id`)
-      if (!m.name) m.name = m.id
-      if (!m.version) m.version = '0.0.0'
+      // Tolerate sloppy field types rather than breaking the Extensions page.
+      m.name = typeof m.name === 'string' && m.name.trim() ? m.name : m.id
+      m.version = typeof m.version === 'string' ? m.version : '0.0.0'
+      m.permissions = (Array.isArray(m.permissions) ? m.permissions : typeof m.permissions === 'string' ? [m.permissions] : []).filter((x) => typeof x === 'string') as PluginManifest['permissions']
+      if (m.main !== undefined && typeof m.main !== 'string') delete m.main
       return m
     } catch (err) {
       this.log(basename(dir), 'error', `Can't read plugin.json: ${(err as Error).message}`)
@@ -92,6 +95,12 @@ export class PluginManager extends EventEmitter {
         const prev = this.plugins.get(manifest.id)
         found.set(manifest.id, { id: manifest.id, dir, manifest, enabled, builtIn, status: prev?.status ?? 'stopped', error: prev?.error })
       }
+    }
+    // A plugin whose folder was deleted (or whose plugin.json broke) must stop, not keep running unseen.
+    for (const id of this.plugins.keys()) {
+      if (found.has(id)) continue
+      this.send({ type: 'unload', pluginId: id })
+      this.clearContributions(id)
     }
     this.plugins = found
     this.emitList()
@@ -285,15 +294,32 @@ export class PluginManager extends EventEmitter {
         this.settings.set(pluginSettingKey(pluginId, String(args[0])), args[1])
         return null
       case 'library.search':
+      case 'library.recent':
+      case 'library.playlists':
+      case 'library.createPlaylist':
+        if (!(this.plugins.get(pluginId)?.manifest.permissions ?? []).includes('library'))
+          throw new Error('This needs the "library" permission in plugin.json')
+        return this.libraryCall(method, args)
+      default:
+        throw new Error(`Unknown plugin API method ${method}`)
+    }
+  }
+
+  private libraryCall(method: string, args: unknown[]): unknown {
+    switch (method) {
+      case 'library.search':
         return this.library.search(String(args[0]), 'all')
       case 'library.recent':
         return this.library.recent(50)
       case 'library.playlists':
         return this.library.db.playlists()
-      case 'library.createPlaylist':
-        return this.library.db.createPlaylist(String(args[0]), args[1] as string[])
+      case 'library.createPlaylist': {
+        const id = this.library.db.createPlaylist(String(args[0]), args[1] as string[])
+        this.library.emit('changed')
+        return id
+      }
       default:
-        throw new Error(`Unknown plugin API method ${method}`)
+        return null
     }
   }
 
@@ -363,15 +389,18 @@ export class PluginManager extends EventEmitter {
     }
   }
 
-  /** Copies a plugin folder into the user plugins folder. */
+  /** Copies a plugin folder into the user plugins folder. It stays off until the user has seen its permissions. */
   async install(dir: string): Promise<string> {
     const manifest = await this.readManifest(dir)
     if (!manifest) throw new Error('That folder has no valid plugin.json')
     const target = join(this.userDir, manifest.id)
-    if (existsSync(target)) await shell.trashItem(target)
-    await cp(dir, target, { recursive: true })
+    // Picking a folder that's already in the plugins folder: nothing to copy.
+    if (resolve(dir) !== resolve(target)) {
+      if (existsSync(target)) await shell.trashItem(target)
+      await cp(dir, target, { recursive: true })
+    }
+    this.settings.setUi('plugins', { ...this.settings.getUi<Record<string, boolean>>('plugins', {}), [manifest.id]: false })
     await this.discover()
-    this.setEnabled(manifest.id, true)
     return manifest.id
   }
 
@@ -386,11 +415,14 @@ export class PluginManager extends EventEmitter {
 
   /** Scaffolds a working plugin and returns its folder. */
   async create(name: string): Promise<string> {
-    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'my-plugin'
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'my-plugin'
+    // "Player" or "Video" would clash with FLP's own command names.
+    const id = RESERVED_IDS.has(base) ? `${base}-plugin` : base
     let dir = join(this.userDir, id)
     for (let i = 2; existsSync(dir); i++) dir = join(this.userDir, `${id}-${i}`)
     const finalId = basename(dir)
     await mkdir(dir, { recursive: true })
+    name = name.replace(/[\r\n]+/g, ' ').trim() || 'My plugin'
     await writeFile(join(dir, 'plugin.json'), JSON.stringify({ id: finalId, name, version: '1.0.0', description: 'Describe what your plugin does.', main: 'main.js', permissions: [] }, null, 2) + '\n')
     await writeFile(join(dir, 'main.js'), TEMPLATE(name, finalId))
     const types = join(this.builtInDir, '..', 'docs', 'plugin-api.d.ts')
@@ -411,7 +443,12 @@ export class PluginManager extends EventEmitter {
           await this.discover()
           const p = [...this.plugins.values()].find((x) => basename(x.dir) === id)
           if (p?.enabled && this.host) {
-            this.loadPlugin(p)
+            // Node caches modules a plugin imports, so a plugin made of several files needs a fresh process.
+            const scripts = (await readdir(p.dir).catch(() => [] as string[])).filter((f) => /\.(m?js|cjs)$/.test(f))
+            if (scripts.length > 1) {
+              this.stopHost()
+              this.startHost()
+            } else this.loadPlugin(p)
             this.log(p.id, 'log', 'Reloaded after a file change')
           }
         }, 300))
@@ -450,7 +487,7 @@ export function activate(flp) {
     icon: 'info',
     run: async () => {
       const state = await flp.player.state()
-      flp.ui.notify(state.title ? \`Now playing: \${state.title}\` : 'Hello from ${name}!')
+      flp.ui.notify(state.title ? \`Now playing: \${state.title}\` : ${JSON.stringify(`Hello from ${name}!`)})
     }
   })
 

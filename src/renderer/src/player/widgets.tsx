@@ -9,6 +9,7 @@ import { useSetting } from '@/state/settings'
 import { ui, useUi } from '@/state/ui'
 import { defineItem } from './items'
 import { mainMenu } from './menus'
+import { nav } from '@/library/state'
 import { Logo } from '@/components/Logo'
 
 // ── Play button (accent pill) ────────────────────────────────────────────────
@@ -52,7 +53,12 @@ export function SeekBar({ waveform }: { waveform?: boolean }) {
 
   useEffect(() => {
     setPeaks([])
-    if (waveform && path && !/^[a-z]+:\/\//i.test(path)) window.flp.media.waveform(path).then(setPeaks)
+    if (!waveform || !path || /^[a-z]+:\/\//i.test(path)) return
+    let alive = true
+    window.flp.media.waveform(path).then((p) => alive && setPeaks(p))
+    return () => {
+      alive = false
+    }
   }, [waveform, path])
 
   // Fetch a thumbnail for the hovered time (local video files only).
@@ -73,7 +79,7 @@ export function SeekBar({ waveform }: { waveform?: boolean }) {
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (!duration || !seekable) return
+    if (e.button !== 0 || !duration || !seekable) return
     const el = e.currentTarget as HTMLElement
     el.setPointerCapture(e.pointerId)
     let last = timeAt(e.clientX).t
@@ -188,6 +194,7 @@ export function VolumeControl() {
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
     const el = e.currentTarget as HTMLElement
     el.setPointerCapture(e.pointerId)
     void setVolume(valueAt(e.clientX))
@@ -230,8 +237,14 @@ function FolderCrumb() {
   const path = usePlayer((s) => s.path)
   const section = useUi((s) => s.section)
   const name = folderName(path) || section.charAt(0).toUpperCase() + section.slice(1)
+  const dir = path && folderName(path) ? path.slice(0, path.lastIndexOf('/')) : null
+  const open = () => {
+    if (!dir) return ui.set({ view: 'library' })
+    ui.set({ view: 'library', section: 'videos' })
+    nav.go({ dir, allKinds: true })
+  }
   return (
-    <button type="button" className="flp-crumb" title="Show this folder in the library" onClick={() => ui.set({ view: 'library' })}>
+    <button type="button" className="flp-crumb" title="Show this folder in the library" onClick={open}>
       <Icon name="folder" size={18} />
       <span>{name}</span>
     </button>
@@ -253,7 +266,13 @@ function Thumbnail() {
   const path = usePlayer((s) => s.path)
   const [src, setSrc] = useState<string | null>(null)
   useEffect(() => {
-    if (path && !/^[a-z]+:\/\//i.test(path)) window.flp.media.thumbnail(path, 5).then(setSrc)
+    setSrc(null)
+    if (!path || /^[a-z]+:\/\//i.test(path)) return
+    let alive = true
+    window.flp.media.thumbnail(path, 5).then((url) => alive && setSrc(url))
+    return () => {
+      alive = false
+    }
   }, [path])
   return src ? <img className="flp-barthumb" src={src} alt="" /> : null
 }

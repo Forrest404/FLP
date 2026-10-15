@@ -129,6 +129,7 @@ function MenuPanel({ items, x, y, altX, depth, onDone, onBack, autoFocus }: {
               ) : null}
               <span className="ui-menu__label">{it.label}</span>
               {it.hint && <span className="ui-menu__hint">{it.hint}</span>}
+              {it.checked && it.icon && <Icon name="check" size={20} state="active" />}
               {it.submenu && <Icon name="chevron-right" size={18} />}
             </div>
           )
@@ -167,7 +168,16 @@ export function MenuHost() {
       close()
     }
     const onDown = (e: MouseEvent) => {
-      if (!(e.target instanceof Element) || !e.target.closest('.ui-menu')) close()
+      if (e.target instanceof Element && e.target.closest('.ui-menu')) return
+      close()
+      // The click that follows only dismisses the menu; it mustn't reach what's underneath (clicking the video pauses).
+      const swallow = (ev: MouseEvent) => {
+        ev.stopPropagation()
+        ev.preventDefault()
+      }
+      window.addEventListener('click', swallow, true)
+      // Disarm right after this press's mouseup (its click, if any, is dispatched before the timeout runs).
+      window.addEventListener('mouseup', () => setTimeout(() => window.removeEventListener('click', swallow, true)), { capture: true, once: true })
     }
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('mousedown', onDown, true)

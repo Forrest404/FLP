@@ -16,8 +16,11 @@ export function cmd(id: string, label?: string, icon?: IconName): MenuEntry {
   const c = getCommand(id)
   if (!c) return { label: label ?? id, disabled: true }
   const key = keysFor(c)[0]
-  return { label: label ?? c.title, icon: icon ?? c.icon, hint: key ? formatKey(key) : undefined, run: () => void runCommand(id) }
+  return { label: label ?? c.title, icon: icon ?? c.icon, hint: key ? formatKey(key) : undefined, checked: c.active?.(), run: () => void runCommand(id) }
 }
+
+/** For entries whose label already says the state ("Stop Recording"). */
+const unchecked = (e: MenuEntry): MenuEntry => (e === 'separator' ? e : { ...e, checked: undefined })
 
 function recentMenu(): MenuEntry[] {
   const recent = (useSettings.getState().ui.recent as string[] | undefined) ?? []
@@ -63,11 +66,14 @@ export function mainMenu(): MenuEntry[] {
 
 function trackMenu(type: 'audio' | 'sub' | 'video'): MenuEntry[] {
   const prop = type === 'audio' ? 'aid' : type === 'sub' ? 'sid' : 'vid'
-  const tracks = usePlayer.getState().tracks.filter((t) => t.type === type && !t.albumart)
-  const none = !tracks.some((t) => t.selected)
+  const all = usePlayer.getState().tracks.filter((t) => t.type === type)
+  // A selected secondary subtitle (secondary-sid) isn't the primary track.
+  const primary = (t: (typeof all)[number]) => t.selected && t.mainSelection !== 1
+  // Cover art isn't offered, but while it's selected video isn't "disabled" either.
+  const none = !all.some(primary)
   return [
     { label: type === 'sub' ? 'Off' : 'Disable', checked: none, run: () => void player.set(prop, 'no') },
-    ...tracks.map((t): MenuEntry => ({ label: trackLabel(t), checked: t.selected, run: () => void player.set(prop, t.id) }))
+    ...all.filter((t) => !t.albumart).map((t): MenuEntry => ({ label: trackLabel(t), checked: primary(t), run: () => void player.set(prop, t.id) }))
   ]
 }
 
@@ -89,9 +95,9 @@ export function rightClickMenu(): MenuEntry[] {
     cmd('player.stop', 'Stop'),
     cmd('player.previous', 'Previous Item'),
     cmd('player.next', 'Next Item'),
-    cmd('player.record', s.recording ? 'Stop Recording' : 'Record'),
+    unchecked(cmd('player.record', s.recording ? 'Stop Recording' : 'Record')),
     'separator',
-    cmd('ui.hideUi', useUi.getState().hideUi ? 'Show UI' : 'Hide UI'),
+    unchecked(cmd('ui.hideUi', useUi.getState().hideUi ? 'Show UI' : 'Hide UI')),
     'separator',
     {
       label: 'Playback', icon: 'playback', submenu: () => [

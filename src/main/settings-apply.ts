@@ -122,7 +122,7 @@ export const RULES: Rule[] = [
     apply: (v) => {
       const dir = expand(v['playback.timeshiftFolder'])
       const back = { small: '50MiB', medium: '200MiB', large: '1GiB' }[String(v['playback.timeshiftSize'])] ?? '200MiB'
-      return { 'demuxer-max-back-bytes': back, 'cache-on-disk': !!dir, ...(dir ? { 'cache-dir': dir } : {}) }
+      return { 'demuxer-max-back-bytes': back, 'cache-on-disk': !!dir, ...(dir ? { 'demuxer-cache-dir': dir } : {}) }
     }
   },
   { keys: ['controls.mediaKeys'], apply: (v) => ({ 'media-controls': v['controls.mediaKeys'] === false ? 'no' : 'yes' }) },

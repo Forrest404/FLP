@@ -339,6 +339,8 @@ export class Library extends EventEmitter {
     const type = typeOf(path) ?? (/^[a-z]+:\/\//i.test(path) ? 'video' : null)
     if (!type) return
     this.current = { path, type }
+    // The first position save waits a few seconds (a 0 s update right at the start would wipe the resume point).
+    this.lastSave = Date.now()
     this.db.touchPlayed(path, type, title || basename(path).replace(/\.[^.]+$/, ''), duration)
     this.emit('changed')
   }

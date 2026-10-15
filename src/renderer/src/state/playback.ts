@@ -29,9 +29,21 @@ export function fmtTime(sec: number, forceHours = false): string {
 }
 
 export async function seekBy(seconds: number) {
-  await player.command('seek', seconds, 'relative+exact')
+  if (usePlayer.getState().idle) return
+  // mpv refuses seeks while a file is still opening; nothing to report then.
+  if ((await player.command('seek', seconds, 'relative+exact').then(() => true, () => false)) === false) return
   const { time, duration } = usePlayer.getState()
-  showOsd(`${seconds > 0 ? '+' : ''}${seconds} s  ·  ${fmtTime(Math.min(duration, Math.max(0, time + seconds)))}`)
+  // Live streams have no duration; don't clamp to it.
+  const to = Math.max(0, time + seconds)
+  showOsd(`${seconds > 0 ? '+' : ''}${seconds} s  ·  ${fmtTime(duration > 0 ? Math.min(duration, to) : to)}`)
+}
+
+/** mpv's playlist-shuffle keeps the current entry playing but can move it anywhere; put it first so the whole
+ *  shuffled queue follows it. playlist-unshuffle still restores the original order afterwards. */
+export async function shuffleQueue() {
+  await player.command('playlist-shuffle')
+  const pos = Number(await player.get('playlist-pos'))
+  if (pos > 0) await player.command('playlist-move', pos, 0)
 }
 
 export async function seekTo(seconds: number) {

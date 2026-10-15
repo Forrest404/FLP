@@ -1,5 +1,5 @@
 // First-run onboarding (Figma "Onboarding"): media folder → theme & colour → basic shortcuts.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { BRAND } from '@shared/brand'
 import type { AccentId, ThemeMode } from '@shared/theme'
 import { AccentSwatches, Button, Segmented, TextField } from '@/components/controls'
@@ -7,7 +7,7 @@ import { Logo } from '@/components/Logo'
 import { formatKey, getCommand } from '@/commands/registry'
 import { keysFor } from '@/commands/keys'
 import { setSetting, setUi, useSetting } from '@/state/settings'
-import { ui } from '@/state/ui'
+import { errorText, showToast, ui } from '@/state/ui'
 
 const SHORTCUTS: [string, string[]][] = [
   ['Play / Pause', ['player.playPause']],
@@ -36,16 +36,32 @@ export function OnboardingDialog() {
   const theme = useSetting<ThemeMode>('general.theme') ?? 'dark'
   const accent = useSetting<AccentId>('general.accent') ?? 'green'
 
+  const busy = useRef(false)
+  const added = useRef<string | null>(null)
+
   const finish = async () => {
     setUi('onboarded', true)
     ui.closeDialog()
   }
 
   const next = async () => {
+    if (busy.current) return
     if (step === 0 && folder.trim()) {
-      const home = await window.flp.app.homeDir()
-      const path = folder.trim().replace(/^~(?=\/|$)/, home)
-      await window.flp.library.addRoot(path).catch(() => {})
+      busy.current = true
+      try {
+        const home = await window.flp.app.homeDir()
+        const path = folder.trim().replace(/^~(?=\/|$)/, home)
+        // Not awaited: adding a root can take as long as scanning it.
+        if (added.current !== path) {
+          added.current = path
+          window.flp.library.addRoot(path).catch((err) => {
+            added.current = null
+            showToast(`Couldn't add ${path}: ${errorText(err)}`)
+          })
+        }
+      } finally {
+        busy.current = false
+      }
     }
     if (step === 2) return finish()
     setStep(step + 1)

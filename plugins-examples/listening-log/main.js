@@ -2,7 +2,9 @@
 
 /** @param {import('../../docs/plugin-api').FLP} flp */
 export function activate(flp) {
-  flp.player.on('file-loaded', ({ path, title }) => {
+  flp.player.on('file-loaded', ({ path, title, private: hidden }) => {
+    // Respect Settings → Privacy (files FLP is told not to remember).
+    if (hidden) return
     const log = flp.storage.get('log', [])
     log.push({ at: new Date().toISOString(), title: title || path, path })
     flp.storage.set('log', log.slice(-500))

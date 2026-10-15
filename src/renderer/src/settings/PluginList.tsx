@@ -1,7 +1,7 @@
 // Settings → Extensions (Figma "Add-ons & Scripts").
 import { useEffect, useState } from 'react'
 import { toSettingDef, type PluginInfo } from '@shared/plugins'
-import { Button, IconButton, SearchField, TextField, Toggle } from '@/components/controls'
+import { Button, IconButton, InfoTip, SearchField, TextField, Toggle } from '@/components/controls'
 import { Icon } from '@/components/Icon'
 import { usePlugins } from '@/plugins/state'
 import { confirmAction, errorText, showToast } from '@/state/ui'
@@ -9,6 +9,21 @@ import { Control } from './SettingsDialog'
 
 const api = () => window.flp.plugins
 const PERMISSION_TEXT: Record<string, string> = { network: 'Use the internet', library: 'Read your media library', files: 'Read and write files' }
+
+/** Turning on an add-on that didn't come with FLP: say what it can do first. */
+async function enable(p: PluginInfo, on: boolean) {
+  if (on && !p.builtIn) {
+    const perms = (p.manifest.permissions ?? []).map((x) => PERMISSION_TEXT[x] ?? x)
+    const ok = await confirmAction({
+      always: true,
+      title: `Turn on “${p.manifest.name}”?`,
+      message: `${perms.length ? `It asks to: ${perms.join(', ')}. ` : ''}Add-ons run code on your Mac, so only turn on ones you trust.`,
+      confirmLabel: 'Turn on'
+    })
+    if (!ok) return
+  }
+  await api().setEnabled(p.id, on)
+}
 
 function Details({ p }: { p: PluginInfo }) {
   const defs = usePlugins((s) => s.contributions.settings[p.id])
@@ -31,7 +46,7 @@ function Details({ p }: { p: PluginInfo }) {
         const def = toSettingDef(p.id, d)
         return (
           <div key={def.key} className="flp-set__row">
-            <div className="flp-set__label">{def.label}</div>
+            <div className="flp-set__label">{def.label}{def.info && <InfoTip text={def.info} />}</div>
             <div className="flp-set__control"><Control def={def} /></div>
           </div>
         )
@@ -82,7 +97,7 @@ export function PluginList() {
                 <span>{p.manifest.name}</span>
                 <small>{p.status === 'error' ? 'Error, open for details' : p.status === 'running' ? 'Running' : p.enabled ? 'Starting…' : 'Off'}{p.builtIn ? ' · Built in' : ''}</small>
               </div>
-              <span onClick={(e) => e.stopPropagation()}><Toggle checked={p.enabled} onChange={(on) => void api().setEnabled(p.id, on)} label={`Enable ${p.manifest.name}`} /></span>
+              <span onClick={(e) => e.stopPropagation()}><Toggle checked={p.enabled} onChange={(on) => void enable(p, on)} label={`Enable ${p.manifest.name}`} /></span>
             </div>
             {p.id === selected && <Details p={p} />}
           </div>
@@ -95,7 +110,10 @@ export function PluginList() {
         <Button onClick={() => window.flp.shell.openExternal('https://github.com/topics/flp-plugin')}>Find more extensions</Button>
         <Button onClick={async () => {
           const id = await api().install().catch((e) => (showToast(errorText(e)), null))
-          if (id) setSelected(id)
+          if (!id) return
+          setSelected(id)
+          const added = usePlugins.getState().list.find((x) => x.id === id)
+          if (added) await enable(added, true)
         }}>Add</Button>
         <Button disabled={!sel || sel.builtIn} title={sel?.builtIn ? 'Built-in add-ons can be turned off but not removed' : undefined}
           onClick={async () => {

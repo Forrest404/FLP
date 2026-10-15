@@ -4,16 +4,18 @@ import { openMenu } from '@/components/Menu'
 import { runCommand } from '@/commands/registry'
 import { player, usePlayer } from '@/state/player'
 import { changeVolume, seekBy } from '@/state/playback'
-import { getSetting, useSetting } from '@/state/settings'
+import { getSetting, setSetting, useSetting } from '@/state/settings'
 import { useUi } from '@/state/ui'
 import { rightClickMenu } from './menus'
 
 /** Transparent area the native mpv view sits exactly underneath. */
-export function VideoSurface({ children, showVideo, onRect }: {
+export function VideoSurface({ children, showVideo, onRect, mini }: {
   children?: ReactNode
   showVideo: boolean
   /** Called with the surface's window rect whenever it moves (used to cut holes in layers above). */
   onRect?: (r: DOMRect) => void
+  /** In the miniplayer: no click / double-click actions (it has its own). */
+  mini?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   // Latest callback, so a parent that starts or stops needing the rect (miniplayer audio↔video) works.
@@ -67,14 +69,14 @@ export function VideoSurface({ children, showVideo, onRect }: {
   }
 
   const onClick = (e: React.MouseEvent) => {
-    if (e.target !== e.currentTarget) return
+    if (mini || e.target !== e.currentTarget) return
     // Wait briefly so a double click doesn't also count as a single click.
     clearTimeout(clickTimer.current)
     clickTimer.current = setTimeout(() => mouseAction(String(getSetting('controls.click') ?? 'play-pause')), 220)
   }
 
   const onDoubleClick = (e: React.MouseEvent) => {
-    if (e.target !== e.currentTarget) return
+    if (mini || e.target !== e.currentTarget) return
     clearTimeout(clickTimer.current)
     mouseAction(String(getSetting('controls.doubleClick') ?? 'toggle-fullscreen'))
   }
@@ -87,7 +89,11 @@ export function VideoSurface({ children, showVideo, onRect }: {
     if (Math.abs(delta) < 2) return
     if (action === 'volume') void changeVolume(delta > 0 ? 2 : -2)
     else if (action === 'seek') void seekBy(delta > 0 ? 5 : -5)
-    else if (action === 'zoom') void player.command('add', 'video-zoom', delta > 0 ? 0.05 : -0.05)
+    // Through the setting (what Video → Zoom shows); video-zoom itself is rewritten from it on any picture change.
+    else if (action === 'zoom') {
+      const zoom = Math.min(2, Math.max(-2, (getSetting<number>('vfx.zoom') ?? 0) + (delta > 0 ? 0.05 : -0.05)))
+      setSetting('vfx.zoom', Math.round(zoom * 100) / 100)
+    }
   }
 
   return (

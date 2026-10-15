@@ -43,7 +43,10 @@ function on(map: Map<string, Set<Listener>>, key: string, cb: Listener): Disposa
 
 function makeApi(p: Loaded, manifest: PluginManifest, dir: string, dataDir: string) {
   const id = p.id
-  const call = (method: string, ...args: unknown[]) => request(id, method, ...args)
+  // Once a plugin is turned off or reloaded, its old API object stops working (a leftover timer
+  // mustn't pause playback or bring back the plugin's buttons).
+  const call = (method: string, ...args: unknown[]) =>
+    plugins.get(id) === p ? request(id, method, ...args) : Promise.reject(new Error(`${manifest.name} is no longer running`))
   const perms = new Set(manifest.permissions ?? [])
   const storageFile = join(dataDir, `${id}.json`)
   let storage: Record<string, unknown> = {}
@@ -97,7 +100,10 @@ function makeApi(p: Loaded, manifest: PluginManifest, dir: string, dataDir: stri
     },
 
     ui: {
-      notify: (text: string, opts: { action?: { label: string; command: string } } = {}) => call('ui.notify', String(text), opts.action ?? null),
+      notify: (text: string, opts: { action?: { label: string; command: string } } = {}) => {
+        const action = opts.action && { label: opts.action.label, command: opts.action.command.includes('.') ? opts.action.command : `${id}.${opts.action.command}` }
+        return call('ui.notify', String(text), action ?? null)
+      },
       osd: (text: string) => call('ui.osd', String(text)),
       addControlButton: (commandId: string) => {
         void call('ui.addControlButton', commandId.includes('.') ? commandId : `${id}.${commandId}`)
@@ -121,7 +127,11 @@ function makeApi(p: Loaded, manifest: PluginManifest, dir: string, dataDir: stri
     },
 
     settings: {
-      define: (defs: PluginSettingDef[]) => call('settings.define', defs),
+      define: (defs: PluginSettingDef[]) => {
+        // Defaults are readable straight away, without waiting for the main process.
+        for (const d of defs) if (!(d.key in p.settings)) p.settings[d.key] = d.default
+        return call('settings.define', defs)
+      },
       get: <T = unknown>(key: string): T => p.settings[key] as T,
       set: (key: string, value: unknown) => call('settings.set', key, value),
       onChange: (cb: (values: Record<string, unknown>) => void) => {
@@ -212,7 +222,8 @@ async function unload(id: string) {
 function emit(p: Loaded, name: string, data: unknown) {
   for (const cb of p.listeners.get(name) ?? []) {
     try {
-      cb(data)
+      // Async handlers too: their errors belong to this plugin, not "unhandled".
+      void Promise.resolve(cb(data)).catch((err) => send({ type: 'log', pluginId: p.id, level: 'error', text: `${name} handler: ${(err as Error)?.stack ?? err}` }))
     } catch (err) {
       send({ type: 'log', pluginId: p.id, level: 'error', text: `${name} handler: ${(err as Error).stack ?? err}` })
     }
@@ -274,12 +285,18 @@ port.on('message', async (e: { data: MainToHost }) => {
       const p = plugins.get(msg.pluginId)
       if (!p) return
       p.settings = msg.values
-      for (const cb of p.settingsListeners) cb(msg.values)
+      for (const cb of p.settingsListeners) {
+        try {
+          void Promise.resolve(cb(msg.values)).catch((err) => send({ type: 'log', pluginId: p.id, level: 'error', text: `settings handler: ${(err as Error)?.stack ?? err}` }))
+        } catch (err) {
+          send({ type: 'log', pluginId: p.id, level: 'error', text: `settings handler: ${(err as Error).stack ?? err}` })
+        }
+      }
       return
     }
     case 'panel-message': {
       const p = plugins.get(msg.pluginId)
-      for (const cb of p?.panelListeners.get(msg.panelId) ?? []) cb(msg.data)
+      if (p) emit({ ...p, listeners: p.panelListeners }, msg.panelId, msg.data)
       return
     }
   }
