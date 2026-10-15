@@ -25,6 +25,8 @@ const here = fileURLToPath(new URL('.', import.meta.url))
 /** Built-in examples that start enabled. */
 const ENABLED_BY_DEFAULT = new Set(['sleep-timer', 'skip-intro'])
 
+const RESERVED_IDS = new Set(['app', 'audio', 'fx', 'library', 'media', 'network', 'playback', 'player', 'playlist', 'plugins', 'settings', 'shortcuts', 'subtitles', 'ui', 'video', 'vfx', 'flp'])
+
 export class PluginManager extends EventEmitter {
   plugins = new Map<string, PluginInfo>()
   contributions: PluginContributions = emptyContributions()
@@ -64,6 +66,8 @@ export class PluginManager extends EventEmitter {
     try {
       const m = JSON.parse(await readFile(join(dir, 'plugin.json'), 'utf8')) as PluginManifest
       if (!m.id || !/^[a-z0-9][a-z0-9-]*$/.test(m.id)) throw new Error('plugin.json needs an "id" of lowercase letters, numbers and dashes')
+      // Plugin commands are "<id>.<name>", so an id like "player" could replace built-in commands.
+      if (RESERVED_IDS.has(m.id)) throw new Error(`"${m.id}" is used by FLP itself; pick another id`)
       if (!m.name) m.name = m.id
       if (!m.version) m.version = '0.0.0'
       return m
@@ -113,7 +117,7 @@ export class PluginManager extends EventEmitter {
     this.host = host
     host.stdout?.on('data', (d) => process.stdout.write(`[plugins] ${d}`))
     host.stderr?.on('data', (d) => process.stderr.write(`[plugins] ${d}`))
-    host.on('message', (msg: HostToMain) => void this.onHostMessage(msg))
+    host.on('message', (msg: HostToMain) => void this.onHostMessage(msg, host))
     host.on('exit', (code) => {
       if (this.host !== host) return
       this.host = null
@@ -174,7 +178,7 @@ export class PluginManager extends EventEmitter {
 
   // ── Requests from plugins ──
 
-  private async onHostMessage(msg: HostToMain): Promise<void> {
+  private async onHostMessage(msg: HostToMain, host: UtilityProcess): Promise<void> {
     if (msg.type === 'log') return this.log(msg.pluginId, msg.level, msg.text)
     if (msg.type === 'loaded') {
       const p = this.plugins.get(msg.pluginId)
@@ -198,7 +202,8 @@ export class PluginManager extends EventEmitter {
     } catch (err) {
       error = (err as Error).message
     }
-    this.send({ type: 'reply', reqId: msg.reqId, result, error })
+    // Request ids restart with each host process, so never answer a crashed host's request to the new one.
+    if (host === this.host) host.postMessage({ type: 'reply', reqId: msg.reqId, result, error } satisfies MainToHost)
   }
 
   private async handle(pluginId: string, method: string, args: unknown[]): Promise<unknown> {

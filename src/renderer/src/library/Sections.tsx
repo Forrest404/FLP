@@ -155,7 +155,7 @@ export function MusicSection({ compact }: { compact?: boolean }) {
     <Frame compact={compact} title="Music" crumbs={crumbs} count={data?.length} onCrumb={(c) => c.name === tab.label && nav.go({ dir: null, group: null })}>
       <div className="flp-tabs">
         {MUSIC_TABS.map((t) => (
-          <button key={t.id} type="button" aria-pressed={view === t.id} onClick={() => { useLibrary.setState({ musicView: t.id }); nav.go({ dir: null, group: null }) }}>
+          <button key={t.id} type="button" aria-pressed={view === t.id} aria-label={t.label} title={t.label} onClick={() => { useLibrary.setState({ musicView: t.id }); nav.go({ dir: null, group: null }) }}>
             <Icon name={t.icon} size={18} state={view === t.id ? 'active' : 'default'} />
             {!compact && t.label}
           </button>

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { runCommand } from '@/commands/registry'
+import { mediaUrl } from '@shared/api'
 import { registerCoreCommands } from '@/commands/core'
 import { useKeyboardShortcuts, useMenuBar } from '@/commands/keys'
 import { CommandPalette } from '@/components/CommandPalette'
@@ -14,9 +16,10 @@ import { VideoSurface } from '@/player/VideoSurface'
 import { RightPanel } from '@/panels/RightPanel'
 import { Dialogs } from '@/dialogs/Dialogs'
 import { usePlayer } from '@/state/player'
+import { expandHome } from '@/state/paths'
 import { fmtTime, openPaths } from '@/state/playback'
 import { getSetting, useSetting, useSettings } from '@/state/settings'
-import { showToast, ui, useUi } from '@/state/ui'
+import { showOsd, showToast, ui, useUi } from '@/state/ui'
 import '@/player/widgets'
 import '@/plugins/state'
 
@@ -39,31 +42,55 @@ export function App() {
   useAlwaysOnTop()
   useFirstRun()
   useResumeOffer()
-  const idle = useIdle()
+  useSkin()
+  useFilenameOsd()
+  usePlayErrors()
 
   const { view, leftOpen, hideUi, fullscreen } = useUi()
   const kind = usePlayer((s) => s.kind)
+  const autoHide = useSetting<string>('interface.autoHide') ?? 'fullscreen'
+  const fsControls = useSetting<boolean>('interface.fullscreenControls') !== false
+  const fsOpacity = useSetting<number>('interface.fsControlsOpacity') ?? 100
+  const { idle, nearEdge } = useIdle(fullscreen)
   const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
+  const isFileDrag = (e: React.DragEvent) => e.dataTransfer.types.includes('Files')
 
-  // Bars float over the video in fullscreen / Hide UI, and fade out when the mouse is idle.
-  const overlay = (fullscreen || hideUi) && view === 'player'
-  const barsHidden = hideUi || (overlay && idle)
+  useEffect(() => document.documentElement.style.setProperty('--fs-controls-opacity', String(fsOpacity / 100)), [fsOpacity])
+
   const showVideo = view === 'player' && kind !== 'image' && kind !== 'audio'
+  // Bars float over the video in fullscreen / Hide UI (and over any video with auto-hide "Always"),
+  // and fade out when the mouse is idle unless auto-hide is "Never".
+  const overlay = (fullscreen || hideUi || (autoHide === 'always' && kind === 'video')) && view === 'player'
+  const idleHidden = overlay && idle && autoHide !== 'never'
+  // "Show controls in fullscreen" off: only while the mouse is over the bar area.
+  const fsHidden = overlay && fullscreen && !fsControls && !nearEdge
+  const barsHidden = hideUi || idleHidden || fsHidden
 
   return (
     <div
       className="flp-app"
       data-overlay={overlay}
       data-bars-hidden={barsHidden}
+      data-idle={idleHidden}
+      data-fullscreen={fullscreen}
       data-view={view}
-      onDragOver={(e) => {
-        e.preventDefault()
+      onDragEnter={(e) => {
+        if (!isFileDrag(e)) return
+        dragDepth.current++
         setDragging(true)
       }}
-      onDragLeave={(e) => e.currentTarget === e.target && setDragging(false)}
+      onDragOver={(e) => isFileDrag(e) && e.preventDefault()}
+      onDragLeave={(e) => {
+        if (!isFileDrag(e)) return
+        dragDepth.current = Math.max(0, dragDepth.current - 1)
+        if (!dragDepth.current) setDragging(false)
+      }}
       onDrop={(e) => {
-        e.preventDefault()
+        dragDepth.current = 0
         setDragging(false)
+        if (!isFileDrag(e) && !e.dataTransfer.types.includes('text/uri-list')) return
+        e.preventDefault()
         const paths = [...e.dataTransfer.files].map((f) => window.flp.pathForFile(f)).filter(Boolean)
         const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')
         if (paths.length) void openPaths(paths, { append: e.altKey || undefined })
@@ -110,6 +137,13 @@ function useFirstRun() {
   useEffect(() => {
     if (ready && !onboarded && !new URLSearchParams(location.search).has('dev')) ui.openDialog('onboarding')
   }, [ready, onboarded])
+  // Settings → Interface → "Start in compact mode", once settings have arrived.
+  const started = useRef(false)
+  useEffect(() => {
+    if (!ready || started.current) return
+    started.current = true
+    if (getSetting('interface.compactStart') && !useUi.getState().pip) void runCommand('ui.pip')
+  }, [ready])
 }
 
 function useResumeOffer() {
@@ -128,7 +162,7 @@ function useResumeOffer() {
 function Osd() {
   const osd = useUi((s) => s.osd)
   const enabled = useSetting<boolean>('subtitles.osdFeedback') !== false
-  if (!osd || !enabled) return null
+  if (!osd || (!enabled && !osd.force)) return null
   return <div key={osd.id} className="flp-osd">{osd.text}</div>
 }
 
@@ -155,31 +189,119 @@ function useFullscreenTracking() {
 function useAlwaysOnTop() {
   const mode = useSetting<string>('interface.alwaysOnTop')
   const paused = usePlayer((s) => s.paused || s.idle)
+  const pip = useUi((s) => s.pip)
   useEffect(() => {
+    if (pip) return // picture-in-picture manages its own always-on-top
     window.flp.window.setAlwaysOnTop(mode === 'always' || (mode === 'while-playing' && !paused))
-  }, [mode, paused])
+  }, [mode, paused, pip])
 }
 
-/** True after the mouse has been still for the configured time. */
-function useIdle(): boolean {
+// Accumulated mouse movement (px) that brings the controls back in fullscreen, by interface.fsSensitivity.
+const WAKE_PX: Record<number, number> = { 1: 24, 2: 8, 3: 1 }
+
+/** `idle`: the mouse has been still for interface.hideAfter. `nearEdge`: (fullscreen) the mouse is over the bar area. */
+function useIdle(fullscreen: boolean): { idle: boolean; nearEdge: boolean } {
   const idle = useUi((s) => s.idle)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [nearEdge, setNearEdge] = useState(false)
   useEffect(() => {
-    const wake = (e: Event) => {
-      if (useUi.getState().idle) ui.set({ idle: false })
-      clearTimeout(timer.current)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let moved = 0
+    const arm = () => {
+      clearTimeout(timer)
       const hideAfter = (getSetting<number>('interface.hideAfter') ?? 3) * 1000
+      if (hideAfter > 0) timer = setTimeout(() => !useUi.getState().dialog && ui.set({ idle: true }), hideAfter)
+    }
+    const wake = (e: MouseEvent) => {
+      if (fullscreen) {
+        setNearEdge(e.clientY <= 48 || e.clientY >= window.innerHeight - 72)
+        // Small jitters don't bring the controls back.
+        if (e.type === 'mousemove' && useUi.getState().idle) {
+          moved += Math.abs(e.movementX) + Math.abs(e.movementY)
+          if (moved < (WAKE_PX[getSetting<number>('interface.fsSensitivity') ?? 2] ?? 8)) return
+        }
+      }
+      moved = 0
+      if (useUi.getState().idle) ui.set({ idle: false })
+      clearTimeout(timer)
       // Don't hide while hovering the bars.
       if ((e.target as HTMLElement | null)?.closest?.('.flp-controls, .flp-titlebar, .ui-menu')) return
-      if (hideAfter > 0) timer.current = setTimeout(() => ui.set({ idle: true }), hideAfter)
+      arm()
     }
+    // Start counting on entering/leaving fullscreen and when something else shows the controls (e.g. the I key).
+    arm()
+    const off = useUi.subscribe((s, prev) => prev.idle && !s.idle && arm())
     window.addEventListener('mousemove', wake)
     window.addEventListener('mousedown', wake)
     return () => {
+      off()
       window.removeEventListener('mousemove', wake)
       window.removeEventListener('mousedown', wake)
-      clearTimeout(timer.current)
+      clearTimeout(timer)
+      setNearEdge(false)
+    }
+  }, [fullscreen])
+  return { idle, nearEdge }
+}
+
+/** interface.customSkin: the user's CSS file, loaded after the app's own styles. */
+function useSkin() {
+  const on = useSetting<boolean>('interface.customSkin')
+  const file = useSetting<string>('interface.skinFile')?.trim()
+  useEffect(() => {
+    if (!on || !file) return
+    let link: HTMLLinkElement | undefined
+    let alive = true
+    void expandHome(file).then((path) => {
+      if (!alive || !path.startsWith('/')) return
+      document.getElementById('flp-skin')?.remove()
+      link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.id = 'flp-skin'
+      link.href = `${mediaUrl(path)}?v=${Date.now()}` // fresh copy whenever it's (re)applied
+      link.onerror = () => showToast(`Couldn't load the skin ${path.split('/').pop()}`)
+      // At the end of <body>, so it wins over the app's styles, including lazily loaded ones.
+      document.body.appendChild(link)
+    })
+    return () => {
+      alive = false
+      link?.remove()
+    }
+  }, [on, file])
+}
+
+/** subtitles.showFilename: the title / file name on the OSD when a new video starts. */
+function useFilenameOsd() {
+  useEffect(() => {
+    let pending: string | null = null
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const off = usePlayer.subscribe((s, prev) => {
+      if (s.path !== prev.path) pending = s.path
+      // Wait for the new file's tracks so `kind` (and media-title) belong to it, not the previous file.
+      if (!pending || s.path !== pending || s.tracks === prev.tracks || !s.tracks.length) return
+      pending = null
+      if (s.kind !== 'video' || !getSetting('subtitles.showFilename')) return
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        const { path, title } = usePlayer.getState()
+        if (path === s.path) showOsd(title || path!.split('/').pop() || path!, (getSetting<number>('subtitles.filenameDuration') ?? 3) * 1000, true)
+      }, 150)
+    })
+    return () => {
+      off()
+      clearTimeout(timer)
     }
   }, [])
-  return idle
+}
+
+/** general.confirmDialogs also covers "show a message when a file fails to play". */
+function usePlayErrors() {
+  useEffect(
+    () =>
+      usePlayer.subscribe((s, prev) => {
+        if (!s.error || s.error === prev.error || getSetting('general.confirmDialogs') === false) return
+        const path = s.path ?? prev.path
+        showToast(`Couldn't play ${path ? `“${path.split('/').pop()}”` : 'this file'}: ${s.error}`)
+      }),
+    []
+  )
 }

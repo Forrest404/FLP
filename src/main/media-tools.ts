@@ -121,7 +121,7 @@ export interface AudioTags {
 
 const COVER_NAMES = /^(cover|folder|front|album|artwork)\.(jpe?g|png|webp)$/i
 
-export async function readTags(path: string): Promise<AudioTags> {
+export async function readTags(path: string, folderArt = true): Promise<AudioTags> {
   try {
     const meta = await parseFile(path, { duration: false, skipCovers: false })
     const c = meta.common
@@ -131,7 +131,7 @@ export async function readTags(path: string): Promise<AudioTags> {
       const ext = pic.format.includes('png') ? 'png' : 'jpg'
       cover = join(cacheDir('covers'), `${hash(path)}.${ext}`)
       if (!existsSync(cover)) await writeFile(cover, pic.data)
-    } else {
+    } else if (folderArt) {
       cover = folderCover(path)
     }
     return {
@@ -147,7 +147,7 @@ export async function readTags(path: string): Promise<AudioTags> {
       cover
     }
   } catch {
-    return { cover: folderCover(path) }
+    return { cover: folderArt ? folderCover(path) : undefined }
   }
 }
 

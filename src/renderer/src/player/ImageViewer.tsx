@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { mediaUrl } from '@shared/api'
+import { isImagePath } from '@shared/player'
 import { IconButton } from '@/components/controls'
 import { openMenu } from '@/components/Menu'
 import { runCommand } from '@/commands/registry'
@@ -21,9 +22,9 @@ export function ImageViewer() {
     setPan({ x: 0, y: 0 })
     setRotate(0)
     setSrc(null)
-    if (!path) return
+    if (!path || !isImagePath(path)) return
     if (/^[a-z]+:\/\//i.test(path)) return setSrc(path)
-    window.flp.media.displayableImage(path).then((p) => setSrc(mediaUrl(p)))
+    window.flp.media.displayableImage(path).then((p) => setSrc(mediaUrl(p))).catch(() => setSrc(mediaUrl(path)))
     // Keep mpv on the image indefinitely unless a slideshow is running.
     void player.set('image-display-duration', slideshow ? 5 : 'inf')
   }, [path])

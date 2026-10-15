@@ -16,6 +16,7 @@ interface NativePlayer {
   setBounds(x: number, y: number, w: number, h: number): void
   setVisible(visible: boolean): void
   setCornerRadius(radius: number): void
+  setLogLevel(level: string): void
   destroy(): void
 }
 
@@ -95,6 +96,7 @@ function toTracks(list: any[] | null): Track[] {
 export class PlayerBridge extends EventEmitter {
   private native: NativePlayer
   private lastTimeEmit = 0
+  private timeFlush: NodeJS.Timeout | undefined
   private nextId = 1
   private pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void; what: string }>()
   // Full merged state, so a renderer that (re)loads can catch up.
@@ -131,9 +133,17 @@ export class PlayerBridge extends EventEmitter {
         if (ev.name === 'time-pos') {
           const now = Date.now()
           if (now - this.lastTimeEmit < 100) {
+            // Hold back, but make sure the final position (e.g. after a seek while paused) still goes out.
             this.state.time = (ev.data as number) ?? 0
+            this.timeFlush ??= setTimeout(() => {
+              this.timeFlush = undefined
+              this.lastTimeEmit = Date.now()
+              this.emit('state', { time: this.state.time })
+            }, 100)
             continue
           }
+          clearTimeout(this.timeFlush)
+          this.timeFlush = undefined
           this.lastTimeEmit = now
         }
         this.emit('state', OBSERVED[ev.name]?.(ev.data) ?? {})
@@ -144,8 +154,9 @@ export class PlayerBridge extends EventEmitter {
       } else if (ev.event === 'end-file') {
         this.emit('end-file', ev.reason)
         if (ev.reason === 'error') this.emit('state', { error: ev.error ?? 'Could not play this file' })
-      } else if (ev.event === 'log-message' && ev.level === 'error') {
-        console.error(`[mpv/${ev.prefix}] ${ev.text?.trim()}`)
+      } else if (ev.event === 'log-message') {
+        this.emit('log', { level: ev.level ?? 'info', prefix: ev.prefix ?? '', text: (ev.text ?? '').trimEnd() })
+        if (ev.level === 'error' || ev.level === 'fatal') console.error(`[mpv/${ev.prefix}] ${ev.text?.trim()}`)
       }
     }
   }
@@ -182,7 +193,11 @@ export class PlayerBridge extends EventEmitter {
   setCornerRadius(radius: number): void {
     this.native.setCornerRadius(radius)
   }
+  setLogLevel(level: string): void {
+    this.native.setLogLevel(level)
+  }
   destroy(): void {
+    clearTimeout(this.timeFlush)
     this.native.destroy()
   }
 }

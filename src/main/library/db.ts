@@ -41,6 +41,13 @@ create index if not exists bookmarks_path on bookmarks(path);
 
 type Row = Record<string, unknown>
 
+/**
+ * Exact "is inside folder" test: col >= 'dir/' and col < 'dir0' ('0' sorts right after '/').
+ * Unlike LIKE, this treats _ and % literally and is case-sensitive.
+ */
+const UNDER = (col: string) => `(${col} >= ? and ${col} < ?)`
+const under = (dir: string) => [`${dir}/`, `${dir}0`]
+
 const ORDER: Record<SortKey, string> = {
   name: 'title collate nocase asc',
   'name-desc': 'title collate nocase desc',
@@ -121,8 +128,8 @@ export class LibraryDb {
     this.tx(() => {
       this.db.prepare('delete from roots where path = ?').run(path)
       // Keep history for played items; drop the rest.
-      this.db.prepare(`delete from media where (path = ? or path like ?) and last_played is null and favorite = 0`).run(path, `${path}/%`)
-      this.db.prepare(`update media set in_library = 0 where path = ? or path like ?`).run(path, `${path}/%`)
+      this.db.prepare(`delete from media where (path = ? or ${UNDER('path')}) and last_played is null and favorite = 0`).run(path, ...under(path))
+      this.db.prepare(`update media set in_library = 0 where path = ? or ${UNDER('path')}`).run(path, ...under(path))
     })
   }
 
@@ -167,7 +174,7 @@ export class LibraryDb {
 
   /** Removes library rows under `root` that weren't seen in the latest scan. */
   prune(root: string, seen: Set<string>): number {
-    const rows = this.db.prepare(`select path from media where in_library = 1 and (path like ?)`).all(`${root}/%`) as Row[]
+    const rows = this.db.prepare(`select path from media where in_library = 1 and ${UNDER('path')}`).all(...under(root)) as Row[]
     let removed = 0
     for (const r of rows) {
       const p = r.path as string
@@ -191,8 +198,8 @@ export class LibraryDb {
   subfolderCounts(dir: string, types: MediaType[]): Map<string, { count: number; posters: string[]; firstId?: number }> {
     const t = types.map(() => '?').join(',')
     const rows = this.db
-      .prepare(`select id, folder, poster, type from media where in_library = 1 and folder like ? and type in (${t}) order by path`)
-      .all(`${dir}/%`, ...types) as Row[]
+      .prepare(`select id, folder, poster, type from media where in_library = 1 and ${UNDER('folder')} and type in (${t}) order by path`)
+      .all(...under(dir), ...types) as Row[]
     const out = new Map<string, { count: number; posters: string[]; firstId?: number }>()
     for (const r of rows) {
       const rest = (r.folder as string).slice(dir.length + 1)
@@ -208,7 +215,7 @@ export class LibraryDb {
 
   countUnder(dir: string, types: MediaType[]): number {
     const t = types.map(() => '?').join(',')
-    const r = this.db.prepare(`select count(*) n from media where in_library = 1 and (folder = ? or folder like ?) and type in (${t})`).get(dir, `${dir}/%`, ...types) as Row
+    const r = this.db.prepare(`select count(*) n from media where in_library = 1 and (folder = ? or ${UNDER('folder')}) and type in (${t})`).get(dir, ...under(dir), ...types) as Row
     return r.n as number
   }
 

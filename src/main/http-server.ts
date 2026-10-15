@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { networkInterfaces } from 'node:os'
-import { extname, join, normalize } from 'node:path'
+import { extname, join, normalize, sep } from 'node:path'
 import type { PlayerBridge } from './player'
 import type { JobQueue } from './convert'
 
@@ -51,10 +51,11 @@ export class HttpServer {
     return `http://${lanAddress()}:${this.port}${path}`
   }
 
-  /** Makes a local file reachable for a TV / speaker; returns its URL. */
+  /** Makes a local file reachable for a TV / speaker; returns its URL. Only recent shares stay valid. */
   shareFile(path: string): string {
-    const token = randomBytes(9).toString('base64url')
+    const token = randomBytes(12).toString('base64url')
     this.casts.set(token, path)
+    while (this.casts.size > 20) this.casts.delete(this.casts.keys().next().value!)
     return this.url(`/cast/${token}${extname(path)}`)
   }
 
@@ -65,24 +66,34 @@ export class HttpServer {
 
   /** Streams a file, honouring Range requests (TVs seek this way). */
   private sendFile(req: IncomingMessage, res: ServerResponse, path: string) {
-    if (!existsSync(path)) return this.send(res, 404, 'Not found')
+    if (!existsSync(path) || !statSync(path).isFile()) return this.send(res, 404, 'Not found')
     const size = statSync(path).size
+    const pipe = (start?: number, end?: number) => {
+      const stream = createReadStream(path, start === undefined ? undefined : { start, end })
+      stream.on('error', () => res.destroy())
+      stream.pipe(res)
+    }
     const type = MIME[extname(path).toLowerCase()] ?? 'application/octet-stream'
     const range = req.headers.range?.match(/bytes=(\d*)-(\d*)/)
     const headers: Record<string, string | number> = {
       'content-type': type, 'accept-ranges': 'bytes', 'access-control-allow-origin': '*',
       'transferMode.dlna.org': 'Streaming', 'contentFeatures.dlna.org': 'DLNA.ORG_OP=01;DLNA.ORG_FLAGS=01700000000000000000000000000000'
     }
-    if (range) {
-      const start = range[1] ? Number(range[1]) : 0
-      const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1
+    if (range && (range[1] || range[2])) {
+      // "bytes=-500" means the last 500 bytes.
+      const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]))
+      const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1
+      if (start >= size || start > end) {
+        res.writeHead(416, { 'content-range': `bytes */${size}` })
+        return res.end()
+      }
       res.writeHead(206, { ...headers, 'content-range': `bytes ${start}-${end}/${size}`, 'content-length': end - start + 1 })
       if (req.method === 'HEAD') return res.end()
-      createReadStream(path, { start, end }).pipe(res)
+      pipe(start, end)
     } else {
       res.writeHead(200, { ...headers, 'content-length': size })
       if (req.method === 'HEAD') return res.end()
-      createReadStream(path).pipe(res)
+      pipe()
     }
   }
 
@@ -99,10 +110,10 @@ export class HttpServer {
     const parts = url.pathname.split('/').filter(Boolean)
 
     if (parts[0] === 'stream') {
-      const dir = this.jobs.streamDir(Number(parts[1]))
+      const dir = this.jobs.streamDirForToken(parts[1] ?? '')
       if (!dir) return this.send(res, 404, 'No such stream')
       const file = normalize(join(dir, parts.slice(2).join('/')))
-      if (!file.startsWith(dir)) return this.send(res, 403, 'Forbidden')
+      if (!file.startsWith(dir + sep)) return this.send(res, 403, 'Forbidden')
       return this.sendFile(req, res, file)
     }
 
@@ -112,6 +123,9 @@ export class HttpServer {
     }
 
     if (!this.remoteEnabled) return this.send(res, 404, 'The web remote is turned off in FLP Settings → Controls.')
+    // Block other websites from driving the remote through the user's browser.
+    const origin = req.headers.origin
+    if (origin && new URL(origin).host !== req.headers.host) return this.send(res, 403, 'Forbidden')
     if (!this.authorized(req, url)) {
       res.writeHead(401, { 'www-authenticate': 'Basic realm="FLP Remote"' })
       return res.end('Password required')
@@ -123,6 +137,8 @@ export class HttpServer {
       return this.send(res, 200, JSON.stringify(s ? { title: s.title, path: s.path, paused: s.paused, time: s.time, duration: s.duration, volume: s.volume, muted: s.muted, idle: s.idle } : {}), 'application/json')
     }
     if (url.pathname === '/api/command' && req.method === 'POST') {
+      // A custom header can't be sent cross-site without a CORS preflight, which we never allow.
+      if (req.headers['x-flp-remote'] !== '1') return this.send(res, 403, 'Forbidden')
       const body = await new Promise<string>((r) => {
         let d = ''
         req.on('data', (c) => (d += c))
@@ -157,7 +173,7 @@ button.play{background:var(--a);color:#fff}input{width:100%;accent-color:var(--a
 <script>
 const key=new URLSearchParams(location.search).get('key')||'';const q=key?'?key='+encodeURIComponent(key):'';
 const f=s=>{s=Math.max(0,Math.floor(s||0));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
-function c(action,value){fetch('/api/command'+q,{method:'POST',body:JSON.stringify({action,value})}).then(tick)}
+function c(action,value){fetch('/api/command'+q,{method:'POST',headers:{'x-flp-remote':'1'},body:JSON.stringify({action,value})}).then(tick)}
 let dragging=false;const seek=document.getElementById('seek'),vol=document.getElementById('vol');
 seek.oninput=()=>dragging=true;seek.onchange=()=>{dragging=false;c('seek',+seek.value)};vol.onchange=()=>c('volume',+vol.value);
 async function tick(){const s=await (await fetch('/api/state'+q)).json();document.getElementById('title').textContent=s.idle?'Nothing playing':(s.title||'');

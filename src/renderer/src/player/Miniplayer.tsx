@@ -27,6 +27,10 @@ export function Miniplayer() {
   const showVideo = kind === 'video'
   useEffect(() => {
     if (idle || !path || !showVideo) cutHole(null)
+    else {
+      const el = document.querySelector('.flp-mini .flp-surface')
+      if (el) cutHole(el.getBoundingClientRect())
+    }
     return () => cutHole(null)
   }, [idle, path, showVideo])
   if (idle || !path) return null

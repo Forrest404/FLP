@@ -7,6 +7,7 @@ import { player, usePlayer } from '@/state/player'
 import { getSetting, setSetting, useSettings } from '@/state/settings'
 import { openPaths, setSpeed, trackLabel } from '@/state/playback'
 import { ui, useUi } from '@/state/ui'
+import { BUILTIN_ASPECTS, BUILTIN_CROPS, withCustom } from '@/state/ratios'
 import type { IconName } from '@/components/Icon'
 import { usePlugins } from '@/plugins/state'
 
@@ -105,8 +106,8 @@ export function rightClickMenu(): MenuEntry[] {
     {
       label: 'Video', icon: 'video', submenu: () => [
         { label: 'Video Track', submenu: () => trackMenu('video') },
-        { label: 'Aspect Ratio', submenu: () => choice('video.aspect', [['auto', 'Automatic'], ['16:9', '16:9'], ['4:3', '4:3'], ['16:10', '16:10'], ['2.35:1', '2.35:1'], ['1:1', '1:1']]) },
-        { label: 'Crop', submenu: () => choice('video.crop', [['none', 'None'], ['16:9', '16:9'], ['4:3', '4:3'], ['2.35:1', '2.35:1'], ['1.85:1', '1.85:1']]) },
+        { label: 'Aspect Ratio', submenu: () => choice('video.aspect', [['auto', 'Automatic'], ...withCustom('video.aspect', BUILTIN_ASPECTS).map((r): [string, string] => [r, r])]) },
+        { label: 'Crop', submenu: () => choice('video.crop', [['none', 'None'], ...withCustom('video.crop', BUILTIN_CROPS).map((r): [string, string] => [r, r])]) },
         { label: 'Zoom', submenu: () => choice('video.zoom', [['fit', 'Fit'], ['fill', 'Fill'], ['0.5', '50%'], ['1', '100%'], ['2', '200%']]) },
         { label: 'Deinterlace', submenu: () => choice('video.deinterlace', [['auto', 'Automatic'], ['on', 'On'], ['off', 'Off']]) },
         'separator',

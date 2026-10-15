@@ -72,7 +72,7 @@ export interface RendererApi {
     onChange(cb: (snap: SettingsSnapshot) => void): () => void
   }
   dialog: {
-    openFiles(opts?: { folders?: boolean; multiple?: boolean; title?: string }): Promise<string[]>
+    openFiles(opts?: { folders?: boolean; multiple?: boolean; title?: string; filters?: string[] }): Promise<string[]>
   }
   window: {
     toggleFullscreen(): void
@@ -187,6 +187,9 @@ export interface RendererApi {
     displays(): Promise<{ id: number; label: string }[]>
     opticalDrives(): Promise<string[]>
     openConfigFolder(): void
+    toggleDevTools(): void
+    /** Creates a folder (and its parents); false if that isn't possible. */
+    ensureDir(dir: string): Promise<boolean>
     /** Registers system-wide hotkeys { commandId: 'Mod+Shift+P' }; returns the ones that failed. */
     registerGlobalShortcuts(map: Record<string, string>): Promise<string[]>
   }

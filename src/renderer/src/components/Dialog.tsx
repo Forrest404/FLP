@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { useUi } from '@/state/ui'
 import { IconButton } from './controls'
 
 export function Dialog({ title, width, height, onClose, footer, children, head }: {
@@ -11,19 +12,24 @@ export function Dialog({ title, width, height, onClose, footer, children, head }
   head?: ReactNode
   children: ReactNode
 }) {
+  const backdrop = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        onClose()
-      }
+      if (e.key !== 'Escape') return
+      // Only the topmost dialog closes (a confirmation can sit over another dialog).
+      const all = document.querySelectorAll('.ui-backdrop')
+      if (all[all.length - 1] !== backdrop.current) return
+      // Let a focused key recorder or an open palette/menu handle Escape first.
+      if ((e.target as Element | null)?.closest?.('[data-capture-keys]') || useUi.getState().paletteOpen || document.querySelector('.ui-menu')) return
+      e.stopPropagation()
+      onClose()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
   return (
-    <div className="ui-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div ref={backdrop} className="ui-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="ui-dialog" role="dialog" aria-modal style={{ width, height }}>
         {head ?? (
           <div className="ui-dialog__head">

@@ -29,11 +29,11 @@ export class Settings extends EventEmitter {
   }
 
   private load(): SettingsFile {
-    const fresh: SettingsFile = { version: 1, values: {}, activeProfile: null, profiles: DEFAULT_PROFILES, ui: {} }
+    const fresh: SettingsFile = { version: 1, values: {}, activeProfile: null, profiles: structuredClone(DEFAULT_PROFILES), ui: {} }
     if (!existsSync(this.file)) return fresh
     try {
       const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<SettingsFile>
-      return { ...fresh, ...parsed, profiles: parsed.profiles ?? DEFAULT_PROFILES, ui: parsed.ui ?? {} }
+      return { ...fresh, ...parsed, profiles: parsed.profiles ?? structuredClone(DEFAULT_PROFILES), ui: parsed.ui ?? {} }
     } catch (err) {
       console.error('Settings file unreadable; starting fresh', err)
       renameSync(this.file, `${this.file}.broken-${Date.now()}`)

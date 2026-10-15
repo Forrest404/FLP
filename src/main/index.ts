@@ -1,13 +1,17 @@
-import { join } from 'node:path'
+import { execFile } from 'node:child_process'
+import { basename, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, powerSaveBlocker, protocol, screen, shell, Tray, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, Notification, powerSaveBlocker, protocol, screen, shell, Tray, type MenuItemConstructorOptions } from 'electron'
 import { BRAND } from '@shared/brand'
 import type { SettingsSnapshot } from '@shared/settings-store'
 import { PlayerBridge } from './player'
 import { Settings } from './settings'
-import { applySettings } from './settings-apply'
+import { applySettings, RULES } from './settings-apply'
+import { SETTINGS } from '@shared/settings-schema'
 import { cropString } from '@shared/video-effects'
-import { scheduleSnapshot } from './dev-snapshot'
+import { EQ_PRESETS } from '@shared/audio-effects'
+import { defaultLogFile, setLogFile, writeLog } from './app-log'
+import { scheduleSnapshot, setupAudit } from './dev-snapshot'
 import { bin, displayableImage, posterFor, readTags, thumbnailAt, waveform } from './media-tools'
 import { JobQueue, PRESETS, type ConvertOptions } from './convert'
 import { HttpServer, lanAddress } from './http-server'
@@ -70,15 +74,36 @@ async function applyCrop(): Promise<void> {
   await player?.set('video-crop', cropString(w, h, settings.values())).catch((err: Error) => console.warn('[crop]', err.message))
 }
 
+/** Library options that live in settings; returns true when a rescan is needed. */
+function configureLibrary(): boolean {
+  const showHidden = !!settings.get('library.showHidden')
+  const recursive = settings.get('library.folderMode') !== 'flat'
+  const changed = showHidden !== library.showHidden || recursive !== library.recursive
+  library.showHidden = showHidden
+  library.recursive = recursive
+  library.artworkFromFolder = settings.get('library.metadataSource') !== 'file'
+  return changed
+}
+
+function configureLog(): void {
+  const on = !!settings.get('general.saveLog')
+  setLogFile(on ? String(settings.get('general.logFile') || '') || defaultLogFile() : null)
+  player?.setLogLevel(on ? String(settings.get('general.logLevel') ?? 'error') : 'error')
+}
+
 settings.on('changed', (keys: string[]) => {
   if (player) applySettings(player, settings.values(), keys)
   plugins.settingsChanged(keys)
   if (keys.some((k) => CROP_KEYS.includes(k))) void applyCrop()
-  if (keys.includes('library.showHidden') || keys.includes('library.folderMode')) {
-    library.showHidden = !!settings.get('library.showHidden')
-    library.recursive = settings.get('library.folderMode') !== 'flat'
-    void library.scanAll()
+  if (keys.some((k) => ['library.showHidden', 'library.folderMode', 'library.metadataSource'].includes(k)) && configureLibrary()) void library.scanAll()
+  if (keys.includes('library.enabled')) library.setEnabled(settings.get('library.enabled') !== false)
+  if (keys.some((k) => k.startsWith('general.') && /log/i.test(k))) configureLog()
+  // Picking a preset in Settings (or via a profile) also sets the bands and turns the equalizer on.
+  if (keys.includes('audio.eqPreset') && !keys.includes('fx.eqBands')) {
+    const preset = EQ_PRESETS[String(settings.get('audio.eqPreset'))]
+    if (preset) settings.setMany({ 'fx.eqBands': preset.bands, ...(preset.bands.some(Boolean) ? { 'audio.eq': true } : {}) })
   }
+  if (keys.includes('interface.allowIconChange')) void updateDockIcon()
   if (keys.some((k) => k.startsWith('controls.webRemote'))) void configureRemote()
   if (keys.includes('interface.trayIcon')) updateTray()
   if (keys.includes('interface.opacity')) win?.setOpacity(Number(settings.get('interface.opacity') ?? 100) / 100)
@@ -191,18 +216,117 @@ app.on('open-file', (e, path) => {
   openExternally([path])
 })
 
-function rememberRecent(path: string): void {
+/** Files matching Settings → Privacy → "Never remember" stay out of history and resume points. */
+function isPrivate(path: string): boolean {
   const never = String(settings.get('privacy.neverRemember') ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
-  if (never.some((w) => path.toLowerCase().includes(w.replace(/^~/, app.getPath('home')).toLowerCase()))) return
+  return never.some((w) => path.toLowerCase().includes(w.replace(/^~/, app.getPath('home')).toLowerCase()))
+}
+
+function rememberRecent(path: string): void {
+  if (isPrivate(path)) return
   const recent = settings.getUi<string[]>('recent', []).filter((p) => p !== path)
   settings.setUi('recent', [path, ...recent].slice(0, 50))
 }
 
+// mpv options from Settings → General → Additional command line options ("--deband=yes --sub-scale=1.2").
+// Options FLP depends on for drawing into its window can't be overridden.
+const PROTECTED_OPTIONS = new Set(['vo', 'wid', 'gpu-context', 'keep-open', 'idle', 'terminal', 'osc', 'input-default-bindings', 'input-vo-keyboard', 'config'])
+function extraMpvOptions(): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const m of String(settings.get('general.extraMpvOptions') ?? '').matchAll(/--([a-z0-9-]+)(?:=("[^"]*"|'[^']*'|\S*))?/gi)) {
+    const name = m[1].toLowerCase()
+    if (!PROTECTED_OPTIONS.has(name)) out[name] = (m[2] ?? 'yes').replace(/^(["'])(.*)\1$/, '$2')
+  }
+  return out
+}
+
+/** Fullscreen, moving to the display chosen in Settings → Interface first. */
+function setFullScreen(on: boolean): void {
+  if (!win) return
+  const target = String(settings.get('interface.fullscreenScreen') ?? 'current')
+  const display = on && target !== 'current' ? screen.getAllDisplays().find((d) => String(d.id) === target) : undefined
+  if (display && screen.getDisplayMatching(win.getBounds()).id !== display.id) {
+    const area = display.workArea
+    const { width, height } = win.getBounds()
+    const w = Math.min(width, area.width)
+    const h = Math.min(height, area.height)
+    win.setBounds({ x: area.x + Math.round((area.width - w) / 2), y: area.y + Math.round((area.height - h) / 2), width: w, height: h })
+    setTimeout(() => win?.setFullScreen(true), 100)
+    return
+  }
+  win.setFullScreen(on)
+}
+
+/** The video's place in the window, as last reported by the UI (for "resize window to fit video"). */
+let videoRect: Electron.Rectangle | null = null
+let resizedForVideo = false
+function resizeToVideo(): void {
+  const mode = settings.get('interface.resizeToVideo')
+  const st = player?.state
+  if (!win || !st || !videoRect || mode === 'never' || (mode === 'first-video-only' && resizedForVideo)) return
+  if (st.kind !== 'video' || !st.videoWidth || !st.videoHeight || win.isFullScreen() || beforePip || videoRect.width < 200) return
+  resizedForVideo = true
+  const [cw, ch] = win.getContentSize()
+  const chromeW = cw - videoRect.width
+  const chromeH = ch - videoRect.height
+  const area = screen.getDisplayMatching(win.getBounds()).workArea
+  const scale = Math.min(1, (area.width * 0.9 - chromeW) / st.videoWidth, (area.height * 0.9 - chromeH) / st.videoHeight)
+  const w = Math.round(st.videoWidth * scale + chromeW)
+  const h = Math.round(st.videoHeight * scale + chromeH)
+  const b = win.getBounds()
+  const x = Math.max(area.x, Math.min(b.x, area.x + area.width - w))
+  const y = Math.max(area.y, Math.min(b.y, area.y + area.height - h))
+  win.setBounds({ x, y, width: w + (b.width - cw), height: h + (b.height - ch) }, true)
+}
+
+/** Settings → Interface → "Allow the app icon to change": cover art in the Dock while music plays. */
+let dockCover: string | null = null
+async function updateDockIcon(): Promise<void> {
+  if (process.platform !== 'darwin' || !app.dock) return
+  const st = player?.state
+  const want = settings.get('interface.allowIconChange') && st?.kind === 'audio' && st.path ? (await readTags(st.path, settings.get('library.metadataSource') !== 'file')).cover ?? null : null
+  if (want === dockCover) return
+  dockCover = want
+  const icon = want ? nativeImage.createFromPath(want) : nativeImage.createFromPath(join(resourcesDir(), 'icon.png'))
+  if (!icon.isEmpty()) app.dock.setIcon(icon)
+}
+
+/** Settings → Playback → "When playback finishes", once the last item ends. */
+function playbackFinished(): void {
+  const st = player?.state
+  if (!st || st.kind === 'image' || settings.get('playback.repeat') !== 'off') return
+  const last = st.playlist.length === 0 || st.playlist[st.playlist.length - 1]?.current
+  if (!last) return
+  const action = settings.get('playback.whenFinished')
+  if (action === 'quit') app.quit()
+  else if (action === 'return-to-library') win?.webContents.send('command:run', 'ui.home')
+  else if (action === 'sleep-computer') execFile('/usr/bin/pmset', ['sleepnow'], () => null)
+}
+
+function trackPopup(title: string): void {
+  const when = settings.get('interface.trackPopup')
+  if (!win || when === 'never' || !Notification.isSupported()) return
+  if (when === 'minimized' && !win.isMinimized() && win.isVisible()) return
+  const n = new Notification({ title, silent: true })
+  n.on('click', () => {
+    win?.show()
+    win?.focus()
+  })
+  n.show()
+  const secs = Number(settings.get('interface.popupDuration') ?? 4)
+  if (secs > 0) setTimeout(() => n.close(), secs * 1000)
+}
+
+function saveWindowBounds(): void {
+  // In picture-in-picture, remember the normal window, not the small one.
+  if (win && !win.isDestroyed() && settings.get('interface.rememberWindow') && !win.isFullScreen()) settings.setUi('windowBounds', beforePip?.bounds ?? win.getBounds())
+}
+
 function createWindow(): void {
-  const bounds = settings.getUi<Electron.Rectangle | null>('windowBounds', null)
+  const bounds = settings.get('interface.rememberWindow') !== false ? settings.getUi<Electron.Rectangle | null>('windowBounds', null) : null
   win = new BrowserWindow({
     width: bounds?.width ?? 1280,
     height: bounds?.height ?? 760,
@@ -226,11 +350,14 @@ function createWindow(): void {
 
   // ytdl_hook reads its options at startup, so yt-dlp's path goes in before mpv initializes.
   player = new PlayerBridge(win, {
+    ...extraMpvOptions(),
     'script-opts': `ytdl_hook-ytdl_path=${bin('yt-dlp')}`,
     // macOS Now Playing (Control Center, lock screen) and the keyboard's media keys.
     'media-controls': settings.get('controls.mediaKeys') === false ? 'no' : 'yes'
   })
   applySettings(player, settings.values())
+  player.on('log', (m: { level: string; prefix: string; text: string }) => writeLog(m.prefix, m.level, m.text))
+  configureLog()
   void loadMpvScripts(player)
   void player.set(
     'volume',
@@ -242,21 +369,39 @@ function createWindow(): void {
     if ('volume' in patch && settings.get('audio.rememberVolume')) settings.setUi('lastVolume', patch.volume)
     if (patch.path && settings.get('privacy.saveRecent')) rememberRecent(patch.path)
     if (patch.time !== undefined && settings.get('privacy.rememberPosition')) library.onTime(patch.time, player!.state.duration)
-    if (patch.videoWidth !== undefined) void applyCrop()
+    if (patch.videoWidth !== undefined) {
+      void applyCrop()
+      resizeToVideo()
+    }
+    if ('kind' in patch) void updateDockIcon()
+    // keep-open holds the last frame without an end-file event, so the end of the list shows up here.
+    if (patch.eof === true) {
+      library.onEofReached()
+      playbackFinished()
+    }
   })
+  // Why the previous file ended: 'eof' means mpv moved on by itself.
+  let lastEnd: string | null = null
   player.on('file-loaded', async () => {
     // Property updates can arrive after this event, so ask mpv directly.
     const bridge = player
     if (!bridge) return
     const [path, title, duration] = (await Promise.all([bridge.get('path'), bridge.get('media-title'), bridge.get('duration')])) as [string | null, string | null, number | null]
     if (!path) return
-    if (settings.get('privacy.saveRecent')) library.onFileStarted(path, title, duration ?? 0)
+    // Moving on by itself keeps playing (unless "Stop after each item"); anything the user opens follows "autoplay".
+    const auto = lastEnd === 'eof' || lastEnd === 'redirect'
+    lastEnd = null
+    if (auto ? settings.get('playback.stopAfterEach') : settings.get('playback.autoplay') === false) void bridge.set('pause', true)
+    else if (!auto) void bridge.set('pause', false)
+    const tracked = !isPrivate(path) && (settings.get('privacy.saveRecent') || settings.get('privacy.rememberPosition'))
+    if (tracked) library.onFileStarted(path, title, duration ?? 0)
     const resume = settings.get('playback.resume')
     plugins.playerEvent('file-loaded', { path, title, duration })
-    if (settings.get('video.startFullscreen') && (await bridge.get('vid')) && !win?.isFullScreen()) win?.setFullScreen(true)
+    trackPopup(title || basename(path))
+    if (settings.get('video.startFullscreen') && (await bridge.get('vid')) && !win?.isFullScreen()) setFullScreen(true)
     const raise = settings.get('interface.raiseOnPlay')
     if (raise === 'always' || (raise === 'video' && (await bridge.get('vid')))) win?.show()
-    const position = settings.get('privacy.rememberPosition') ? library.resumePosition(path) : 0
+    const position = settings.get('privacy.rememberPosition') && !isPrivate(path) ? library.resumePosition(path) : 0
     if (position > 0 && resume === 'always') void bridge.command(['seek', position, 'absolute'])
     else if (position > 0 && resume === 'ask') win?.webContents.send('player:resume-offer', { path, position })
   })
@@ -273,9 +418,10 @@ function createWindow(): void {
     updateDockMenu()
   })
   player.on('end-file', (reason: string) => {
+    lastEnd = reason
     const { time, duration, path } = player!.state
     plugins.playerEvent('ended', { path, reason })
-    library.onStopped(time, duration, reason === 'eof')
+    library.onStopped(time, duration, reason === 'eof', !!settings.get('privacy.rememberPosition'))
   })
 
   win.setOpacity(Number(settings.get('interface.opacity') ?? 100) / 100)
@@ -287,16 +433,14 @@ function createWindow(): void {
   })
   win.on('enter-full-screen', () => win?.webContents.send('window:fullscreen', true))
   win.on('leave-full-screen', () => win?.webContents.send('window:fullscreen', false))
-  win.on('close', () => {
-    if (win && settings.get('interface.rememberWindow') && !win.isFullScreen()) settings.setUi('windowBounds', win.getBounds())
-  })
+  win.on('close', saveWindowBounds)
   win.on('closed', () => {
     player?.destroy()
     player = null
     win = null
   })
 
-  const params = [process.env.FLP_QUERY, process.env.FLP_SNAPSHOT && 'dev'].filter(Boolean).join('&')
+  const params = [process.env.FLP_QUERY, (process.env.FLP_SNAPSHOT || process.env.FLP_AUDIT_DIR) && 'dev'].filter(Boolean).join('&')
   const query = params ? `?${params}` : ''
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL + query)
   else win.loadFile(join(here, '../renderer/index.html'), { search: query.slice(1) })
@@ -308,6 +452,7 @@ function createWindow(): void {
     pendingOpen = []
   })
   scheduleSnapshot(win, player)
+  setupAudit(win, () => player, () => ({ settings, library, app, screen, http, jobs, plugins, RULES, SETTINGS }))
 }
 
 // Player
@@ -315,7 +460,10 @@ ipcMain.handle('player:command', (_e, args: unknown[]) => player?.command(args))
 ipcMain.handle('player:set', (_e, name: string, value: unknown) => player?.set(name, value))
 ipcMain.handle('player:get', (_e, name: string) => player?.get(name))
 ipcMain.handle('player:snapshot', () => player?.state)
-ipcMain.on('player:bounds', (_e, b: Electron.Rectangle) => player?.setBounds(b.x, b.y, b.width, b.height))
+ipcMain.on('player:bounds', (_e, b: Electron.Rectangle) => {
+  videoRect = b
+  player?.setBounds(b.x, b.y, b.width, b.height)
+})
 ipcMain.on('player:visible', (_e, visible: boolean) => player?.setVisible(visible))
 ipcMain.on('player:radius', (_e, radius: number) => player?.setCornerRadius(radius))
 
@@ -331,15 +479,16 @@ ipcMain.handle('settings:deleteProfile', (_e, id: string) => settings.deleteProf
 ipcMain.handle('settings:setUi', (_e, key: string, value: unknown) => settings.setUi(key, value))
 
 // Dialogs, window, shell
-ipcMain.handle('dialog:openFiles', async (_e, opts: { folders?: boolean; multiple?: boolean; title?: string } = {}) => {
+ipcMain.handle('dialog:openFiles', async (_e, opts: { folders?: boolean; multiple?: boolean; title?: string; filters?: string[] } = {}) => {
   if (!win) return []
   const res = await dialog.showOpenDialog(win, {
     title: opts.title,
+    filters: opts.filters?.length && !opts.folders ? [{ name: opts.filters.join(', ').toUpperCase(), extensions: opts.filters }] : undefined,
     properties: [opts.folders ? 'openDirectory' : 'openFile', ...(opts.multiple !== false ? (['multiSelections'] as const) : [])]
   })
   return res.canceled ? [] : res.filePaths
 })
-ipcMain.on('window:toggleFullscreen', () => win?.setFullScreen(!win.isFullScreen()))
+ipcMain.on('window:toggleFullscreen', () => setFullScreen(!win?.isFullScreen()))
 ipcMain.handle('window:isFullscreen', () => win?.isFullScreen() ?? false)
 ipcMain.on('window:alwaysOnTop', (_e, on: boolean) => win?.setAlwaysOnTop(on, 'floating'))
 ipcMain.on('window:minimize', () => win?.minimize())
@@ -390,6 +539,11 @@ function registerGlobalShortcuts(map: Record<string, string>): string[] {
 }
 ipcMain.handle('app:globalShortcuts', (_e, map: Record<string, string>) => registerGlobalShortcuts(map))
 ipcMain.on('app:openConfigFolder', () => void shell.openPath(app.getPath('userData')))
+ipcMain.on('app:toggleDevTools', () => win?.webContents.toggleDevTools())
+ipcMain.handle('app:ensureDir', async (_e, dir: string) => {
+  const { mkdir } = await import('node:fs/promises')
+  return mkdir(dir, { recursive: true }).then(() => true, () => false)
+})
 // Mounted discs: DVDs (VIDEO_TS), Blu-rays (BDMV) and audio CDs (.aiff tracks) under /Volumes.
 ipcMain.handle('app:opticalDrives', async () => {
   const { readdir } = await import('node:fs/promises')
@@ -549,6 +703,7 @@ ipcMain.handle('jobs:stream', async (_e, input: string, target: 'hls' | 'udp', u
     tune: String(settings.get('recording.tune') ?? 'none'),
     hlsUrl: (p) => http.url(p)
   })
+  if (settings.get('recording.playLocally') === false && input === player?.state.path) void player?.set('pause', true)
   return job.url
 })
 ipcMain.handle('jobs:cancel', (_e, id: number) => jobs.cancel(id))
@@ -636,7 +791,7 @@ ipcMain.on('menu:set', (_e, specs: MenuSpec[]) => {
 })
 
 // One window: a second launch (e.g. opening another file from Finder) hands its files to this one.
-if (settings.get('library.singleInstance') !== false && !process.env.FLP_SNAPSHOT && !app.requestSingleInstanceLock()) app.quit()
+if (settings.get('library.singleInstance') !== false && !process.env.FLP_SNAPSHOT && !process.env.FLP_AUDIT_DIR && !app.requestSingleInstanceLock()) app.quit()
 app.on('second-instance', (_e, argv) => openExternally(argv.slice(1).filter((a) => !a.startsWith('-') && a !== '.')))
 
 app.whenReady().then(() => {
@@ -659,8 +814,8 @@ app.whenReady().then(() => {
     const path = decodeURIComponent(new URL(req.url).pathname)
     return net.fetch(pathToFileURL(path).toString(), { headers: req.headers })
   })
-  library.showHidden = !!settings.get('library.showHidden')
-  library.recursive = settings.get('library.folderMode') !== 'flat'
+  configureLibrary()
+  library.enabled = settings.get('library.enabled') !== false
   library.start()
   createWindow()
   updateTray()
@@ -676,6 +831,8 @@ app.on('before-quit', () => {
   plugins.dispose()
   jobs.dispose()
   void http.stop()
-  if (player) library.onStopped(player.state.time, player.state.duration, false)
+  if (player) library.onStopped(player.state.time, player.state.duration, false, !!settings.get('privacy.rememberPosition'))
+  // before-quit runs before the window's close event, so save its size here too.
+  saveWindowBounds()
   settings.flush()
 })

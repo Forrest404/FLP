@@ -219,13 +219,22 @@ function emit(p: Loaded, name: string, data: unknown) {
   }
 }
 
+// Loads and unloads of one plugin run one after another, so a quick double reload can't leave
+// a half-activated copy behind.
+const queues = new Map<string, Promise<unknown>>()
+function queued(id: string, job: () => Promise<unknown>) {
+  const next = (queues.get(id) ?? Promise.resolve()).then(job, job)
+  queues.set(id, next)
+  return next
+}
+
 port.on('message', async (e: { data: MainToHost }) => {
   const msg = e.data
   switch (msg.type) {
     case 'load':
-      return load(msg.plugin)
+      return queued(msg.plugin.id, () => load(msg.plugin))
     case 'unload':
-      return unload(msg.pluginId)
+      return queued(msg.pluginId, () => unload(msg.pluginId))
     case 'reply': {
       const r = pending.get(msg.reqId)
       if (!r) return

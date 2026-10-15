@@ -49,7 +49,9 @@ export const RULES: Rule[] = [
       let deinterlace: string = mode === 'off' ? 'no' : mode === 'on' ? 'yes' : 'auto'
       if (mode !== 'off' && method !== 'auto') {
         const filter = method === 'yadif-double' ? 'yadif=mode=send_field' : method
-        vf.push(`@deint:lavfi=[${filter}${mode === 'auto' ? '=deint=interlaced' : ''}]`)
+        // Only deinterlace frames flagged as interlaced in Automatic mode ("key=value" options join with ':').
+        const onlyInterlaced = mode === 'auto' ? `${filter.includes('=') ? ':' : '='}deint=interlaced` : ''
+        vf.push(`@deint:lavfi=[${filter}${onlyInterlaced}]`)
         deinterlace = 'no'
       }
       vf.push(...buildVideoFilters(v))
@@ -62,7 +64,17 @@ export const RULES: Rule[] = [
     keys: ['performance.postProcessing', 'video.zoom', ...VFX_KEYS],
     apply: (v) => videoProps(v, v['performance.postProcessing'] !== 'off')
   },
-  { keys: ['video.aspect'], apply: (v) => ({ 'video-aspect-override': v['video.aspect'] === 'auto' ? 'no' : v['video.aspect'] }) },
+  // "-1" = use the file's own aspect ratio ("no" would force square pixels and break anamorphic video).
+  { keys: ['video.aspect'], apply: (v) => ({ 'video-aspect-override': v['video.aspect'] === 'auto' ? '-1' : v['video.aspect'] }) },
+  {
+    keys: ['video.monitorPixelAspect'],
+    apply: (v) => {
+      const raw = String(v['video.monitorPixelAspect'] || '1')
+      const [a, b] = raw.split(':').map(Number)
+      const ratio = b ? a / b : a
+      return { monitorpixelaspect: Number.isFinite(ratio) && ratio > 0 ? ratio : 1 }
+    }
+  },
   {
     keys: ['video.zoom', 'video.scaleToWindow'],
     apply: (v) => {
@@ -84,14 +96,36 @@ export const RULES: Rule[] = [
   {
     keys: ['video.snapshotFolder', 'video.snapshotPrefix', 'video.snapshotFormat', 'video.snapshotSequential'],
     apply: (v) => ({
-      'screenshot-directory': expand(v['video.snapshotFolder']) || `${homedir()}/Pictures`,
+      'screenshot-dir': expand(v['video.snapshotFolder']) || `${homedir()}/Pictures`,
       'screenshot-format': v['video.snapshotFormat'],
       'screenshot-template': `${v['video.snapshotPrefix'] || ''}${v['video.snapshotSequential'] ? '%n' : '%F-%wH.%wM.%wS'}`
     })
   },
 
   // Audio
-  { keys: ['audio.enabled'], apply: (v) => ({ aid: v['audio.enabled'] ? 'auto' : 'no' }) },
+  {
+    keys: ['audio.enabled', 'playback.defaultAudioTrack'],
+    apply: (v) => ({ aid: !v['audio.enabled'] ? 'no' : Number(v['playback.defaultAudioTrack']) > 0 ? Number(v['playback.defaultAudioTrack']) : 'auto' })
+  },
+  {
+    keys: ['playback.defaultSubTrack'],
+    apply: (v) => ({ sid: Number(v['playback.defaultSubTrack']) > 0 ? Number(v['playback.defaultSubTrack']) : 'auto' })
+  },
+  {
+    keys: ['playback.repeat'],
+    apply: (v) => ({ 'loop-file': v['playback.repeat'] === 'one' ? 'inf' : 'no', 'loop-playlist': v['playback.repeat'] === 'all' ? 'inf' : 'no' })
+  },
+  { keys: ['playback.speed'], apply: (v) => ({ speed: Number(v['playback.speed']) || 1 }) },
+  { keys: ['playback.repairAvi'], apply: (v) => ({ index: v['playback.repairAvi'] === 'always' ? 'recreate' : 'default' }) },
+  {
+    keys: ['playback.timeshiftFolder', 'playback.timeshiftSize'],
+    apply: (v) => {
+      const dir = expand(v['playback.timeshiftFolder'])
+      const back = { small: '50MiB', medium: '200MiB', large: '1GiB' }[String(v['playback.timeshiftSize'])] ?? '200MiB'
+      return { 'demuxer-max-back-bytes': back, 'cache-on-disk': !!dir, ...(dir ? { 'cache-dir': dir } : {}) }
+    }
+  },
+  { keys: ['controls.mediaKeys'], apply: (v) => ({ 'media-controls': v['controls.mediaKeys'] === false ? 'no' : 'yes' }) },
   { keys: ['audio.device'], apply: (v) => ({ 'audio-device': v['audio.device'] || 'auto' }) },
   { keys: ['audio.channels'], apply: (v) => ({ 'audio-channels': v['audio.channels'] === 'auto' ? 'auto-safe' : v['audio.channels'] }) },
   { keys: ['audio.maxVolume'], apply: (v) => ({ 'volume-max': v['audio.maxVolume'] }) },
@@ -142,13 +176,13 @@ export const RULES: Rule[] = [
       const box = v['subtitles.background'] === 'box'
       const outline = { none: 0, thin: 1.5, normal: 3, thick: 5 }[String(v['subtitles.outline'])] ?? 3
       const shadow = v['subtitles.shadow'] ? ({ small: 1, medium: 2, large: 4 }[String(v['subtitles.shadowDistance'])] ?? 1) : 0
+      // mpv uses one colour (sub-back-color, alias sub-shadow-color) for both the shadow and the background box.
       return {
         'sub-border-style': box ? 'background-box' : 'outline-and-shadow',
-        'sub-outline-size': box ? 2 : outline,
-        'sub-outline-color': box ? hex2mpv(v['subtitles.backgroundColor'], Number(v['subtitles.backgroundOpacity'] ?? 50)) : hex2mpv(v['subtitles.outlineColor']),
-        'sub-back-color': box ? hex2mpv(v['subtitles.backgroundColor'], Number(v['subtitles.backgroundOpacity'] ?? 50)) : '#00000000',
-        'sub-shadow-offset': shadow,
-        'sub-shadow-color': hex2mpv(v['subtitles.shadowColor'], 80)
+        'sub-outline-size': outline,
+        'sub-outline-color': hex2mpv(v['subtitles.outlineColor']),
+        'sub-back-color': box ? hex2mpv(v['subtitles.backgroundColor'], Number(v['subtitles.backgroundOpacity'] ?? 50)) : hex2mpv(v['subtitles.shadowColor'], 80),
+        'sub-shadow-offset': box ? 0 : shadow
       }
     }
   },
@@ -171,16 +205,30 @@ export const RULES: Rule[] = [
       return { 'cache-secs': secs, 'demuxer-readahead-secs': Math.min(secs, 20) }
     }
   },
-  { keys: ['network.proxy'], apply: (v) => ({ 'http-proxy': v['network.proxy'] || '' }) },
+  {
+    keys: ['network.proxy', 'network.proxyUser', 'network.proxyPassword'],
+    apply: (v) => {
+      const raw = String(v['network.proxy'] || '').trim()
+      if (!raw) return { 'http-proxy': '' }
+      try {
+        const u = new URL(/^[a-z]+:\/\//i.test(raw) ? raw : `http://${raw}`)
+        if (v['network.proxyUser']) u.username = encodeURIComponent(String(v['network.proxyUser']))
+        if (v['network.proxyPassword']) u.password = encodeURIComponent(String(v['network.proxyPassword']))
+        return { 'http-proxy': u.href }
+      } catch {
+        return { 'http-proxy': raw }
+      }
+    }
+  },
   { keys: ['network.verifyTls'], apply: (v) => ({ 'tls-verify': !!v['network.verifyTls'] }) },
-  { keys: ['network.userAgent'], apply: (v) => (v['network.userAgent'] ? { 'user-agent': v['network.userAgent'] } : {}) },
+  { keys: ['network.userAgent'], apply: (v) => ({ 'user-agent': v['network.userAgent'] || 'libmpv' }) },
 
   // Performance
   {
     keys: ['performance.postProcessing'],
     apply: (v) => {
       const p = v['performance.postProcessing']
-      return { scale: p === 'high' ? 'ewa_lanczossharp' : 'bilinear', cscale: p === 'high' ? 'ewa_lanczossharp' : 'bilinear' }
+      return { scale: p === 'high' ? 'ewa_lanczossharp' : 'lanczos', cscale: p === 'high' ? 'ewa_lanczossharp' : 'lanczos' }
     }
   },
   { keys: ['performance.skipLoopFilter'], apply: (v) => ({ 'vd-lavc-skiploopfilter': v['performance.skipLoopFilter'] }) },
@@ -197,13 +245,7 @@ export const RULES: Rule[] = [
   { keys: ['performance.demuxerMax'], apply: (v) => ({ 'demuxer-max-bytes': `${v['performance.demuxerMax']}MiB` }) },
 
   // Diagnostics
-  {
-    keys: ['general.saveLog', 'general.logFile', 'general.logLevel'],
-    apply: (v) => ({
-      'log-file': v['general.saveLog'] ? expand(v['general.logFile']) || `${homedir()}/Library/Logs/FLP/mpv.log` : '',
-      'msg-level': `all=${v['general.logLevel'] === 'info' ? 'v' : v['general.logLevel']}`
-    })
-  }
+  // The log (general.saveLog / logFile / logLevel) is written by the main process; see app-log.ts.
 ]
 
 function systemLangs(): string {

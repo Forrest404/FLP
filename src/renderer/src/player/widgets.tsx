@@ -89,14 +89,31 @@ export function SeekBar({ waveform }: { waveform?: boolean }) {
         void player.command('seek', last, 'absolute+keyframes').finally(() => (pending = false))
       }
     }
-    const up = () => {
+    const up = (ev: PointerEvent) => {
       el.removeEventListener('pointermove', move)
       el.removeEventListener('pointerup', up)
+      el.removeEventListener('pointercancel', up)
+      // Released outside the bar: hide the preview too.
+      const r = el.getBoundingClientRect()
+      if (ev.type === 'pointercancel' || ev.clientY < r.top || ev.clientY > r.bottom || ev.clientX < r.left || ev.clientX > r.right) setHover(null)
+      if (ev.type === 'pointercancel') return setDrag(null)
       void seekTo(last).finally(() => setDrag(null))
     }
     el.addEventListener('pointermove', move)
     el.addEventListener('pointerup', up)
+    el.addEventListener('pointercancel', up)
   }
+
+  // A menu, dialog or window switch can cover the bar without a pointerleave.
+  useEffect(() => {
+    const clear = () => setHover(null)
+    window.addEventListener('blur', clear)
+    window.addEventListener('contextmenu', clear)
+    return () => {
+      window.removeEventListener('blur', clear)
+      window.removeEventListener('contextmenu', clear)
+    }
+  }, [])
 
   const chapterAt = (t: number) => [...chapters].reverse().find((c) => c.time <= t)?.title
 

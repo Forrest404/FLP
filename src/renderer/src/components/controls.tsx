@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
 import { ACCENTS, type AccentId } from '@shared/theme'
 import { Icon, type IconName } from './Icon'
 
@@ -211,19 +211,27 @@ export function NumberField({ value, onChange, min, max, step = 1, suffix }: {
   step?: number
   suffix?: string
 }) {
+  const [draft, setDraft] = useState(String(value))
+  useEffect(() => setDraft(String(value)), [value])
+  const commit = () => {
+    const v = Number(draft)
+    if (draft.trim() === '' || Number.isNaN(v)) return setDraft(String(value))
+    const clamped = Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v))
+    setDraft(String(clamped))
+    if (clamped !== value) onChange(clamped)
+  }
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
       <input
         className="ui-field ui-number"
         type="number"
-        value={value}
+        value={draft}
         min={min}
         max={max}
         step={step}
-        onChange={(e) => {
-          const v = Number(e.target.value)
-          if (!Number.isNaN(v)) onChange(v)
-        }}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
       />
       {suffix && <span>{suffix}</span>}
     </span>

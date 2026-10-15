@@ -117,8 +117,8 @@ export function ControlBar() {
   const pluginButtons = usePlugins((s) => s.contributions.controlButtons)
   // Buttons plugins add go at the end unless the user already placed them.
   const layout = editing ? base : [...base, ...pluginButtons.map((b) => b.command).filter((c) => !base.includes(c))]
-  // A still image has no timeline.
-  const ids = kind === 'image' ? layout.filter((id) => !['time', 'duration'].includes(id)).map((id) => (id === 'seek' ? 'spacer' : id)) : layout
+  // A still image has no timeline (but Customize Player edits the real layout).
+  const ids = kind === 'image' && !editing ? layout.filter((id) => !['time', 'duration'].includes(id)).map((id) => (id === 'seek' ? 'spacer' : id)) : layout
   return (
     <footer className="flp-controls">
       <BarItems ids={ids} zone={kind === 'audio' ? 'musicControls' : 'controls'} />

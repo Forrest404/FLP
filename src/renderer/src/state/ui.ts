@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { getSetting } from './settings'
 
 export type View = 'player' | 'library'
 export type LibrarySection = 'home' | 'videos' | 'music' | 'network' | 'playlists' | 'recent'
@@ -10,6 +11,15 @@ export type DialogId =
 export interface Osd {
   id: number
   text: string
+  /** Shown even when on-screen feedback is turned off (e.g. the file name). */
+  force?: boolean
+}
+
+export interface ConfirmRequest {
+  title: string
+  message?: string
+  confirmLabel?: string
+  resolve(ok: boolean): void
 }
 
 interface UiState {
@@ -31,6 +41,7 @@ interface UiState {
   shuffled: boolean
   osd: Osd | null
   toast: { text: string; action?: { label: string; run(): void } } | null
+  confirm: ConfirmRequest | null
 }
 
 export const useUi = create<UiState>(() => ({
@@ -49,7 +60,8 @@ export const useUi = create<UiState>(() => ({
   pip: false,
   shuffled: false,
   osd: null,
-  toast: null
+  toast: null,
+  confirm: null
 }))
 
 export const ui = {
@@ -72,11 +84,11 @@ export const ui = {
 let osdTimer: ReturnType<typeof setTimeout> | undefined
 let osdSeq = 0
 
-/** Brief on-screen feedback, e.g. "Volume 80%". */
-export function showOsd(text: string, ms = 1500) {
+/** Brief on-screen feedback, e.g. "Volume 80%". Lasts subtitles.osdDuration unless `ms` is given. */
+export function showOsd(text: string, ms?: number, force?: boolean) {
   clearTimeout(osdTimer)
-  useUi.setState({ osd: { id: ++osdSeq, text } })
-  osdTimer = setTimeout(() => useUi.setState({ osd: null }), ms)
+  useUi.setState({ osd: { id: ++osdSeq, text, force } })
+  osdTimer = setTimeout(() => useUi.setState({ osd: null }), ms ?? (getSetting<number>('subtitles.osdDuration') ?? 1.5) * 1000)
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined
@@ -85,4 +97,13 @@ export function showToast(text: string, action?: { label: string; run(): void },
   clearTimeout(toastTimer)
   useUi.setState({ toast: { text, action } })
   toastTimer = setTimeout(() => useUi.setState({ toast: null }), ms)
+}
+
+/** Asks before a destructive action (in-app dialog). Resolves true at once when general.confirmDialogs is off. */
+export function confirmAction(opts: { title: string; message?: string; confirmLabel?: string }): Promise<boolean> {
+  if (getSetting('general.confirmDialogs') === false) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    useUi.getState().confirm?.resolve(false)
+    useUi.setState({ confirm: { ...opts, resolve } })
+  })
 }

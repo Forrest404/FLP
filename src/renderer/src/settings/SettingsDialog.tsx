@@ -9,6 +9,7 @@ import { runCommand } from '@/commands/registry'
 import { player } from '@/state/player'
 import { setSetting, useSetting } from '@/state/settings'
 import { ui, useUi } from '@/state/ui'
+import { withCustomOptions } from '@/state/ratios'
 import { CUSTOM_ROWS } from './custom'
 
 const LANGUAGES: Option<string>[] = [
@@ -43,11 +44,14 @@ export function Control({ def }: { def: SettingDef }) {
   const set = (v: unknown) => setSetting(def.key, v)
   const dynamic = 'options' in def && !Array.isArray(def.options) ? def.options.dynamic : null
   const dynOpts = useDynamicOptions(dynamic)
+  // Aspect / crop also offer the user's custom ratios.
+  const customRatios = useSetting<string>(def.key === 'video.aspect' ? 'video.customAspects' : def.key === 'video.crop' ? 'video.customCrops' : '')
   switch (def.type) {
     case 'toggle':
       return <Toggle checked={!!value} onChange={set} label={def.label} />
     case 'select': {
-      const options = (Array.isArray(def.options) ? def.options : dynOpts) as Option[]
+      let options = (Array.isArray(def.options) ? def.options : dynOpts) as Option[]
+      if (customRatios) options = withCustomOptions(options as { value: string; label: string }[], customRatios)
       const v = (value ?? def.default) as string | number
       const withCurrent = options.some((o) => String(o.value) === String(v)) ? options : [...options, { value: v, label: String(v) || 'Default' }]
       return <Select<string | number> value={v} options={withCurrent} onChange={set} label={def.label} />
@@ -71,9 +75,9 @@ export function Control({ def }: { def: SettingDef }) {
     case 'path':
       return (
         <div className="flp-set__path">
-          <DeferredText value={String(value ?? '')} placeholder={def.directory ? 'Choose a folder' : 'Choose a file'} onCommit={set} />
+          <DeferredText value={String(value ?? '')} placeholder={def.placeholder ?? (def.directory ? 'Choose a folder' : 'Choose a file')} onCommit={set} />
           <Button onClick={async () => {
-            const [p] = await window.flp.dialog.openFiles({ folders: def.directory, multiple: false, title: def.label })
+            const [p] = await window.flp.dialog.openFiles({ folders: def.directory, multiple: false, title: def.label, filters: def.filters })
             if (p) set(p)
           }}>Browse</Button>
         </div>

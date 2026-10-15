@@ -1,6 +1,7 @@
 // Convert / save and stream-out jobs (ffmpeg), with live progress.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { basename, dirname, extname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { EventEmitter } from 'node:events'
@@ -49,6 +50,8 @@ export interface Job {
   status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
   error?: string
   url?: string
+  /** Unguessable part of a stream's web address. */
+  token?: string
 }
 
 export class JobQueue extends EventEmitter {
@@ -62,9 +65,11 @@ export class JobQueue extends EventEmitter {
     this.emit('jobs', this.jobs)
   }
 
+  /** A name that exists neither on disk nor as the output of a queued/running job. */
   private uniquePath(dir: string, name: string, ext: string): string {
+    const taken = (p: string) => existsSync(p) || this.jobs.some((j) => j.output === p && (j.status === 'queued' || j.status === 'running'))
     let p = join(dir, `${name}.${ext}`)
-    for (let i = 2; existsSync(p); i++) p = join(dir, `${name} (${i}).${ext}`)
+    for (let i = 2; taken(p); i++) p = join(dir, `${name} (${i}).${ext}`)
     return p
   }
 
@@ -102,6 +107,7 @@ export class JobQueue extends EventEmitter {
     else args.push('-an')
     let output: string
     let url: string
+    let token: string | undefined
     if (opts.target === 'udp') {
       url = `udp://${opts.udpAddress || '239.0.0.1:1234'}`
       output = url
@@ -110,10 +116,11 @@ export class JobQueue extends EventEmitter {
       const dir = join(tmpdir(), `flp-stream-${id}`)
       mkdirSync(dir, { recursive: true })
       output = join(dir, 'index.m3u8')
-      url = opts.hlsUrl(`/stream/${id}/index.m3u8`)
+      token = randomBytes(12).toString('base64url')
+      url = opts.hlsUrl(`/stream/${token}/index.m3u8`)
       args.push('-f', 'hls', '-hls_time', '4', '-hls_list_size', '0', '-hls_playlist_type', 'event', '-hls_segment_filename', join(dir, 'seg%05d.ts'), output)
     }
-    const job: Job = { id, kind: 'stream', input, output, label: opts.target === 'udp' ? 'UDP stream' : 'HTTP stream (HLS)', progress: 0, status: 'running', url }
+    const job: Job = { id, kind: 'stream', input, output, label: opts.target === 'udp' ? 'UDP stream' : 'HTTP stream (HLS)', progress: 0, status: 'running', url, token }
     this.jobs = [...this.jobs, job]
     this.start(job, args, 0)
     return job
@@ -132,6 +139,7 @@ export class JobQueue extends EventEmitter {
     this.running++
     const proc = spawn(bin('ffmpeg'), args, { stdio: ['ignore', 'pipe', 'pipe'] })
     this.procs.set(job.id, proc)
+    let finished = false
     let errTail = ''
     proc.stdout.on('data', (d: Buffer) => {
       const m = String(d).match(/out_time_us=(\d+)/g)
@@ -142,10 +150,15 @@ export class JobQueue extends EventEmitter {
       }
     })
     proc.stderr.on('data', (d: Buffer) => (errTail = (errTail + d).slice(-2000)))
-    proc.on('close', (code) => {
+    const finish = (code: number | null, spawnError?: Error) => {
+      if (finished) return
+      finished = true
       this.running--
       this.procs.delete(job.id)
-      if (job.status === 'cancelled') {
+      if (spawnError) {
+        job.status = 'failed'
+        job.error = spawnError.message
+      } else if (job.status === 'cancelled') {
         if (job.kind === 'convert' && existsSync(job.output)) rmSync(job.output, { force: true })
       } else if (code === 0) {
         job.status = 'done'
@@ -157,7 +170,10 @@ export class JobQueue extends EventEmitter {
       if (job.kind === 'stream' && job.output.endsWith('.m3u8')) setTimeout(() => rmSync(dirname(job.output), { recursive: true, force: true }), 60000)
       this.emitJobs()
       this.pump()
-    })
+    }
+    // e.g. ffmpeg missing: fail the job instead of crashing the app.
+    proc.on('error', (err) => finish(null, err))
+    proc.on('close', (code) => finish(code))
     this.emitJobs()
   }
 
@@ -174,8 +190,8 @@ export class JobQueue extends EventEmitter {
     this.emitJobs()
   }
 
-  streamDir(id: number): string | null {
-    const job = this.jobs.find((j) => j.id === id && j.kind === 'stream' && j.output.endsWith('.m3u8'))
+  streamDirForToken(token: string): string | null {
+    const job = token ? this.jobs.find((j) => j.token === token && j.kind === 'stream' && j.output.endsWith('.m3u8')) : undefined
     return job ? dirname(job.output) : null
   }
 

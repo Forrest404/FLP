@@ -158,6 +158,8 @@ const api: RendererApi = {
     displays: () => ipcRenderer.invoke('app:displays'),
     opticalDrives: () => ipcRenderer.invoke('app:opticalDrives'),
     openConfigFolder: () => ipcRenderer.send('app:openConfigFolder'),
+    toggleDevTools: () => ipcRenderer.send('app:toggleDevTools'),
+    ensureDir: (dir) => ipcRenderer.invoke('app:ensureDir', dir),
     registerGlobalShortcuts: (map) => ipcRenderer.invoke('app:globalShortcuts', map)
   },
   subs: {
@@ -174,3 +176,13 @@ const api: RendererApi = {
 }
 
 contextBridge.exposeInMainWorld('flp', api)
+
+// Dev-only audit hooks (see src/main/dev-snapshot.ts).
+if (process.env.FLP_AUDIT_DIR) {
+  contextBridge.exposeInMainWorld('flpDev', {
+    shot: (name: string) => ipcRenderer.invoke('dev:shot', name),
+    get: (prop: string) => ipcRenderer.invoke('dev:get', prop),
+    main: (code: string) => ipcRenderer.invoke('dev:main', code),
+    quit: () => ipcRenderer.invoke('dev:quit')
+  })
+}

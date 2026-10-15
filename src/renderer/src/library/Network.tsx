@@ -3,10 +3,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { Podcast, Station, UpnpDevice, UpnpEntry } from '@shared/api'
 import { Button, IconButton, SearchField, TextField } from '@/components/controls'
 import { Icon, type IconName } from '@/components/Icon'
-import { openMenu } from '@/components/Menu'
+import { openMenu, useMenu } from '@/components/Menu'
 import { Empty } from '@/player/Sidebar'
 import { fmtTime } from '@/state/playback'
-import { setUi, useSettings } from '@/state/settings'
+import { getSetting, setUi, useSettings } from '@/state/settings'
 import { showToast, ui } from '@/state/ui'
 import { enqueue, playList } from './actions'
 import { CompactHeader, LibraryHeader } from './Header'
@@ -24,7 +24,7 @@ const NO_LIST: never[] = []
 
 function Row({ icon, title, sub, onPlay, actions, onClick }: { icon: IconName; title: string; sub?: string; onPlay?(): void; actions?: ReactNode; onClick?(): void }) {
   return (
-    <div className="flp-row" tabIndex={0} onClick={onClick} onDoubleClick={onPlay} onKeyDown={(e) => e.key === 'Enter' && (onPlay ?? onClick)?.()}>
+    <div className="flp-row" tabIndex={0} onClick={onClick} onDoubleClick={onPlay} onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && (onPlay ?? onClick)?.()}>
       <span className="flp-row__thumb flp-row__thumb--icon"><Icon name={icon} size={18} /></span>
       <span className="flp-row__name">{title}</span>
       {sub && <span className="flp-row__col">{sub}</span>}
@@ -173,20 +173,21 @@ function Podcasts() {
   const [url, setUrl] = useState('')
   const [open, setOpen] = useState<Podcast | null>(null)
   const [loading, setLoading] = useState(false)
-  const load = async (feed: string) => {
+  const load = async (feed: string): Promise<boolean> => {
     setLoading(true)
     try {
       setOpen(await window.flp.feeds.podcast(feed))
+      return true
     } catch (e) {
       showToast((e as Error).message)
+      return false
     } finally {
       setLoading(false)
     }
   }
   const subscribe = async () => {
     const u = url.trim()
-    if (!u) return
-    await load(u)
+    if (!u || !(await load(u))) return
     if (!feeds.includes(u)) setUi('podcasts', [...feeds, u])
     setUrl('')
   }
@@ -250,8 +251,15 @@ export function NetworkSection({ compact }: { compact?: boolean }) {
 
 /** "Cast to…" menu: finds TVs and speakers, then hands them the current file. */
 export async function openCastMenu(at: { clientX: number; clientY: number } | HTMLElement) {
+  if (getSetting('recording.discoverCast') === false) {
+    showToast('Casting is off. Turn on “Discover cast devices” in Settings → Recording.', { label: 'Open Settings', run: () => ui.openSettings('recording') })
+    return
+  }
   openMenu([{ label: 'Looking for TVs and speakers…', disabled: true }], at)
+  const searching = useMenu.getState().open
   const devices = await window.flp.upnp.discover('renderer')
+  // The user closed the "Looking…" menu: don't pop it back open.
+  if (useMenu.getState().open !== searching) return
   openMenu(
     devices.length
       ? [

@@ -41,8 +41,23 @@ export class Library extends EventEmitter {
   recursive = true
 
   start(): void {
+    if (!this.enabled) return
     for (const root of this.db.roots()) this.watchRoot(root)
     void this.scanAll()
+  }
+
+  /** "Use the media library" off: stop watching and scanning (history and playlists still work). */
+  setEnabled(on: boolean): void {
+    if (on === this.enabled) return
+    this.enabled = on
+    if (on) this.start()
+    else {
+      for (const w of this.watchers.values()) w.close()
+      this.watchers.clear()
+      for (const t of this.rescanTimers.values()) clearTimeout(t)
+      this.rescanTimers.clear()
+    }
+    this.emit('changed')
   }
 
   roots(): string[] {
@@ -57,6 +72,9 @@ export class Library extends EventEmitter {
   }
 
   removeRoot(path: string): void {
+    clearTimeout(this.rescanTimers.get(path))
+    this.rescanTimers.delete(path)
+    this.pendingScans.delete(path)
     this.watchers.get(path)?.close()
     this.watchers.delete(path)
     this.db.removeRoot(path)
@@ -82,8 +100,19 @@ export class Library extends EventEmitter {
     for (const root of this.db.roots()) await this.scan(root)
   }
 
+  private pendingScans = new Set<string>()
+  enabled = true
+  /** 'folder' also uses cover.jpg/folder.jpg next to the file; 'file' only embedded art. */
+  artworkFromFolder = true
+
   async scan(root: string): Promise<void> {
-    if (this.status.scanning) return
+    if (!this.enabled) return
+    // One scan at a time; requests made meanwhile run afterwards instead of being dropped.
+    if (this.status.scanning) {
+      this.pendingScans.add(root)
+      return
+    }
+    if (!this.db.roots().includes(root)) return
     this.setStatus({ scanning: true, done: 0, total: 0, root })
     const seen = new Set<string>()
     const walk = async (dir: string, depth: number): Promise<void> => {
@@ -123,6 +152,11 @@ export class Library extends EventEmitter {
       this.setStatus({ scanning: false, done: seen.size, total: seen.size, root: null })
       this.emit('changed')
       void this.probeQueue()
+      const next = this.pendingScans.values().next().value
+      if (next !== undefined) {
+        this.pendingScans.delete(next)
+        void this.scan(next)
+      }
     }
   }
 
@@ -137,7 +171,7 @@ export class Library extends EventEmitter {
         await Promise.all(
           batch.map(async (m) => {
             if (m.type === 'audio') {
-              const t = await readTags(m.path)
+              const t = await readTags(m.path, this.artworkFromFolder)
               this.db.setProbe(m.path, { duration: t.duration, title: t.title, artist: t.artist, album: t.album, genre: t.genre, year: t.year, track: t.track })
               if (t.cover) this.db.setPoster(m.id, t.cover)
             } else if (m.type === 'video') {
@@ -165,6 +199,11 @@ export class Library extends EventEmitter {
     const m = this.db.byId(id)
     if (!m) return null
     if (m.poster) return m.poster
+    if (m.type === 'audio') {
+      const t = await readTags(m.path, this.artworkFromFolder)
+      if (t.cover) this.db.setPoster(id, t.cover)
+      return t.cover ?? null
+    }
     if (m.type !== 'video') return null
     const p = await posterFor(m.path, m.duration)
     if (p) this.db.setPoster(id, p)
@@ -259,10 +298,18 @@ export class Library extends EventEmitter {
     this.db.savePosition(this.current.path, time, duration)
   }
 
-  onStopped(time: number, duration: number, eof: boolean): void {
+  /** mpv's keep-open stops on the last frame without an end-file event; count that as finished. */
+  onEofReached(): void {
+    if (!this.current) return
+    this.db.finished(this.current.path)
+    this.current = null
+    this.emit('changed')
+  }
+
+  onStopped(time: number, duration: number, eof: boolean, keepPosition = true): void {
     if (!this.current) return
     if (eof) this.db.finished(this.current.path)
-    else this.db.savePosition(this.current.path, time, duration)
+    else if (keepPosition) this.db.savePosition(this.current.path, time, duration)
     this.current = null
     this.emit('changed')
   }

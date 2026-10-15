@@ -44,7 +44,7 @@ export function MediaInfoDialog() {
   )
 
   return (
-    <Dialog title="Media Information" width={720} height={680} onClose={ui.closeDialog} footer={
+    <Dialog title="Media Information" width={720} height={info ? 680 : undefined} onClose={ui.closeDialog} footer={
       <>
         {path && !/^[a-z]+:\/\//i.test(path) ? <Button variant="ghost" onClick={() => window.flp.shell.showInFolder(path)}>Show in Finder</Button> : <span />}
         <Button variant="primary" onClick={ui.closeDialog}>Done</Button>

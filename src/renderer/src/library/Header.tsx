@@ -4,6 +4,7 @@ import { IconButton, SearchField } from '@/components/controls'
 import { Icon } from '@/components/Icon'
 import { openMenu, type MenuEntry } from '@/components/Menu'
 import { addMenu } from '@/player/Sidebar'
+import { runCommand } from '@/commands/registry'
 import { ui, useUi } from '@/state/ui'
 import { nav, useLibrary, useViewPrefs } from './state'
 
@@ -35,7 +36,7 @@ function moreMenu(): MenuEntry[] {
     { label: 'Manage media folders…', icon: 'folder', run: () => ui.openSettings('library') },
     { label: 'Add a media folder…', icon: 'new-folder', run: () => window.dispatchEvent(new CustomEvent('flp:add-library-folder')) },
     'separator',
-    { label: 'Clear playback history', icon: 'remove', run: () => void window.flp.library.clearHistory() }
+    { label: 'Clear playback history', icon: 'remove', run: () => void runCommand('library.clearHistory') }
   ]
 }
 

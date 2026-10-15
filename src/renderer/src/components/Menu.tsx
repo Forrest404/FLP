@@ -37,7 +37,7 @@ export function openMenu(items: MenuEntry[], at: { clientX: number; clientY: num
   }
 }
 
-function MenuPanel({ items, x, y, altX, depth, onDone }: {
+function MenuPanel({ items, x, y, altX, depth, onDone, onBack, autoFocus }: {
   items: MenuEntry[]
   x: number
   y: number
@@ -45,10 +45,40 @@ function MenuPanel({ items, x, y, altX, depth, onDone }: {
   altX?: number
   depth: number
   onDone(): void
+  /** Closes this submenu (← key). */
+  onBack?(): void
+  /** Focus the first item on open (keyboard navigation). */
+  autoFocus?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x, y })
-  const [sub, setSub] = useState<{ index: number; x: number; altX: number; y: number } | null>(null)
+  const [sub, setSub] = useState<{ index: number; x: number; altX: number; y: number; keyboard?: boolean } | null>(null)
+
+  const enabledItems = () => [...(ref.current?.querySelectorAll<HTMLElement>(':scope > .ui-menu__item:not([aria-disabled="true"])') ?? [])]
+  useEffect(() => {
+    if (autoFocus) enabledItems()[0]?.focus()
+  }, [autoFocus])
+
+  // Keyboard: ↑/↓ move, Enter/Space choose, → opens a submenu, ← goes back.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const list = enabledItems()
+    const i = list.indexOf(document.activeElement as HTMLElement)
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const next = e.key === 'ArrowDown' ? (i + 1) % list.length : (i - 1 + list.length) % list.length
+      list[next]?.focus()
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      ;(document.activeElement as HTMLElement)?.click()
+    } else if (e.key === 'ArrowRight') {
+      const el = document.activeElement as HTMLElement
+      const idx = Number(el?.dataset.index)
+      const entry = items[idx]
+      if (entry && entry !== 'separator' && entry.submenu) openSub(idx, el, true)
+    } else if (e.key === 'ArrowLeft' && onBack) {
+      onBack()
+    } else return
+    e.preventDefault()
+    e.stopPropagation()
+  }
 
   // Keep the menu on screen.
   useLayoutEffect(() => {
@@ -59,9 +89,9 @@ function MenuPanel({ items, x, y, altX, depth, onDone }: {
     setPos({ x: Math.max(8, nx), y: Math.max(8, ny) })
   }, [x, y, altX])
 
-  const openSub = (i: number, el: HTMLElement) => {
+  const openSub = (i: number, el: HTMLElement, keyboard = false) => {
     const r = el.getBoundingClientRect()
-    setSub({ index: i, x: r.right + 4, altX: r.left - 4, y: r.top - 6 })
+    setSub({ index: i, x: r.right + 4, altX: r.left - 4, y: r.top - 6, keyboard })
   }
 
   const subEntry = sub ? items[sub.index] : null
@@ -71,7 +101,7 @@ function MenuPanel({ items, x, y, altX, depth, onDone }: {
 
   return (
     <>
-      <div ref={ref} className="ui-menu" role="menu" style={{ left: pos.x, top: pos.y, zIndex: 1000 + depth }}>
+      <div ref={ref} className="ui-menu" role="menu" style={{ left: pos.x, top: pos.y, zIndex: 1000 + depth }} onKeyDown={onKeyDown}>
         {items.map((it, i) =>
           it === 'separator' ? (
             <div key={i} className="ui-menu__sep" />
@@ -80,7 +110,10 @@ function MenuPanel({ items, x, y, altX, depth, onDone }: {
               key={i}
               role="menuitem"
               className="ui-menu__item"
+              tabIndex={-1}
+              data-index={i}
               aria-disabled={it.disabled}
+              aria-haspopup={it.submenu ? 'menu' : undefined}
               data-open={sub?.index === i}
               onMouseEnter={(e) => (it.submenu ? openSub(i, e.currentTarget) : setSub(null))}
               onClick={(e) => {
@@ -101,7 +134,22 @@ function MenuPanel({ items, x, y, altX, depth, onDone }: {
           )
         )}
       </div>
-      {sub && subItems && <MenuPanel items={subItems} x={sub.x} y={sub.y} altX={sub.altX} depth={depth + 1} onDone={onDone} />}
+      {sub && subItems && (
+        <MenuPanel
+          items={subItems}
+          x={sub.x}
+          y={sub.y}
+          altX={sub.altX}
+          depth={depth + 1}
+          onDone={onDone}
+          autoFocus={sub.keyboard}
+          onBack={() => {
+            const index = sub.index
+            setSub(null)
+            ref.current?.querySelector<HTMLElement>(`[data-index="${index}"]`)?.focus()
+          }}
+        />
+      )}
     </>
   )
 }
@@ -111,19 +159,25 @@ export function MenuHost() {
   const { open, close } = useMenu()
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
-    const onDown = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.ui-menu')) close()
+    // Capture phase + preventDefault so Escape only closes the menu (not fullscreen, dialogs…).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      close()
     }
-    window.addEventListener('keydown', onKey)
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('.ui-menu')) close()
+    }
+    window.addEventListener('keydown', onKey, true)
     window.addEventListener('mousedown', onDown, true)
     window.addEventListener('blur', close)
     return () => {
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('mousedown', onDown, true)
       window.removeEventListener('blur', close)
     }
   }, [open, close])
   if (!open) return null
-  return <MenuPanel key={`${open.x},${open.y}`} items={open.items} x={open.x} y={open.y} depth={0} onDone={close} />
+  return <MenuPanel key={`${open.x},${open.y}`} items={open.items} x={open.x} y={open.y} depth={0} onDone={close} autoFocus />
 }

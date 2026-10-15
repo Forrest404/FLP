@@ -120,6 +120,7 @@ export function AddSubtitlesDialog() {
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault()
+              e.stopPropagation()
               const dropped = [...e.dataTransfer.files].map((f) => window.flp.pathForFile(f)).filter((f) => SUB_EXT.test(f))
               setSubs((cur) => [...cur, ...dropped.filter((f) => !cur.includes(f))])
             }}>

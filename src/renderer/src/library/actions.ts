@@ -1,13 +1,21 @@
 import type { FolderEntry, MediaItem, Playlist } from '@shared/library'
 import type { MenuEntry } from '@/components/Menu'
 import { player } from '@/state/player'
-import { showOsd, showToast, ui } from '@/state/ui'
+import { confirmAction, showOsd, showToast, ui } from '@/state/ui'
+import { getSetting } from '@/state/settings'
 
 const lib = () => window.flp.library
 
 /** Plays `paths` as the queue, starting at `start`. */
 export async function playList(paths: string[], start = 0) {
   if (!paths.length) return
+  if (getSetting('playback.shuffle') && paths.length > 1) {
+    // Keep the chosen item first, shuffle the rest.
+    const first = paths[start]
+    const rest = paths.filter((_, i) => i !== start).sort(() => Math.random() - 0.5)
+    paths = [first, ...rest]
+    start = 0
+  }
   await player.command('stop')
   await player.command('playlist-clear')
   for (const p of paths) await player.command('loadfile', p, 'append')
@@ -103,8 +111,9 @@ export function playlistMenu(pl: Playlist, open: () => void): MenuEntry[] {
     { label: 'Rename…', icon: 'edit', run: () => ui.openDialog('newPlaylist', { rename: pl }) },
     { label: 'Duplicate', icon: 'add', run: async () => lib().createPlaylist(`${pl.name} copy`, await lib().playlistPaths(pl.id), pl.cover) },
     { label: 'Export as .m3u8…', icon: 'save', run: () => void lib().exportPlaylist(pl.id) },
-    { label: 'Delete', icon: 'remove', run: () => {
-      void lib().deletePlaylist(pl.id)
+    { label: 'Delete', icon: 'remove', run: async () => {
+      if (!(await confirmAction({ title: `Delete “${pl.name}”?`, message: 'The playlist is removed. Its media files are not deleted.', confirmLabel: 'Delete' }))) return
+      await lib().deletePlaylist(pl.id)
       showToast(`Deleted “${pl.name}”`)
     } }
   ]

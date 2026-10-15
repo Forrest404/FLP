@@ -49,7 +49,8 @@ export function CommandPalette() {
   const hits = useMemo<Hit[]>(() => {
     const out: Hit[] = []
     for (const c of Object.values(commands)) {
-      if (c.hidden) continue
+      // Hidden, or not available right now (e.g. developer tools without developer mode).
+      if (c.hidden || (c.enabled && !c.enabled())) continue
       const s = Math.max(score(query, c.title), ...(c.keywords ?? []).map((k) => score(query, k) * 0.8), score(query, c.category) * 0.5)
       if (s <= 0) continue
       const key = keysFor(c)[0]
@@ -74,7 +75,7 @@ export function CommandPalette() {
       }
     }
     return out.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, 60)
-  }, [commands, query])
+  }, [commands, query, open])
 
   if (!open) return null
 

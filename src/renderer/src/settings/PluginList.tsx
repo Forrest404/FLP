@@ -4,7 +4,7 @@ import { toSettingDef, type PluginInfo } from '@shared/plugins'
 import { Button, IconButton, SearchField, TextField, Toggle } from '@/components/controls'
 import { Icon } from '@/components/Icon'
 import { usePlugins } from '@/plugins/state'
-import { showToast } from '@/state/ui'
+import { confirmAction, showToast } from '@/state/ui'
 import { Control } from './SettingsDialog'
 
 const api = () => window.flp.plugins
@@ -14,7 +14,7 @@ function Details({ p }: { p: PluginInfo }) {
   const defs = usePlugins((s) => s.contributions.settings[p.id])
   const logs = usePlugins((s) => s.logs).filter((l) => l.pluginId === p.id).slice(-6)
   return (
-    <div className="flp-plugin__details">
+    <div className="flp-plugin__details" onClick={(e) => e.stopPropagation()}>
       {p.manifest.description && <p>{p.manifest.description}</p>}
       <div className="flp-plugin__meta">
         <span>Version {p.manifest.version}</span>
@@ -98,7 +98,11 @@ export function PluginList() {
           if (id) setSelected(id)
         }}>Add</Button>
         <Button disabled={!sel || sel.builtIn} title={sel?.builtIn ? 'Built-in add-ons can be turned off but not removed' : undefined}
-          onClick={() => sel && void api().remove(sel.id).then(() => showToast(`Moved “${sel.manifest.name}” to the Trash`))}>Remove</Button>
+          onClick={async () => {
+            if (!sel || !(await confirmAction({ title: `Remove “${sel.manifest.name}”?`, message: 'The add-on is moved to the Trash.', confirmLabel: 'Remove' }))) return
+            await api().remove(sel.id)
+            showToast(`Moved “${sel.manifest.name}” to the Trash`)
+          }}>Remove</Button>
       </div>
       <div className="flp-plugins__bar">
         {creating ? (

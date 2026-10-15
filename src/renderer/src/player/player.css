@@ -90,7 +90,10 @@
 .flp-app[data-overlay='true'] .flp-controls { bottom: 0; }
 .flp-app[data-bars-hidden='true'] .flp-titlebar,
 .flp-app[data-bars-hidden='true'] .flp-controls { opacity: 0; pointer-events: none; }
-.flp-app[data-bars-hidden='true'][data-overlay='true'] { cursor: none; }
+/* Settings → Interface → Fullscreen controls opacity (set on :root by App). */
+.flp-app[data-overlay='true'][data-fullscreen='true'][data-bars-hidden='false'] .flp-titlebar,
+.flp-app[data-overlay='true'][data-fullscreen='true'][data-bars-hidden='false'] .flp-controls { opacity: var(--fs-controls-opacity, 1); }
+.flp-app[data-idle='true'] { cursor: none; }
 
 .flp-play {
   width: 46px; height: 26px; border: 0; border-radius: var(--radius); background: var(--accent); color: var(--accent-contrast);
@@ -374,3 +377,13 @@
 .flp-job__bar i { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
 .flp-job__status { font-size: var(--fs-s); color: var(--text-faint); text-transform: capitalize; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .flp-job[data-status='failed'] .flp-job__status { color: #e08a6f; text-transform: none; }
+
+/* Audit fixes */
+.flp-section__head { padding: 0 10px 0 0; cursor: default; }
+.flp-section__toggle { flex: 1; display: flex; align-items: center; gap: 8px; height: 100%; padding: 0 14px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.flp-section__toggle > span { flex: 1; }
+.flp-section__aside { display: inline-flex; }
+.flp-rpanel__head { gap: 6px; }
+.flp-rpanel__tabs { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.flp-rpanel__tabs::-webkit-scrollbar { display: none; }
+.flp-rpanel__tabs button { flex-shrink: 0; }

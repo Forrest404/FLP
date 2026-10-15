@@ -5,6 +5,7 @@ import { Dialog } from '@/components/Dialog'
 import { Icon } from '@/components/Icon'
 import { Empty } from '@/player/Sidebar'
 import { openPaths } from '@/state/playback'
+import { getSetting } from '@/state/settings'
 import { ui } from '@/state/ui'
 
 type Disc = { path: string; name: string; kind: 'dvd' | 'bluray' | 'audiocd' }
@@ -18,7 +19,9 @@ export function DiscDialog() {
 
   const refresh = () => window.flp.sources.discs().then((d) => {
     setDiscs(d)
-    setDisc((cur) => cur ?? d[0] ?? null)
+    // Prefer the default drive from Settings → Playback.
+    const preferred = String(getSetting('playback.opticalDrive') ?? '')
+    setDisc((cur) => cur ?? d.find((x) => preferred && x.path === preferred) ?? d[0] ?? null)
   })
   useEffect(() => void refresh(), [])
   useEffect(() => {

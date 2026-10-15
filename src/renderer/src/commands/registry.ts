@@ -21,6 +21,8 @@ export interface Command {
   source?: string
   /** Hidden from the palette (still usable from menus/shortcuts). */
   hidden?: boolean
+  /** false: not offered in Customize Player (admin actions like "Reset all settings"). */
+  bar?: boolean
 }
 
 interface RegistryState {

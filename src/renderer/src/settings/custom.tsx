@@ -1,6 +1,7 @@
 // Settings rows that need more than a single control.
 import { useEffect, useState, type ComponentType } from 'react'
 import { useSetting } from '@/state/settings'
+import { confirmAction } from '@/state/ui'
 import { Button, IconButton } from '@/components/controls'
 import { Icon } from '@/components/Icon'
 import { useLibraryData } from '@/library/state'
@@ -15,7 +16,10 @@ function MediaFolders() {
         <div key={r} className="flp-set__listrow">
           <Icon name="folder" size={18} />
           <span title={r}>{r}</span>
-          <IconButton icon="close" label={`Remove ${r} from the library`} onClick={() => void window.flp.library.removeRoot(r)} />
+          <IconButton icon="close" label={`Remove ${r} from the library`} onClick={async () => {
+            if (await confirmAction({ title: 'Remove this media folder?', message: `${r} will no longer appear in your library. The files themselves are not deleted.`, confirmLabel: 'Remove' }))
+              await window.flp.library.removeRoot(r)
+          }} />
         </div>
       ))}
       {roots && !roots.length && <p className="flp-muted">No media folders yet.</p>}

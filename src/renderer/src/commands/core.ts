@@ -1,8 +1,10 @@
 // Built-in commands. Default shortcuts follow VLC where it has one, so muscle memory carries over.
 import { player, usePlayer } from '@/state/player'
 import { getSetting, setSetting } from '@/state/settings'
-import { showOsd, ui, useUi } from '@/state/ui'
+import { confirmAction, showOsd, showToast, ui, useUi } from '@/state/ui'
 import { changeVolume, nextSpeed, openPaths, seekBy, setSpeed, trackLabel } from '@/state/playback'
+import { expandHome } from '@/state/paths'
+import { BUILTIN_ASPECTS, BUILTIN_CROPS, withCustom } from '@/state/ratios'
 import { registerCommands, runCommand, type Command } from './registry'
 
 const p = () => usePlayer.getState()
@@ -72,26 +74,18 @@ const playback: Command[] = [
   { id: 'player.speedMenu', title: 'Playback speed', category: 'Playback', icon: 'speed', run: () => ui.togglePanel('playback') },
   { id: 'player.repeat', title: 'Repeat (off / one / all)', category: 'Playback', icon: 'repeat', keys: ['R'],
     active: () => p().loopFile || p().loopPlaylist,
-    run: async () => {
-      const { loopFile, loopPlaylist } = p()
-      if (!loopFile && !loopPlaylist) {
-        await player.set('loop-playlist', 'inf')
-        showOsd('Repeat all')
-      } else if (loopPlaylist) {
-        await player.set('loop-playlist', 'no')
-        await player.set('loop-file', 'inf')
-        showOsd('Repeat one')
-      } else {
-        await player.set('loop-file', 'no')
-        showOsd('Repeat off')
-      }
+    run: () => {
+      // Saved as a setting, so it's remembered (per profile) and applied to the engine by the main process.
+      const next = { off: 'all', all: 'one', one: 'off' }[String(getSetting('playback.repeat') ?? 'off')] ?? 'off'
+      setSetting('playback.repeat', next)
+      showOsd(next === 'all' ? 'Repeat all' : next === 'one' ? 'Repeat one' : 'Repeat off')
     } },
   { id: 'player.shuffle', title: 'Shuffle', category: 'Playback', icon: 'shuffle', keys: ['Shift+Z'],
-    active: () => useUi.getState().shuffled,
+    active: () => !!getSetting('playback.shuffle'),
     run: async () => {
-      const on = !useUi.getState().shuffled
+      const on = !getSetting('playback.shuffle')
+      setSetting('playback.shuffle', on)
       await player.command(on ? 'playlist-shuffle' : 'playlist-unshuffle')
-      ui.set({ shuffled: on })
       showOsd(on ? 'Shuffle on' : 'Shuffle off')
     } },
   { id: 'player.abLoop', title: 'A-B loop (set A, set B, clear)', category: 'Playback', keys: ['Shift+L'],
@@ -111,7 +105,8 @@ const playback: Command[] = [
         showOsd('Recording saved')
         return
       }
-      const dir = String(getSetting('recording.folder') || '~/Movies')
+      const dir = (await expandHome(String(getSetting('recording.folder') || '~/Movies'))).replace(/\/+$/, '')
+      if (!(await window.flp.app.ensureDir(dir))) return showOsd(`Can't save recordings to ${dir}`)
       const name = `FLP Recording ${new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)}.mkv`
       await player.set('stream-record', `${dir}/${name}`)
       showOsd('Recording…')
@@ -119,8 +114,14 @@ const playback: Command[] = [
   { id: 'player.snapshot', title: 'Take a snapshot', category: 'Video', icon: 'snapshot', keys: ['Shift+S'],
     run: async () => {
       const withSubs = getSetting('video.snapshotSize') === 'window'
-      const res = (await player.command('screenshot', withSubs ? 'subtitles' : 'video')) as { filename?: string } | undefined
-      showOsd(res?.filename ? `Snapshot saved: ${res.filename.split('/').pop()}` : 'Snapshot saved')
+      const res = (await player.command('screenshot', withSubs ? 'subtitles' : 'video').catch(() => null)) as { filename?: string } | null
+      if (!res) return showOsd("Couldn't take a snapshot")
+      // mpv reports the full path (screenshot-dir is set to an absolute folder by the main process).
+      const file = res.filename ? await expandHome(res.filename) : ''
+      const name = file.split('/').pop()
+      if (getSetting('video.snapshotPreview') !== false && file.startsWith('/'))
+        showToast(`Snapshot saved: ${name}`, { label: 'Show in Finder', run: () => window.flp.shell.showInFolder(file) })
+      else showOsd(name ? `Snapshot saved: ${name}` : 'Snapshot saved')
     } }
 ]
 
@@ -145,9 +146,13 @@ const library: Command[] = [
       await window.flp.library.setFavorite(path, on)
       showOsd(on ? 'Added to favorites' : 'Removed from favorites')
     } },
-  { id: 'library.rescan', title: 'Rescan media folders', category: 'Library', icon: 'refresh', run: () => window.flp.library.rescan() },
-  { id: 'library.clearHistory', title: 'Clear playback history', category: 'Library', icon: 'remove', run: () => window.flp.library.clearHistory() },
-  { id: 'library.addFolder', title: 'Add a media folder…', category: 'Library', icon: 'new-folder', run: () => window.dispatchEvent(new CustomEvent('flp:add-library-folder')) }
+  { id: 'library.rescan', bar: false, title: 'Rescan media folders', category: 'Library', icon: 'refresh', run: () => window.flp.library.rescan() },
+  { id: 'library.clearHistory', bar: false, title: 'Clear playback history', category: 'Library', icon: 'remove',
+    run: async () => {
+      if (await confirmAction({ title: 'Clear playback history?', message: 'Recently played items and resume positions will be forgotten.', confirmLabel: 'Clear' }))
+        await window.flp.library.clearHistory()
+    } },
+  { id: 'library.addFolder', bar: false, title: 'Add a media folder…', category: 'Library', icon: 'new-folder', run: () => window.dispatchEvent(new CustomEvent('flp:add-library-folder')) }
 ]
 
 const audio: Command[] = [
@@ -219,9 +224,9 @@ const video: Command[] = [
   { id: 'video.effects', title: 'Video adjustments & effects', category: 'Video', icon: 'paint', keywords: ['brightness', 'contrast', 'crop', 'colors', 'hue', 'gamma', 'sharpen'],
     keys: ['Mod+Shift+E'], active: () => useUi.getState().rightPanel === 'video', run: () => ui.togglePanel('video') },
   { id: 'video.cycleAspect', title: 'Cycle aspect ratio', category: 'Video', keys: ['A'],
-    run: () => cycleSetting('video.aspect', ['auto', '16:9', '4:3', '16:10', '2.35:1', '1:1'], 'Aspect ratio') },
+    run: () => cycleSetting('video.aspect', ['auto', ...withCustom('video.aspect', BUILTIN_ASPECTS)], 'Aspect ratio') },
   { id: 'video.cycleCrop', title: 'Cycle crop', category: 'Video', keys: ['C'],
-    run: () => cycleSetting('video.crop', ['none', '16:9', '4:3', '2.35:1', '1.85:1'], 'Crop') },
+    run: () => cycleSetting('video.crop', ['none', ...withCustom('video.crop', BUILTIN_CROPS)], 'Crop') },
   { id: 'video.cycleDeinterlace', title: 'Cycle deinterlacing', category: 'Video', keys: ['D'],
     run: () => cycleSetting('video.deinterlace', ['auto', 'on', 'off'], 'Deinterlacing') },
   { id: 'video.cycleZoom', title: 'Cycle zoom', category: 'Video', icon: 'zoom', keys: ['Z'],
@@ -274,8 +279,8 @@ const windowCmds: Command[] = [
   { id: 'ui.palette', title: 'Find any action or setting', category: 'Interface', icon: 'search', keys: ['Mod+K', 'Mod+Shift+P'], hidden: true,
     run: () => ui.set({ paletteOpen: !useUi.getState().paletteOpen }) },
   { id: 'ui.settings', title: 'Settings', category: 'Interface', icon: 'settings', keys: ['Mod+Comma'], run: () => ui.openSettings() },
-  { id: 'ui.keyboardShortcuts', title: 'Keyboard shortcuts', category: 'Interface', icon: 'hotkeys', keys: ['Mod+Slash'], run: () => ui.openDialog('shortcuts') },
-  { id: 'ui.customizePlayer', title: 'Customize player', category: 'Interface', icon: 'paint',
+  { id: 'ui.keyboardShortcuts', bar: false, title: 'Keyboard shortcuts', category: 'Interface', icon: 'hotkeys', keys: ['Mod+Slash'], run: () => ui.openDialog('shortcuts') },
+  { id: 'ui.customizePlayer', bar: false, title: 'Customize player', category: 'Interface', icon: 'paint',
     run: () => {
       ui.set({ view: 'player', hideUi: false })
       ui.openDialog('customize')
@@ -293,7 +298,7 @@ const windowCmds: Command[] = [
       const s = useUi.getState()
       ui.set(s.view === 'player' && s.leftOpen && s.section === 'playlists' ? { leftOpen: false } : { view: 'player', leftOpen: true, section: 'playlists' })
     } },
-  { id: 'ui.home', title: 'Go home', category: 'Interface', icon: 'home', keys: ['Mod+H'], run: () => ui.set({ view: 'library', section: 'home' }) },
+  { id: 'ui.home', title: 'Go home', category: 'Interface', icon: 'home', keys: ['Mod+Alt+H'], run: () => ui.set({ view: 'library', section: 'home' }) },
   { id: 'ui.library', title: 'Toggle library / player', category: 'Interface', icon: 'library', keys: ['Mod+Shift+H'],
     run: () => ui.set({ view: useUi.getState().view === 'library' ? 'player' : 'library' }) },
   { id: 'ui.miniplayer', title: 'Miniplayer (browse the library while watching)', category: 'Interface', icon: 'thumbnail', keys: ['Mod+Shift+M'],
@@ -311,29 +316,34 @@ const windowCmds: Command[] = [
       showOsd(on ? 'Always on top' : 'Normal window')
     } },
   { id: 'ui.mediaInfo', title: 'Media information', category: 'Interface', icon: 'info', keys: ['Mod+I'], run: () => ui.openDialog('mediaInfo') },
-  { id: 'ui.profiles', title: 'Manage profiles', category: 'Interface', icon: 'profile', run: () => ui.openDialog('profiles') },
-  { id: 'app.openConfigFolder', title: 'Open configuration folder', category: 'Interface', icon: 'folder', run: () => window.flp.app.openConfigFolder() },
-  { id: 'settings.resetAll', title: 'Reset all settings', category: 'Interface', icon: 'refresh',
+  { id: 'ui.profiles', bar: false, title: 'Manage profiles', category: 'Interface', icon: 'profile', run: () => ui.openDialog('profiles') },
+  { id: 'app.openConfigFolder', bar: false, title: 'Open configuration folder', category: 'Interface', icon: 'folder', run: () => window.flp.app.openConfigFolder() },
+  { id: 'settings.resetAll', bar: false, title: 'Reset all settings', category: 'Interface', icon: 'refresh',
     run: async () => {
+      if (!(await confirmAction({ title: 'Reset all settings?', message: 'Every setting goes back to its default and custom profiles are removed. Keyboard shortcuts are kept.', confirmLabel: 'Reset' }))) return
       await window.flp.settings.resetAll()
       showOsd('All settings reset')
     } },
-  { id: 'shortcuts.resetAll', title: 'Reset all keyboard shortcuts', category: 'Interface', icon: 'hotkeys',
+  { id: 'shortcuts.resetAll', bar: false, title: 'Reset all keyboard shortcuts', category: 'Interface', icon: 'hotkeys',
     run: async () => {
+      if (!(await confirmAction({ title: 'Reset all keyboard shortcuts?', message: 'Your custom and global shortcuts will be removed.', confirmLabel: 'Reset' }))) return
       await window.flp.settings.setUi('shortcuts', {})
       await window.flp.settings.setUi('globalShortcuts', {})
+      await window.flp.app.registerGlobalShortcuts({})
       showOsd('Keyboard shortcuts reset')
     } },
-  { id: 'plugins.manage', title: 'Manage plugins', category: 'Plugins', icon: 'plugins', run: () => ui.openSettings('extensions') },
-  { id: 'plugins.reload', title: 'Reload plugins', category: 'Plugins', icon: 'refresh', run: () => window.flp.plugins.reload() },
-  { id: 'plugins.openFolder', title: 'Open the plugins folder', category: 'Plugins', icon: 'folder', run: () => window.flp.plugins.openFolder() },
-  { id: 'plugins.create', title: 'Create a plugin…', category: 'Plugins', icon: 'add',
+  { id: 'plugins.manage', bar: false, title: 'Manage plugins', category: 'Plugins', icon: 'plugins', run: () => ui.openSettings('extensions') },
+  { id: 'plugins.reload', bar: false, title: 'Reload plugins', category: 'Plugins', icon: 'refresh', run: () => window.flp.plugins.reload() },
+  { id: 'plugins.openFolder', bar: false, title: 'Open the plugins folder', category: 'Plugins', icon: 'folder', run: () => window.flp.plugins.openFolder() },
+  { id: 'plugins.create', bar: false, title: 'Create a plugin…', category: 'Plugins', icon: 'add',
     run: () => {
       ui.openSettings('extensions')
       setTimeout(() => window.dispatchEvent(new Event('flp:create-plugin')), 100)
     } },
-  { id: 'plugins.guide', title: 'Plugin guide', category: 'Plugins', icon: 'info', run: () => window.flp.plugins.openGuide() },
-  { id: 'app.about', title: 'About FLP', category: 'Interface', icon: 'info', keys: ['Shift+F1'], run: () => ui.openDialog('about') }
+  { id: 'plugins.guide', bar: false, title: 'Plugin guide', category: 'Plugins', icon: 'info', run: () => window.flp.plugins.openGuide() },
+  { id: 'app.devTools', bar: false, title: 'Toggle Developer Tools', category: 'Interface', icon: 'wrench', keys: ['Mod+Alt+I'], keywords: ['inspector', 'console', 'debug'],
+    enabled: () => !!getSetting('general.developerMode'), run: () => window.flp.app.toggleDevTools() },
+  { id: 'app.about', bar: false, title: 'About FLP', category: 'Interface', icon: 'info', keys: ['Shift+F1'], run: () => ui.openDialog('about') }
 ]
 
 const media: Command[] = [
@@ -343,8 +353,8 @@ const media: Command[] = [
     run: async () => openPaths(await window.flp.dialog.openFiles({ folders: true, multiple: false, title: 'Open a folder' })) },
   { id: 'media.openNetwork', title: 'Open network stream…', category: 'Media', icon: 'streaming', keys: ['Mod+N'], keywords: ['url', 'youtube', 'stream', 'http'],
     run: () => ui.openDialog('network') },
-  { id: 'media.openDisc', title: 'Open disc…', category: 'Media', icon: 'disc', keys: ['Mod+D'], keywords: ['dvd', 'blu-ray', 'cd'], run: () => ui.openDialog('disc') },
-  { id: 'media.openCapture', title: 'Open capture device…', category: 'Media', icon: 'capture-device', keys: ['Mod+Alt+C'], keywords: ['camera', 'webcam', 'microphone', 'screen'],
+  { id: 'media.openDisc', bar: false, title: 'Open disc…', category: 'Media', icon: 'disc', keys: ['Mod+D'], keywords: ['dvd', 'blu-ray', 'cd'], run: () => ui.openDialog('disc') },
+  { id: 'media.openCapture', bar: false, title: 'Open capture device…', category: 'Media', icon: 'capture-device', keys: ['Mod+Alt+C'], keywords: ['camera', 'webcam', 'microphone', 'screen'],
     run: () => ui.openDialog('capture') },
   { id: 'media.convert', title: 'Convert / save…', category: 'Media', icon: 'swap', keys: ['Mod+R'], keywords: ['transcode', 'export', 'mp4', 'mp3'], run: () => ui.openDialog('convert') },
   { id: 'media.stream', title: 'Stream to the network…', category: 'Media', icon: 'streaming', keywords: ['broadcast', 'share', 'hls', 'udp'],
@@ -356,7 +366,11 @@ const media: Command[] = [
     } },
   { id: 'cast.stop', title: 'Stop casting', category: 'Media', icon: 'stop', run: () => window.flp.cast.stop() },
   { id: 'playlist.new', title: 'New playlist…', category: 'Media', icon: 'add', run: () => ui.openDialog('newPlaylist') },
-  { id: 'playlist.clear', title: 'Clear playlist', category: 'Media', icon: 'remove', run: () => player.command('playlist-clear') }
+  { id: 'playlist.clear', bar: false, title: 'Clear playlist', category: 'Media', icon: 'remove',
+    run: async () => {
+      if (await confirmAction({ title: 'Clear the queue?', message: 'Everything except the item that is playing will be removed.', confirmLabel: 'Clear' }))
+        await player.command('playlist-clear')
+    } }
 ]
 
 export function registerCoreCommands() {

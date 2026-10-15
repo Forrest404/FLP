@@ -64,7 +64,7 @@ export type SettingDef = Base &
       }
     | { type: 'number'; default: number; min?: number; max?: number; step?: number; suffix?: string }
     | { type: 'text'; default: string; placeholder?: string; secret?: boolean }
-    | { type: 'path'; default: string; directory?: boolean }
+    | { type: 'path'; default: string; directory?: boolean; placeholder?: string; filters?: string[] }
     | { type: 'color'; default: string }
     | { type: 'action'; button: string; command: string }
     | { type: 'custom'; component: string }
@@ -87,36 +87,31 @@ const S = (page: PageId, section: string, rows: Row[]): SettingDef[] =>
 export const SETTINGS: SettingDef[] = [
   // ───────── General ─────────
   ...S('general', 'Appearance', [
-    { key: 'general.language', label: 'Interface language', type: 'select', default: 'en', options: { dynamic: 'languages' } },
+    { key: 'general.language', label: 'Interface language', info: 'More languages are on the way.', type: 'select', default: 'en', options: [{ value: 'en', label: 'English' }] },
     { key: 'general.theme', label: 'Theme', type: 'segmented', default: 'dark', options: [
       { value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System' }] },
     { key: 'general.accent', label: 'Accent color', type: 'accent', default: 'green' }
   ]),
   ...S('general', 'Startup', [
     { key: 'general.confirmDialogs', label: 'Show confirmation and error dialogs', info: 'Ask before destructive actions and show a message when a file fails to play.', type: 'toggle', default: true },
-    { key: 'general.checkUpdates', label: 'Check for updates automatically', type: 'toggle', default: false }
   ]),
   ...S('general', 'Diagnostics', [
     { key: 'general.developerMode', label: 'Developer mode', info: 'Shows developer tools and extra plugin logging.', type: 'toggle', default: false },
-    { key: 'general.saveLog', label: 'Save a log', type: 'toggle', default: false },
-    { key: 'general.logFile', label: 'Log file', type: 'path', default: '' },
+    { key: 'general.saveLog', label: 'Save a log', info: 'Playback messages are written to the log file (default: ~/Library/Logs/FLP/flp.log).', type: 'toggle', default: false },
+    { key: 'general.logFile', label: 'Log file', type: 'path', default: '', placeholder: '~/Library/Logs/FLP/flp.log' },
     { key: 'general.logLevel', label: 'Log details', type: 'select', default: 'error', options: [
       { value: 'error', label: 'Errors only' }, { value: 'warn', label: 'Errors and warnings' }, { value: 'info', label: 'Everything' }, { value: 'debug', label: 'Debug' }] },
-    { key: 'general.minorWarnings', label: 'Show minor warnings', type: 'toggle', default: false, advanced: true },
-    { key: 'general.extraMpvOptions', label: 'Additional command line options', info: 'Extra mpv options, e.g. --deband=yes. Applied on next start.', type: 'text', default: '', placeholder: '--option=value', advanced: true },
-    { key: 'general.logFormat', label: 'Log format', type: 'select', default: 'text', options: [{ value: 'text', label: 'Plain text' }, { value: 'json', label: 'JSON' }], advanced: true },
-    { key: 'general.stats', label: 'Collect playback statistics', info: 'Kept on this computer only. Shown in Media Info.', type: 'toggle', default: false, advanced: true },
+    { key: 'general.extraMpvOptions', label: 'Additional command line options', info: 'Extra mpv options, e.g. --deband=yes --sub-scale=1.2. Applied the next time FLP starts.', type: 'text', default: '', placeholder: '--option=value', advanced: true },
     { key: 'general.openConfig', label: 'Open configurations folder', type: 'action', button: 'Open', command: 'app.openConfigFolder', advanced: true },
     { key: 'general.reset', label: 'Reset all settings', type: 'action', button: 'Reset', command: 'settings.resetAll', advanced: true }
   ]),
 
   // ───────── Interface ─────────
   ...S('interface', 'Skin', [
-    { key: 'interface.customSkin', label: 'Use a custom skin', info: 'Load your own CSS file to restyle FLP.', type: 'toggle', default: false },
-    { key: 'interface.skinFile', label: 'Skin file', type: 'path', default: '' }
+    { key: 'interface.customSkin', label: 'Use a custom skin', info: 'Load your own CSS file to restyle FLP. Every colour is a CSS variable, e.g. --accent, --bg-chrome.', type: 'toggle', default: false },
+    { key: 'interface.skinFile', label: 'Skin file', type: 'path', default: '', filters: ['css'] }
   ]),
   ...S('interface', 'Window', [
-    { key: 'interface.videoInMain', label: 'Play video inside main window', type: 'toggle', default: true },
     { key: 'interface.resizeToVideo', label: 'Resize window to fit video', type: 'select', default: 'never', options: opts('Never', 'First video only', 'Always') },
     { key: 'interface.rememberWindow', label: 'Remember window size and position', type: 'toggle', default: true },
     { key: 'interface.alwaysOnTop', label: 'Keep window above other windows', type: 'select', default: 'never', options: opts('Never', 'While playing', 'Always') },
@@ -124,7 +119,7 @@ export const SETTINGS: SettingDef[] = [
     { key: 'interface.fullscreenScreen', label: 'Open fullscreen on', type: 'select', default: 'current', options: { dynamic: 'displays' } }
   ]),
   ...S('interface', 'Playback Controls', [
-    { key: 'interface.compactStart', label: 'Start in compact mode', info: 'Open as the miniplayer.', type: 'toggle', default: false },
+    { key: 'interface.compactStart', label: 'Start in compact mode', info: 'Open as a small floating picture-in-picture window.', type: 'toggle', default: false },
     { key: 'interface.autoHide', label: 'Auto-hide the controls', type: 'select', default: 'fullscreen', options: [
       { value: 'never', label: 'Never' }, { value: 'fullscreen', label: 'In fullscreen only' }, { value: 'always', label: 'Always' }] },
     { key: 'interface.hideAfter', label: 'Hide after', type: 'slider', default: 3, min: 0, max: 10, step: 0.5, ticks: [0, 2.5, 5, 7.5, 10], labels: secs([0, 5, 10]) },
@@ -138,7 +133,6 @@ export const SETTINGS: SettingDef[] = [
     { key: 'interface.popupDuration', label: 'Popup duration', type: 'slider', default: 4, min: 0, max: 10, step: 0.5, ticks: [0, 2.5, 5, 7.5, 10], labels: secs([0, 5, 10]) }
   ]),
   ...S('interface', 'Playlist', [
-    { key: 'interface.playlistTree', label: 'Show the playlist as a tree', type: 'toggle', default: false },
     { key: 'interface.opacity', label: 'Window opacity', type: 'slider', default: 100, min: 10, max: 100, step: 1, labels: pct([10, 100]), advanced: true },
     { key: 'interface.pauseMinimized', label: 'Pause video when window is minimized', type: 'toggle', default: false, advanced: true },
     { key: 'interface.raiseOnPlay', label: 'Bring FLP to the front when playback starts', type: 'select', default: 'video', options: opts('Never', 'Video', 'Always'), advanced: true },
@@ -154,13 +148,6 @@ export const SETTINGS: SettingDef[] = [
     { key: 'privacy.rememberPosition', label: 'Remember the playback position', type: 'toggle', default: true },
     { key: 'privacy.neverRemember', label: 'Never remember items matching', info: 'Comma-separated words or folder paths.', type: 'text', default: '', placeholder: 'e.g. Private, ~/Downloads' },
     { key: 'privacy.clearHistory', label: 'Clear history now', type: 'action', button: 'Clear', command: 'library.clearHistory' }
-  ]),
-  ...S('privacy', 'Network', [
-    { key: 'privacy.fetchMetadata', label: 'Fetch titles and cover art from the internet', type: 'toggle', default: false },
-    { key: 'privacy.lastfm', label: 'Submit played tracks to last.fm', type: 'toggle', default: false },
-    { key: 'privacy.lastfmUser', label: 'Last.fm username', type: 'text', default: '' },
-    { key: 'privacy.lastfmPassword', label: 'Last.fm password', type: 'text', default: '', secret: true },
-    { key: 'privacy.lastfmUrl', label: 'Last.fm submission URL', type: 'text', default: 'post.audioscrobbler.com', advanced: true }
   ]),
 
   // ───────── Controls ─────────
@@ -186,7 +173,7 @@ export const SETTINGS: SettingDef[] = [
     { key: 'controls.webRemotePort', label: 'Port', type: 'number', default: 8090, min: 1024, max: 65535 },
     { key: 'controls.webRemotePassword', label: 'Password', type: 'text', default: '', secret: true },
     { key: 'controls.webRemoteInfo', label: 'Remote address', type: 'custom', component: 'remote-info' },
-    { key: 'controls.mediaKeys', label: 'Respond to media keys', type: 'toggle', default: true, advanced: true }
+    { key: 'controls.mediaKeys', label: 'Respond to media keys', info: 'Also shows FLP in Control Center\'s Now Playing.', type: 'toggle', default: true, advanced: true }
   ]),
 
   // ───────── Playback ─────────
@@ -195,14 +182,12 @@ export const SETTINGS: SettingDef[] = [
     { key: 'playback.autoplay', label: 'Start playing as soon as a file opens', type: 'toggle', default: true },
     { key: 'playback.speed', label: 'Default playback speed', type: 'slider', default: 1, min: 0.25, max: 2, step: 0.05,
       ticks: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2], labels: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((v) => ({ value: v, text: String(v) })) },
-    { key: 'playback.pauseOnOtherAudio', label: 'Pause when another app uses audio', type: 'toggle', default: false }
   ]),
   ...S('playback', 'Tracks', [
     { key: 'playback.videoQuality', label: 'Preferred video quality', info: 'Used for online videos and adaptive streams.', type: 'select', default: 'best', options: [
       { value: 'best', label: 'Best available' }, { value: '2160', label: '4K' }, { value: '1080', label: '1080p' }, { value: '720', label: '720p' }, { value: '480', label: '480p' }] },
-    { key: 'playback.menuLanguage', label: 'Preferred menu language', type: 'select', default: 'en', options: { dynamic: 'languages' } },
-    { key: 'playback.defaultAudioTrack', label: 'Default audio track', type: 'number', default: 1, min: 1, max: 99 },
-    { key: 'playback.defaultSubTrack', label: 'Default subtitle track', type: 'number', default: 1, min: 1, max: 99 }
+    { key: 'playback.defaultAudioTrack', label: 'Default audio track', info: '0 = choose automatically by language. Otherwise always start with this track number.', type: 'number', default: 0, min: 0, max: 99 },
+    { key: 'playback.defaultSubTrack', label: 'Default subtitle track', info: '0 = choose automatically by language. Otherwise always start with this track number.', type: 'number', default: 0, min: 0, max: 99 }
   ]),
   ...S('playback', 'Order', [
     { key: 'playback.repeat', label: 'Repeat', type: 'select', default: 'off', options: opts('Off', 'One', 'All') },
@@ -216,10 +201,11 @@ export const SETTINGS: SettingDef[] = [
   ]),
   ...S('playback', 'Files & Discs', [
     { key: 'playback.opticalDrive', label: 'Default optical drive', type: 'select', default: '', options: { dynamic: 'optical-drives' } },
-    { key: 'playback.repairAvi', label: 'Repair damaged AVI files', type: 'select', default: 'ask', options: opts('Ask', 'Always', 'Never') },
+    { key: 'playback.repairAvi', label: 'Repair damaged AVI files', info: 'Rebuilds a missing or broken index so the file can be played and seeked.', type: 'select', default: 'auto', options: [
+      { value: 'auto', label: 'When needed' }, { value: 'always', label: 'Always rebuild the index' }] },
     { key: 'playback.loadMatchingMkv', label: 'Load matching .mkv files from the same folder', info: 'Enables ordered chapters that span several files.', type: 'toggle', default: true },
-    { key: 'playback.timeshiftFolder', label: 'Time-shift buffer folder', type: 'path', default: '', directory: true, advanced: true },
-    { key: 'playback.timeshiftSize', label: 'Time-shift buffer size', type: 'select', default: 'medium', options: opts('Small', 'Medium', 'Large'), advanced: true }
+    { key: 'playback.timeshiftFolder', label: 'Time-shift buffer folder', info: 'Store the rewind buffer for live streams on disk here instead of in memory.', type: 'path', default: '', directory: true, advanced: true },
+    { key: 'playback.timeshiftSize', label: 'Time-shift buffer size', info: 'How far back you can rewind a live stream.', type: 'select', default: 'medium', options: opts('Small', 'Medium', 'Large'), advanced: true }
   ]),
 
   // ───────── Video ─────────
@@ -227,7 +213,6 @@ export const SETTINGS: SettingDef[] = [
     { key: 'video.enabled', label: 'Enable video', type: 'toggle', default: true },
     { key: 'video.startFullscreen', label: 'Start videos in fullscreen', type: 'toggle', default: false },
     { key: 'video.stopScreensaver', label: 'Stop the screensaver during playback', type: 'toggle', default: true },
-    { key: 'video.wallpaper', label: 'Play video as desktop wallpaper', type: 'toggle', default: false }
   ]),
   ...S('video', 'Picture', [
     { key: 'video.resetPicture', label: 'Reset picture', info: 'Resets brightness, contrast, colour and sharpness to their defaults.', type: 'action', button: 'Reset', command: 'video.resetPicture' }
@@ -248,10 +233,10 @@ export const SETTINGS: SettingDef[] = [
     { key: 'video.position', label: 'Position in the window', type: 'select', default: 'center', options: opts('Center', 'Top', 'Bottom', 'Left', 'Right') },
     { key: 'video.customAspects', label: 'Custom aspect ratios', info: 'Comma-separated, e.g. 3:2, 21:9', type: 'text', default: '', advanced: true },
     { key: 'video.customCrops', label: 'Custom crop ratios', type: 'text', default: '', advanced: true },
-    { key: 'video.monitorPixelAspect', label: 'Monitor pixel aspect ratio', type: 'text', default: '1:1', advanced: true }
+    { key: 'video.monitorPixelAspect', label: 'Monitor pixel aspect ratio', info: 'Only change this for displays with non-square pixels, e.g. 1.2 or 4:3.', type: 'text', default: '1:1', advanced: true }
   ]),
   ...S('video', 'Snapshots', [
-    { key: 'video.snapshotFolder', label: 'Save to', type: 'path', default: '', directory: true },
+    { key: 'video.snapshotFolder', label: 'Save to', type: 'path', default: '', directory: true, placeholder: '~/Pictures' },
     { key: 'video.snapshotPrefix', label: 'File name prefix', type: 'text', default: 'flp-snap-' },
     { key: 'video.snapshotFormat', label: 'Format', type: 'select', default: 'png', options: [{ value: 'png', label: 'PNG' }, { value: 'jpg', label: 'JPEG' }, { value: 'webp', label: 'WebP' }, { value: 'jxl', label: 'JPEG XL' }] },
     { key: 'video.snapshotSize', label: 'Size', type: 'select', default: 'video', options: [{ value: 'video', label: 'Same as video' }, { value: 'window', label: 'As shown (with subtitles)' }] },
@@ -333,7 +318,6 @@ export const SETTINGS: SettingDef[] = [
     { key: 'subtitles.backgroundOpacity', label: 'Background opacity', type: 'slider', default: 50, min: 0, max: 100, step: 1, ticks: [0, 50, 100], labels: pct([0, 50, 100]) },
     { key: 'subtitles.position', label: 'Vertical position', type: 'select', default: 'bottom', options: opts('Bottom', 'Raised', 'Middle', 'Top') },
     { key: 'subtitles.ignoreAssStyle', label: 'Ignore styling in ASS and SSA subtitles', type: 'toggle', default: false, advanced: true },
-    { key: 'subtitles.direction', label: 'Text direction', type: 'select', default: 'auto', options: [{ value: 'auto', label: 'Automatic' }, { value: 'ltr', label: 'Left to right' }, { value: 'rtl', label: 'Right to left' }], advanced: true }
   ]),
   ...S('subtitles', 'Timing', [
     { key: 'subtitles.delay', label: 'Subtitle delay', type: 'slider', default: 0, min: -5, max: 5, step: 0.05, origin: 0, ticks: [-5, -2.5, 0, 2.5, 5], labels: [{ value: -5, text: '-5 s' }, { value: 0, text: '0 s' }, { value: 5, text: '+5 s' }] }
@@ -355,8 +339,8 @@ export const SETTINGS: SettingDef[] = [
     { key: 'library.showHidden', label: 'Show hidden files', type: 'toggle', default: false }
   ]),
   ...S('library', 'Metadata & Artwork', [
-    { key: 'library.metadataSource', label: 'Fetch titles and artwork', type: 'select', default: 'file', options: [
-      { value: 'file', label: 'From the file only' }, { value: 'folder', label: 'From the file and folder (cover.jpg)' }, { value: 'internet', label: 'Also from the internet' }] },
+    { key: 'library.metadataSource', label: 'Fetch titles and artwork', type: 'select', default: 'folder', options: [
+      { value: 'file', label: 'From the file only' }, { value: 'folder', label: 'From the file and folder (cover.jpg)' }] },
     { key: 'library.enabled', label: 'Use the media library', info: 'Scan your media folders to fill Home, Videos and Music.', type: 'toggle', default: true },
     { key: 'library.folders', label: 'Media folders', type: 'custom', component: 'media-folders' },
     { key: 'library.rescan', label: 'Rescan media folders', type: 'action', button: 'Rescan', command: 'library.rescan', advanced: true }
@@ -364,14 +348,12 @@ export const SETTINGS: SettingDef[] = [
 
   // ───────── Network ─────────
   ...S('network', 'Buffering', [
-    { key: 'network.buffering', label: 'Buffering', type: 'select', default: 'normal', options: opts('Low latency', 'Normal', 'Large', 'Custom') },
-    { key: 'network.cacheLocal', label: 'Local files', type: 'number', default: 1, min: 0, max: 60, step: 0.5, suffix: 's' },
-    { key: 'network.cacheDisc', label: 'Discs', type: 'number', default: 5, min: 0, max: 60, step: 0.5, suffix: 's' },
-    { key: 'network.cacheNetwork', label: 'Network streams', type: 'number', default: 10, min: 0, max: 600, step: 1, suffix: 's' },
-    { key: 'network.cacheLive', label: 'Live capture', type: 'number', default: 0.3, min: 0, max: 10, step: 0.1, suffix: 's' }
+    { key: 'network.buffering', label: 'Buffering', info: 'How much of a network stream to load ahead.', type: 'select', default: 'normal', options: opts('Low latency', 'Normal', 'Large', 'Custom') },
+    { key: 'network.cacheNetwork', label: 'Custom buffer', info: 'Used when Buffering is set to Custom.', type: 'number', default: 10, min: 0, max: 600, step: 1, suffix: 's' },
   ]),
   ...S('network', 'Proxy', [
-    { key: 'network.proxy', label: 'HTTP proxy', type: 'text', default: '', placeholder: 'System proxy' },
+    { key: 'network.proxy', label: 'HTTP proxy', info: 'e.g. http://proxy.example.com:8080. Leave empty for a direct connection.', type: 'text', default: '', placeholder: 'No proxy' },
+    { key: 'network.proxyUser', label: 'HTTP proxy user name', type: 'text', default: '' },
     { key: 'network.proxyPassword', label: 'HTTP proxy password', type: 'text', default: '', secret: true }
   ]),
   ...S('network', 'Security', [
@@ -398,24 +380,20 @@ export const SETTINGS: SettingDef[] = [
   ]),
   ...S('performance', 'Developer', [
     { key: 'performance.decoder', label: 'Decoder', info: 'Force a specific decoder (ffmpeg name).', type: 'text', default: '', placeholder: 'Automatic', advanced: true },
-    { key: 'performance.videoOutput', label: 'Renderer', type: 'select', default: 'gpu', options: [{ value: 'gpu', label: 'Default' }], advanced: true },
     { key: 'performance.demuxerMax', label: 'Demuxer cache size', type: 'number', default: 150, min: 16, max: 4096, suffix: 'MB', advanced: true }
   ]),
 
   // ───────── Recording ─────────
   ...S('recording', 'Recording', [
     { key: 'recording.folder', label: 'Save recordings to', type: 'path', default: '~/Movies', directory: true },
-    { key: 'recording.copy', label: 'Record without re-encoding when possible', type: 'toggle', default: true }
   ]),
   ...S('recording', 'Casting', [
-    { key: 'recording.discoverCast', label: 'Discover cast devices', info: 'Finds DLNA/UPnP TVs and speakers on your network.', type: 'toggle', default: true },
-    { key: 'recording.castQuality', label: 'Cast quality', type: 'select', default: 'automatic', options: opts('Automatic', 'High', 'Medium', 'Low') }
+    { key: 'recording.discoverCast', label: 'Discover cast devices', info: 'Lets "Cast to TV or speaker" search your network for DLNA/UPnP TVs and speakers.', type: 'toggle', default: true },
   ]),
   ...S('recording', 'Streaming', [
-    { key: 'recording.playLocally', label: 'Play locally while streaming', type: 'toggle', default: true },
+    { key: 'recording.playLocally', label: 'Keep playing here while streaming', type: 'toggle', default: true },
     { key: 'recording.includeAudio', label: 'Include audio', type: 'toggle', default: true },
     { key: 'recording.includeVideo', label: 'Include video', type: 'toggle', default: true },
-    { key: 'recording.includeSubs', label: 'Include subtitles', type: 'toggle', default: false },
     { key: 'recording.preset', label: 'Encoding preset', type: 'select', default: 'medium', options: opts('Ultrafast', 'Fast', 'Medium', 'Slow') },
     { key: 'recording.tune', label: 'Tuning', type: 'select', default: 'none', options: opts('None', 'Film', 'Animation', 'Grain', 'Zero latency') }
   ]),
@@ -424,7 +402,7 @@ export const SETTINGS: SettingDef[] = [
   ...S('extensions', 'Add-ons', [
     { key: 'extensions.list', label: 'Installed add-ons', type: 'custom', component: 'plugin-list' },
     { key: 'extensions.loadOnStartup', label: 'Load add-ons on startup', type: 'toggle', default: true },
-    { key: 'extensions.mpvScripts', label: 'Load mpv scripts', info: 'Lua and JavaScript scripts from the mpv-scripts folder.', type: 'toggle', default: true, advanced: true },
+    { key: 'extensions.mpvScripts', label: 'Load mpv scripts', info: 'Lua and JavaScript scripts from the mpv-scripts folder. Applied the next time FLP starts.', type: 'toggle', default: true, advanced: true },
     { key: 'extensions.openFolder', label: 'Open the plugins folder', type: 'action', button: 'Open', command: 'plugins.openFolder', advanced: true },
     { key: 'extensions.create', label: 'Create a new plugin', type: 'action', button: 'Create', command: 'plugins.create', advanced: true }
   ])

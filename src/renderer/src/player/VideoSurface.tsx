@@ -4,7 +4,7 @@ import { openMenu } from '@/components/Menu'
 import { runCommand } from '@/commands/registry'
 import { player, usePlayer } from '@/state/player'
 import { changeVolume, seekBy } from '@/state/playback'
-import { getSetting } from '@/state/settings'
+import { getSetting, useSetting } from '@/state/settings'
 import { useUi } from '@/state/ui'
 import { rightClickMenu } from './menus'
 
@@ -16,6 +16,9 @@ export function VideoSurface({ children, showVideo, onRect }: {
   onRect?: (r: DOMRect) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  // Latest callback, so a parent that starts or stops needing the rect (miniplayer audio↔video) works.
+  const onRectRef = useRef(onRect)
+  onRectRef.current = onRect
   const clickTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
@@ -25,7 +28,7 @@ export function VideoSurface({ children, showVideo, onRect }: {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         const r = el.getBoundingClientRect()
-        onRect?.(r)
+        onRectRef.current?.(r)
         window.flp.player.setBounds({ x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) })
       })
     }
@@ -45,7 +48,10 @@ export function VideoSurface({ children, showVideo, onRect }: {
   }, [showVideo])
 
   // Match the native view's corners and letterbox colour to this panel.
-  const overlay = useUi((s) => s.fullscreen || s.hideUi)
+  // Same rule as App's data-overlay (auto-hide "Always" floats the bars over video too).
+  const isVideo = usePlayer((s) => s.kind === 'video')
+  const autoHideVideo = useSetting<string>('interface.autoHide') === 'always' && isVideo
+  const overlay = useUi((s) => s.fullscreen || s.hideUi || (autoHideVideo && s.view === 'player'))
   useEffect(() => {
     const radius = parseFloat(getComputedStyle(ref.current!).borderTopLeftRadius) || 0
     window.flp.player.setCornerRadius(radius)

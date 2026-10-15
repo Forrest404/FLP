@@ -7,6 +7,7 @@ import type { IconName } from '@/components/Icon'
 import { getCommand, runCommand, useCommands } from '@/commands/registry'
 import { usePlayer } from '@/state/player'
 import { useUi } from '@/state/ui'
+import { useSettings } from '@/state/settings'
 
 export interface BarItem {
   id: string
@@ -34,22 +35,24 @@ export function getItem(id: string): BarItem | null {
 
 export function allItems(): BarItem[] {
   const fromCommands = Object.values(useCommands.getState().commands)
-    .filter((c) => c.icon && !c.hidden && !registry.has(c.id))
+    .filter((c) => c.icon && !c.hidden && c.bar !== false && !registry.has(c.id))
     .map((c) => getItem(c.id)!)
   return [...registry.values(), ...fromCommands]
 }
 
 export function CommandButton({ id, icon }: { id: string; icon?: IconName }) {
   const cmd = useCommands((s) => s.commands[id])
-  // Re-render on player/ui changes so toggle states (repeat, shuffle…) stay current.
-  usePlayer((s) => s.loopFile || s.loopPlaylist || s.recording || s.muted)
-  useUi((s) => s.rightPanel ?? s.shuffled ?? s.leftOpen)
+  // active() reads player, UI and settings state; re-evaluate it whenever any of them changes.
+  const isActive = () => !!cmd?.active?.()
+  const a1 = usePlayer(isActive)
+  const a2 = useUi(isActive)
+  const a3 = useSettings(isActive)
   if (!cmd) return null
   return (
     <IconButton
       icon={icon ?? cmd.icon ?? 'more'}
       label={cmd.title}
-      pressed={cmd.active?.() || undefined}
+      pressed={a1 || a2 || a3 || undefined}
       onClick={() => void runCommand(id)}
     />
   )

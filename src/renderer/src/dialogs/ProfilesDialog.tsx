@@ -5,7 +5,7 @@ import { Button, IconButton, TextField } from '@/components/controls'
 import { Dialog } from '@/components/Dialog'
 import { Icon } from '@/components/Icon'
 import { useSettings } from '@/state/settings'
-import { showOsd, ui, useUi } from '@/state/ui'
+import { confirmAction, showOsd, ui, useUi } from '@/state/ui'
 
 const api = () => window.flp.settings
 
@@ -50,7 +50,9 @@ export function ProfilesDialog() {
               {p.id && (
                 <span className="flp-profiles__actions" onClick={(e) => e.stopPropagation()}>
                   <IconButton icon="edit" label={`Rename ${p.name}`} onClick={() => { setEditing(p.id); setDraft(p.name) }} />
-                  <IconButton icon="remove" label={`Delete ${p.name}`} onClick={() => void api().deleteProfile(p.id!)} />
+                  <IconButton icon="remove" label={`Delete ${p.name}`} onClick={async () => {
+                    if (await confirmAction({ title: `Delete “${p.name}”?`, message: 'The settings saved in this profile will be lost.', confirmLabel: 'Delete' })) await api().deleteProfile(p.id!)
+                  }} />
                 </span>
               )}
             </li>

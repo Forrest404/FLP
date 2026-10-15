@@ -6,10 +6,12 @@ export function Section({ title, children, defaultOpen = true, aside }: { title:
   const [open, setOpen] = useState(defaultOpen)
   return (
     <section className="flp-section" data-open={open}>
-      <div className="flp-section__head" onClick={() => setOpen(!open)}>
-        <span>{title}</span>
-        {aside && <span onClick={(e) => e.stopPropagation()}>{aside}</span>}
-        <Icon name={open ? 'chevron-down' : 'chevron-right'} size={18} />
+      <div className="flp-section__head">
+        <button type="button" className="flp-section__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <span>{title}</span>
+          <Icon name={open ? 'chevron-down' : 'chevron-right'} size={18} />
+        </button>
+        {aside && <span className="flp-section__aside">{aside}</span>}
       </div>
       {open && <div className="flp-section__body">{children}</div>}
     </section>

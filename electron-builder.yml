@@ -19,7 +19,7 @@ extraResources:
     to: docs
   - from: resources
     to: .
-    filter: ['trayTemplate*.png']
+    filter: ['trayTemplate*.png', 'icon.png']
 mac:
   icon: resources/icon.icns
   category: public.app-category.video

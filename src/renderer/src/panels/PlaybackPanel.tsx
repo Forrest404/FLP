@@ -3,6 +3,7 @@ import { Button, IconButton, Slider } from '@/components/controls'
 import { runCommand } from '@/commands/registry'
 import { player, usePlayer } from '@/state/player'
 import { fmtTime, setSpeed } from '@/state/playback'
+import { setSetting } from '@/state/settings'
 import { Section } from './Section'
 
 const SPEED_TICKS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -23,9 +24,9 @@ export function PlaybackPanel() {
       </Section>
       <Section title="Repeat">
         <div className="flp-chips">
-          <button type="button" aria-pressed={!loopFile && !loopPlaylist} onClick={async () => { await player.set('loop-file', 'no'); await player.set('loop-playlist', 'no') }}>Off</button>
-          <button type="button" aria-pressed={loopFile} onClick={async () => { await player.set('loop-playlist', 'no'); await player.set('loop-file', 'inf') }}>One</button>
-          <button type="button" aria-pressed={loopPlaylist} onClick={async () => { await player.set('loop-file', 'no'); await player.set('loop-playlist', 'inf') }}>All</button>
+          <button type="button" aria-pressed={!loopFile && !loopPlaylist} onClick={() => setSetting('playback.repeat', 'off')}>Off</button>
+          <button type="button" aria-pressed={loopFile} onClick={() => setSetting('playback.repeat', 'one')}>One</button>
+          <button type="button" aria-pressed={loopPlaylist} onClick={() => setSetting('playback.repeat', 'all')}>All</button>
         </div>
       </Section>
       <Section title="A-B loop">

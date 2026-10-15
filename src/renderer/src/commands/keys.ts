@@ -17,6 +17,9 @@ function keyMap(): Map<string, string> {
   return map
 }
 
+/** ⌘ shortcuts text fields need: caret movement, deleting, clipboard, undo, select all. */
+const TEXT_EDITING = /^Mod\+(Shift\+)?(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Backspace|Delete|A|C|V|X|Z|Y)$/
+
 const isTyping = (el: Element | null) =>
   !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable)
 
@@ -27,10 +30,12 @@ export function useKeyboardShortcuts() {
       const key = eventToKey(e)
       if (!key) return
       const typing = isTyping(document.activeElement)
-      // While typing, only shortcuts with ⌘/Ctrl (and Escape) apply.
-      if (typing && !key.startsWith('Mod+') && key !== 'Escape') return
+      // While typing, only ⌘/Ctrl shortcuts (and Escape) apply, and never the ones text fields use.
+      if (typing && ((!key.startsWith('Mod+') && key !== 'Escape') || TEXT_EDITING.test(key))) return
+      // Space/Enter activate a focused button, toggle or slider rather than play/pause.
+      if ((key === 'Space' || key === 'Enter') && (document.activeElement as HTMLElement | null)?.closest?.('button, [role="switch"], [role="slider"], [role="menuitem"], [role="tab"]')) return
       // While a dialog is open, only Escape and ⌘-shortcuts reach commands.
-      if (useUi.getState().dialog && !key.startsWith('Mod+') && key !== 'Escape') return
+      if ((useUi.getState().dialog || useUi.getState().confirm) && !key.startsWith('Mod+') && key !== 'Escape') return
       const id = keyMap().get(key)
       if (!id) return
       e.preventDefault()

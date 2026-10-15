@@ -13,8 +13,18 @@ import { AddSubtitlesDialog } from './AddSubtitlesDialog'
 import { NetworkDialog } from './NetworkDialog'
 import { NewPlaylistDialog } from './NewPlaylistDialog'
 import { OnboardingDialog } from './OnboardingDialog'
+import { ConfirmDialog } from './ConfirmDialog'
 
 export function Dialogs() {
+  return (
+    <>
+      <MainDialog />
+      <ConfirmDialog />
+    </>
+  )
+}
+
+function MainDialog() {
   const dialog = useUi((s) => s.dialog)
   switch (dialog) {
     case null:

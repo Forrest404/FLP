@@ -13,7 +13,8 @@ function usePoster(item: MediaItem): [React.RefObject<HTMLDivElement | null>, st
   const [src, setSrc] = useState<string | null>(item.poster ? mediaUrl(item.poster) : null)
   useEffect(() => {
     if (item.poster) return setSrc(mediaUrl(item.poster))
-    if (item.type !== 'video') return
+    // Videos get a frame; music gets its embedded or folder cover.
+    if (item.type !== 'video' && item.type !== 'audio') return
     const el = ref.current
     if (!el) return
     const io = new IntersectionObserver((entries) => {
@@ -53,7 +54,7 @@ export function MediaTile({ item, siblings, subtitle }: { item: MediaItem; sibli
       title={item.path}
       tabIndex={0}
       onDoubleClick={() => void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
-      onKeyDown={(e) => e.key === 'Enter' && void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
+      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
       onContextMenu={async (e) => {
         e.preventDefault()
         const at = { clientX: e.clientX, clientY: e.clientY }
@@ -90,7 +91,7 @@ export function MediaRow({ item, siblings, index, columns }: { item: MediaItem; 
       title={item.path}
       tabIndex={0}
       onDoubleClick={() => void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
-      onKeyDown={(e) => e.key === 'Enter' && void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
+      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && void playList(siblings.map((s) => s.path), siblings.indexOf(item))}
       onContextMenu={async (e) => {
         e.preventDefault()
         const at = { clientX: e.clientX, clientY: e.clientY }

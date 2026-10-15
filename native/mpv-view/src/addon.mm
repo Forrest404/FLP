@@ -234,6 +234,7 @@ class Player : public Napi::ObjectWrap<Player> {
                             InstanceMethod("setBounds", &Player::SetBounds),
                             InstanceMethod("setVisible", &Player::SetVisible),
                             InstanceMethod("setCornerRadius", &Player::SetCornerRadius),
+                            InstanceMethod("setLogLevel", &Player::SetLogLevel),
                             InstanceMethod("destroy", &Player::Destroy)});
     exports.Set("Player", cls);
     return exports;
@@ -490,6 +491,12 @@ class Player : public Napi::ObjectWrap<Player> {
       view_.frame = NSMakeRect(0, 0, 1, 1);
       view_.alphaValue = 0.01;
     }
+    return info.Env().Undefined();
+  }
+
+  // Which mpv messages poll() reports as log-message events ("error", "warn", "info", "debug"…).
+  Napi::Value SetLogLevel(const Napi::CallbackInfo &info) {
+    if (mpv_) mpv_request_log_messages(mpv_, info[0].ToString().Utf8Value().c_str());
     return info.Env().Undefined();
   }
 

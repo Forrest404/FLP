@@ -2,6 +2,8 @@ import { TONE_MAPPINGS, VFX_DEFAULTS } from '@shared/video-effects'
 import { settingByKey } from '@shared/settings-schema'
 import { Button } from '@/components/controls'
 import { runCommand } from '@/commands/registry'
+import { useSetting } from '@/state/settings'
+import { withCustomOptions } from '@/state/ratios'
 import { FxSelect, FxSlider, FxToggle, fixed, signed, useFx } from './fx'
 import { PresetBar } from './Presets'
 import { Section } from './Section'
@@ -15,6 +17,8 @@ const optionsOf = (key: string) => {
 /** Figma "Video - Essential / Crop / Colors" + "HDR Options". */
 export function VideoPanel() {
   const [rotate, setRotate] = useFx<number>('vfx.rotate', 0)
+  const customAspects = useSetting<string>('video.customAspects')
+  const customCrops = useSetting<string>('video.customCrops')
   return (
     <>
       <PresetBar kind="video" keys={Object.keys(VFX_DEFAULTS)} defaults={VFX_DEFAULTS} />
@@ -29,8 +33,8 @@ export function VideoPanel() {
         <FxSlider k="vfx.grain" label="Film Grain Variance" min={0} max={100} step={1} ticks={[10, 20, 30, 40, 50, 60, 70, 80, 90]} format={(v) => (v ? String(v) : 'Off')} />
       </Section>
       <Section title="Crop & Framing" defaultOpen={false}>
-        <FxSelect k="video.aspect" label="Aspect ratio" options={optionsOf('video.aspect')} fallback="auto" />
-        <FxSelect k="video.crop" label="Crop to" options={optionsOf('video.crop')} fallback="none" />
+        <FxSelect k="video.aspect" label="Aspect ratio" options={withCustomOptions(optionsOf('video.aspect'), customAspects)} fallback="auto" />
+        <FxSelect k="video.crop" label="Crop to" options={withCustomOptions(optionsOf('video.crop'), customCrops)} fallback="none" />
         <FxSlider k="vfx.cropTop" label="Trim top" min={0} max={25} step={0.5} format={fixed(1, '%')} />
         <FxSlider k="vfx.cropBottom" label="Trim bottom" min={0} max={25} step={0.5} format={fixed(1, '%')} />
         <FxSlider k="vfx.cropLeft" label="Trim left" min={0} max={25} step={0.5} format={fixed(1, '%')} />
