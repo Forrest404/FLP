@@ -12,9 +12,11 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "native": "cd native/mpv-view && node-gyp rebuild",
+    "native": "cd native/mpv-view && node-gyp rebuild --target=$(node -p \"require('electron/package.json').version\") --dist-url=https://electronjs.org/headers",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bundle:mac": "./scripts/bundle-macos.sh",
+    "dist": "./scripts/dist-macos.sh"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
@@ -22,6 +24,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
     "node-addon-api": "^8.9.2",
     "node-gyp": "^13.1.0",

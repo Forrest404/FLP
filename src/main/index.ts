@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, net, protocol, screen, shell, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, powerSaveBlocker, protocol, screen, shell, Tray, type MenuItemConstructorOptions } from 'electron'
 import { BRAND } from '@shared/brand'
 import type { SettingsSnapshot } from '@shared/settings-store'
 import { PlayerBridge } from './player'
@@ -80,6 +80,7 @@ settings.on('changed', (keys: string[]) => {
     void library.scanAll()
   }
   if (keys.some((k) => k.startsWith('controls.webRemote'))) void configureRemote()
+  if (keys.includes('interface.trayIcon')) updateTray()
   if (keys.includes('interface.opacity')) win?.setOpacity(Number(settings.get('interface.opacity') ?? 100) / 100)
   win?.webContents.send('settings:changed', snapshot())
 })
@@ -125,6 +126,71 @@ async function ensureServer(): Promise<void> {
 
 let castDevice: UpnpDevice | null = null
 
+// ── macOS integration: Dock menu, menu-bar icon, opening files ──
+
+function updateDockMenu(): void {
+  if (process.platform !== 'darwin' || !app.dock) return
+  const st = player?.state
+  const send = (cmd: string) => () => win?.webContents.send('command:run', cmd)
+  app.dock.setMenu(
+    Menu.buildFromTemplate([
+      ...(st?.title ? [{ label: st.title, enabled: false }, { type: 'separator' as const }] : []),
+      { label: st && !st.paused && !st.idle ? 'Pause' : 'Play', click: send('player.playPause') },
+      { label: 'Next', click: send('player.next') },
+      { label: 'Previous', click: send('player.previous') },
+      { type: 'separator' },
+      { label: 'Open File…', click: send('media.openFile') }
+    ])
+  )
+  tray?.setToolTip(st?.title ? `FLP — ${st.title}` : 'FLP')
+}
+
+let tray: Tray | null = null
+const resourcesDir = () => (app.isPackaged ? process.resourcesPath : join(app.getAppPath(), 'resources'))
+function updateTray(): void {
+  if (!settings.get('interface.trayIcon')) {
+    tray?.destroy()
+    tray = null
+    return
+  }
+  if (tray) return
+  // Template image: macOS tints it for light/dark menu bars (the @2x file is picked up automatically).
+  const icon = nativeImage.createFromPath(join(resourcesDir(), 'trayTemplate.png'))
+  icon.setTemplateImage(true)
+  tray = new Tray(icon)
+  const send = (cmd: string) => () => win?.webContents.send('command:run', cmd)
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: 'Show FLP', click: () => win?.show() },
+      { type: 'separator' },
+      { label: 'Play / Pause', click: send('player.playPause') },
+      { label: 'Next', click: send('player.next') },
+      { label: 'Previous', click: send('player.previous') },
+      { type: 'separator' },
+      { label: 'Quit', role: 'quit' }
+    ])
+  )
+}
+
+/** Files opened before the window exists (Finder "Open With", drag onto the Dock icon). */
+let pendingOpen: string[] = []
+function openExternally(paths: string[]): void {
+  if (!paths.length) return
+  if (!player || !win) {
+    pendingOpen.push(...paths)
+    return
+  }
+  const enqueue = settings.get('library.enqueueFromFinder') !== false && settings.get('library.enqueue') && !player.state.idle
+  paths.forEach((p, i) => void player!.command(['loadfile', p, enqueue || i > 0 ? 'append-play' : 'replace']))
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+app.on('open-file', (e, path) => {
+  e.preventDefault()
+  openExternally([path])
+})
+
 function rememberRecent(path: string): void {
   const never = String(settings.get('privacy.neverRemember') ?? '')
     .split(',')
@@ -159,7 +225,11 @@ function createWindow(): void {
   })
 
   // ytdl_hook reads its options at startup, so yt-dlp's path goes in before mpv initializes.
-  player = new PlayerBridge(win, { 'script-opts': `ytdl_hook-ytdl_path=${bin('yt-dlp')}` })
+  player = new PlayerBridge(win, {
+    'script-opts': `ytdl_hook-ytdl_path=${bin('yt-dlp')}`,
+    // macOS Now Playing (Control Center, lock screen) and the keyboard's media keys.
+    'media-controls': settings.get('controls.mediaKeys') === false ? 'no' : 'yes'
+  })
   applySettings(player, settings.values())
   void loadMpvScripts(player)
   void player.set(
@@ -183,9 +253,24 @@ function createWindow(): void {
     if (settings.get('privacy.saveRecent')) library.onFileStarted(path, title, duration ?? 0)
     const resume = settings.get('playback.resume')
     plugins.playerEvent('file-loaded', { path, title, duration })
+    if (settings.get('video.startFullscreen') && (await bridge.get('vid')) && !win?.isFullScreen()) win?.setFullScreen(true)
+    const raise = settings.get('interface.raiseOnPlay')
+    if (raise === 'always' || (raise === 'video' && (await bridge.get('vid')))) win?.show()
     const position = settings.get('privacy.rememberPosition') ? library.resumePosition(path) : 0
     if (position > 0 && resume === 'always') void bridge.command(['seek', position, 'absolute'])
     else if (position > 0 && resume === 'ask') win?.webContents.send('player:resume-offer', { path, position })
+  })
+  let sleepBlocker: number | null = null
+  player.on('state', (patch) => {
+    if (!('paused' in patch || 'kind' in patch || 'idle' in patch)) return
+    const st = player!.state
+    const playingVideo = !st.paused && !st.idle && st.kind === 'video'
+    if (playingVideo && settings.get('video.stopScreensaver') !== false && sleepBlocker === null) sleepBlocker = powerSaveBlocker.start('prevent-display-sleep')
+    else if (!playingVideo && sleepBlocker !== null) {
+      powerSaveBlocker.stop(sleepBlocker)
+      sleepBlocker = null
+    }
+    updateDockMenu()
   })
   player.on('end-file', (reason: string) => {
     const { time, duration, path } = player!.state
@@ -194,7 +279,12 @@ function createWindow(): void {
   })
 
   win.setOpacity(Number(settings.get('interface.opacity') ?? 100) / 100)
-  win.on('ready-to-show', () => win?.show())
+  win.on('ready-to-show', () => {
+    if (!(settings.get('interface.startInTray') && settings.get('interface.trayIcon'))) win?.show()
+  })
+  win.on('minimize', () => {
+    if (settings.get('interface.pauseMinimized')) void player?.set('pause', true)
+  })
   win.on('enter-full-screen', () => win?.webContents.send('window:fullscreen', true))
   win.on('leave-full-screen', () => win?.webContents.send('window:fullscreen', false))
   win.on('close', () => {
@@ -211,9 +301,12 @@ function createWindow(): void {
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL + query)
   else win.loadFile(join(here, '../renderer/index.html'), { search: query.slice(1) })
 
-  // Dev convenience: FLP_OPEN=/path/to/file npm run dev
-  const initial = process.env.FLP_OPEN
-  if (initial) win.webContents.once('did-finish-load', () => void player?.command(['loadfile', initial]))
+  // Dev convenience: FLP_OPEN=/path/to/file npm run dev. Files passed on the command line open too.
+  const initial = [process.env.FLP_OPEN, ...process.argv.slice(app.isPackaged ? 1 : 2).filter((a) => !a.startsWith('-') && a !== '.')].filter(Boolean) as string[]
+  win.webContents.once('did-finish-load', () => {
+    openExternally([...initial, ...pendingOpen])
+    pendingOpen = []
+  })
   scheduleSnapshot(win, player)
 }
 
@@ -421,7 +514,7 @@ ipcMain.handle('plugins:create', async (_e, name: string) => {
   return dir
 })
 ipcMain.on('plugins:openFolder', () => void shell.openPath(plugins.userDir))
-ipcMain.on('plugins:openGuide', () => void shell.openPath(join(app.getAppPath(), 'docs', 'PLUGINS.md')))
+ipcMain.on('plugins:openGuide', () => void shell.openPath(join(app.isPackaged ? process.resourcesPath : app.getAppPath(), 'docs', 'PLUGINS.md')))
 
 // Sources: discs, capture, media info
 ipcMain.handle('sources:discs', () => listDiscs())
@@ -542,6 +635,10 @@ ipcMain.on('menu:set', (_e, specs: MenuSpec[]) => {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 })
 
+// One window: a second launch (e.g. opening another file from Finder) hands its files to this one.
+if (settings.get('library.singleInstance') !== false && !process.env.FLP_SNAPSHOT && !app.requestSingleInstanceLock()) app.quit()
+app.on('second-instance', (_e, argv) => openExternally(argv.slice(1).filter((a) => !a.startsWith('-') && a !== '.')))
+
 app.whenReady().then(() => {
   protocol.handle('flp-plugin', (req) => {
     const url = new URL(req.url)
@@ -566,11 +663,14 @@ app.whenReady().then(() => {
   library.recursive = settings.get('library.folderMode') !== 'flat'
   library.start()
   createWindow()
+  updateTray()
+  updateDockMenu()
   void plugins.start()
   void configureRemote()
   registerGlobalShortcuts(settings.getUi<Record<string, string>>('globalShortcuts', {}))
 })
 app.on('window-all-closed', () => app.quit())
+app.on('activate', () => win?.show())
 app.on('will-quit', () => globalShortcut.unregisterAll())
 app.on('before-quit', () => {
   plugins.dispose()

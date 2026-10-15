@@ -409,7 +409,7 @@ export const SETTINGS: SettingDef[] = [
   ]),
   ...S('recording', 'Casting', [
     { key: 'recording.discoverCast', label: 'Discover cast devices', info: 'Finds DLNA/UPnP TVs and speakers on your network.', type: 'toggle', default: true },
-    { key: 'recording.castQuality', label: 'Cast quality', type: 'select', default: 'auto', options: opts('Automatic', 'High', 'Medium', 'Low') }
+    { key: 'recording.castQuality', label: 'Cast quality', type: 'select', default: 'automatic', options: opts('Automatic', 'High', 'Medium', 'Low') }
   ]),
   ...S('recording', 'Streaming', [
     { key: 'recording.playLocally', label: 'Play locally while streaming', type: 'toggle', default: true },

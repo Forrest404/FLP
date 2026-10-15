@@ -32,7 +32,11 @@ interface MpvEvent {
 }
 
 const require = createRequire(import.meta.url)
-const { Player } = require(join(app.getAppPath(), 'native/mpv-view/build/Release/mpv_view.node')) as {
+// Packaged: the addon and its libraries live in Resources/native (see scripts/bundle-macos.sh).
+const addonPath = app.isPackaged
+  ? join(process.resourcesPath, 'native', 'mpv_view.node')
+  : join(app.getAppPath(), 'native/mpv-view/build/Release/mpv_view.node')
+const { Player } = require(addonPath) as {
   Player: new (handle: Buffer, onWakeup: () => void, options?: Record<string, string>) => NativePlayer
 }
 

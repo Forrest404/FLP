@@ -1,0 +1,52 @@
+appId: com.forrestlabs.flp
+productName: FLP
+copyright: Copyright © 2026 Forrest Labs
+afterPack: scripts/after-pack.cjs
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: build/bundle/native
+    to: native
+  - from: build/bundle/bin
+    to: bin
+  - from: plugins-examples
+    to: plugins
+  - from: docs
+    to: docs
+  - from: resources
+    to: .
+    filter: ['trayTemplate*.png']
+mac:
+  icon: resources/icon.icns
+  category: public.app-category.video
+  target:
+    - target: dmg
+      arch: [arm64]
+  # Ad-hoc signature so it runs on Apple Silicon; notarizing needs an Apple Developer account.
+  identity: '-'
+  hardenedRuntime: false
+  extendInfo:
+    NSCameraUsageDescription: FLP can play from your camera when you open a capture device.
+    NSMicrophoneUsageDescription: FLP can play or record from your microphone when you open a capture device.
+    NSLocalNetworkUsageDescription: FLP finds media servers, TVs and speakers on your network, and serves the web remote.
+fileAssociations:
+  - ext: [mp4, m4v, mkv, webm, mov, avi, wmv, flv, mpg, mpeg, ts, m2ts, mts, vob, 3gp, ogv, rmvb, divx, mxf]
+    name: Video
+    role: Viewer
+    icon: resources/icon.icns
+  - ext: [mp3, flac, m4a, aac, ogg, oga, opus, wav, aiff, aif, alac, wma, ape, wv, mka, dsf, dff, mid, caf, amr]
+    name: Audio
+    role: Viewer
+    icon: resources/icon.icns
+  - ext: [m3u, m3u8, pls, xspf, cue]
+    name: Playlist
+    role: Viewer
+  - ext: [srt, ass, ssa, vtt, sub]
+    name: Subtitles
+    role: Viewer
+dmg:
+  title: FLP
