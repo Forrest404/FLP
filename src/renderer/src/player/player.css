@@ -358,3 +358,19 @@
 .flp-edititem[data-insert='before']::before { left: -5px; }
 .flp-edititem[data-insert='after']::after { right: -5px; }
 .flp-pluginpanel { width: 100%; min-height: 420px; height: calc(100vh - 220px); border: 0; border-radius: var(--radius-l); background: var(--bg-panel); }
+
+/* Media info */
+.flp-info { margin: 0; display: grid; gap: 2px; }
+.flp-info > div { display: grid; grid-template-columns: 200px 1fr; gap: 16px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.flp-info dt { color: var(--text-faint); }
+.flp-info dd { margin: 0; color: var(--text); user-select: text; word-break: break-word; }
+
+/* Convert jobs */
+.flp-jobs { display: grid; gap: 6px; margin-top: 6px; }
+.flp-job { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius); background: var(--bg-well); color: var(--text-dim); }
+.flp-job__main { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.flp-job__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-size: var(--fs); }
+.flp-job__bar { height: 6px; border-radius: 3px; background: var(--bg-raised); overflow: hidden; }
+.flp-job__bar i { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
+.flp-job__status { font-size: var(--fs-s); color: var(--text-faint); text-transform: capitalize; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flp-job[data-status='failed'] .flp-job__status { color: #e08a6f; text-transform: none; }

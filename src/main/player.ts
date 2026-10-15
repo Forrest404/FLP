@@ -96,7 +96,7 @@ export class PlayerBridge extends EventEmitter {
   // Full merged state, so a renderer that (re)loads can catch up.
   state: PlayerState = { ...initialPlayerState }
 
-  constructor(win: BrowserWindow) {
+  constructor(win: BrowserWindow, options: Record<string, string> = {}) {
     super()
     this.on('state', (patch: Partial<PlayerState>) => {
       Object.assign(this.state, patch)
@@ -108,7 +108,7 @@ export class PlayerBridge extends EventEmitter {
         }
       }
     })
-    this.native = new Player(win.getNativeWindowHandle(), () => this.drain())
+    this.native = new Player(win.getNativeWindowHandle(), () => this.drain(), options)
     for (const name of Object.keys(OBSERVED)) this.native.observe(name)
   }
 

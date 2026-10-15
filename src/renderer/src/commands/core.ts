@@ -347,6 +347,14 @@ const media: Command[] = [
   { id: 'media.openCapture', title: 'Open capture device…', category: 'Media', icon: 'capture-device', keys: ['Mod+Alt+C'], keywords: ['camera', 'webcam', 'microphone', 'screen'],
     run: () => ui.openDialog('capture') },
   { id: 'media.convert', title: 'Convert / save…', category: 'Media', icon: 'swap', keys: ['Mod+R'], keywords: ['transcode', 'export', 'mp4', 'mp3'], run: () => ui.openDialog('convert') },
+  { id: 'media.stream', title: 'Stream to the network…', category: 'Media', icon: 'streaming', keywords: ['broadcast', 'share', 'hls', 'udp'],
+    run: () => ui.openDialog('convert', { tab: 'stream' }) },
+  { id: 'cast.to', title: 'Cast to TV or speaker…', category: 'Media', icon: 'tv', keywords: ['dlna', 'upnp', 'chromecast', 'airplay', 'tv'],
+    run: async () => {
+      const { openCastMenu } = await import('@/library/Network')
+      await openCastMenu({ clientX: window.innerWidth / 2 - 130, clientY: window.innerHeight / 2 - 100 })
+    } },
+  { id: 'cast.stop', title: 'Stop casting', category: 'Media', icon: 'stop', run: () => window.flp.cast.stop() },
   { id: 'playlist.new', title: 'New playlist…', category: 'Media', icon: 'add', run: () => ui.openDialog('newPlaylist') },
   { id: 'playlist.clear', title: 'Clear playlist', category: 'Media', icon: 'remove', run: () => player.command('playlist-clear') }
 ]

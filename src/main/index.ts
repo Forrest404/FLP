@@ -8,7 +8,12 @@ import { Settings } from './settings'
 import { applySettings } from './settings-apply'
 import { cropString } from '@shared/video-effects'
 import { scheduleSnapshot } from './dev-snapshot'
-import { displayableImage, posterFor, readTags, thumbnailAt, waveform } from './media-tools'
+import { bin, displayableImage, posterFor, readTags, thumbnailAt, waveform } from './media-tools'
+import { JobQueue, PRESETS, type ConvertOptions } from './convert'
+import { HttpServer, lanAddress } from './http-server'
+import { captureUrl, dvdTitles, listCaptureDevices, listDiscs, mediaInfo } from './sources'
+import { browse as upnpBrowse, castControl, castSeek, castTo, discover as upnpDiscover, type UpnpDevice } from './upnp'
+import { fetchPodcast, searchStations } from './feeds'
 import { Library } from './library'
 import { PluginManager } from './plugins'
 import type { MusicView, SortKey } from '@shared/library'
@@ -43,6 +48,9 @@ addEventListener('message', (e) => {
 </script>`
 const settings = new Settings()
 const library = new Library()
+const jobs = new JobQueue()
+const http = new HttpServer(() => player, jobs)
+jobs.on('jobs', (list) => win?.webContents.send('jobs:list', list))
 const plugins = new PluginManager(settings, () => player, library, (channel, ...args) => win?.webContents.send(channel, ...args))
 
 function snapshot(): SettingsSnapshot {
@@ -71,6 +79,7 @@ settings.on('changed', (keys: string[]) => {
     library.recursive = settings.get('library.folderMode') !== 'flat'
     void library.scanAll()
   }
+  if (keys.some((k) => k.startsWith('controls.webRemote'))) void configureRemote()
   if (keys.includes('interface.opacity')) win?.setOpacity(Number(settings.get('interface.opacity') ?? 100) / 100)
   win?.webContents.send('settings:changed', snapshot())
 })
@@ -97,6 +106,24 @@ async function loadMpvScripts(bridge: PlayerBridge): Promise<void> {
     await bridge.command(['load-script', join(dir, name)]).catch((err: Error) => console.warn(`[mpv-scripts] ${name}: ${err.message}`))
   }
 }
+
+/** Starts or stops the web remote to match settings. */
+async function configureRemote(): Promise<void> {
+  http.remoteEnabled = !!settings.get('controls.webRemote')
+  http.remotePassword = String(settings.get('controls.webRemotePassword') ?? '')
+  if (http.remoteEnabled) {
+    await http.ensure(Number(settings.get('controls.webRemotePort') ?? 8090)).catch((err: Error) => {
+      win?.webContents.send('plugins:notify', 'Web remote', `Couldn't start on port ${settings.get('controls.webRemotePort')}: ${err.message}`, null)
+    })
+  }
+}
+
+/** The web server also serves stream-out and casting, so it starts on demand. */
+async function ensureServer(): Promise<void> {
+  await http.ensure(Number(settings.get('controls.webRemotePort') ?? 8090))
+}
+
+let castDevice: UpnpDevice | null = null
 
 function rememberRecent(path: string): void {
   const never = String(settings.get('privacy.neverRemember') ?? '')
@@ -131,7 +158,8 @@ function createWindow(): void {
     }
   })
 
-  player = new PlayerBridge(win)
+  // ytdl_hook reads its options at startup, so yt-dlp's path goes in before mpv initializes.
+  player = new PlayerBridge(win, { 'script-opts': `ytdl_hook-ytdl_path=${bin('yt-dlp')}` })
   applySettings(player, settings.values())
   void loadMpvScripts(player)
   void player.set(
@@ -395,6 +423,73 @@ ipcMain.handle('plugins:create', async (_e, name: string) => {
 ipcMain.on('plugins:openFolder', () => void shell.openPath(plugins.userDir))
 ipcMain.on('plugins:openGuide', () => void shell.openPath(join(app.getAppPath(), 'docs', 'PLUGINS.md')))
 
+// Sources: discs, capture, media info
+ipcMain.handle('sources:discs', () => listDiscs())
+ipcMain.handle('sources:dvdTitles', (_e, path: string) => dvdTitles(path))
+ipcMain.handle('sources:capture', () => listCaptureDevices())
+ipcMain.handle('sources:captureUrl', (_e, video: number | null, audio: number | null) => captureUrl(video, audio))
+ipcMain.handle('sources:mediaInfo', (_e, path: string) => mediaInfo(path))
+ipcMain.handle('sources:networkShares', async () => {
+  // Network volumes mounted in Finder (SMB, AFP, NFS, WebDAV).
+  const { execFile } = await import('node:child_process')
+  const out = await new Promise<string>((r) => execFile('/sbin/mount', (_e, so) => r(String(so ?? ''))))
+  return out.split('\n').map((l) => l.match(/^(\S+) on (\/Volumes\/.+?) \((smbfs|afpfs|nfs|webdav)/)).filter(Boolean).map((m) => ({ source: m![1], path: m![2], kind: m![3] }))
+})
+ipcMain.on('sources:connectServer', (_e, url: string) => {
+  if (/^(smb|afp|nfs|ftp):\/\//i.test(url)) void shell.openExternal(url)
+})
+
+// Convert / stream out
+ipcMain.handle('jobs:presets', () => Object.entries(PRESETS).map(([id, p]) => ({ id, label: p.label, ext: p.ext })))
+ipcMain.handle('jobs:list', () => jobs.jobs)
+ipcMain.handle('jobs:convert', async (_e, inputs: string[], opts: ConvertOptions) => {
+  for (const i of inputs) await jobs.convert(i, { ...opts, encoderPreset: String(settings.get('recording.preset') ?? 'medium') })
+})
+ipcMain.handle('jobs:stream', async (_e, input: string, target: 'hls' | 'udp', udpAddress?: string) => {
+  if (target === 'hls') await ensureServer()
+  const job = jobs.stream(input, {
+    target,
+    udpAddress,
+    audio: settings.get('recording.includeAudio') !== false,
+    video: settings.get('recording.includeVideo') !== false,
+    preset: String(settings.get('recording.preset') ?? 'medium'),
+    tune: String(settings.get('recording.tune') ?? 'none'),
+    hlsUrl: (p) => http.url(p)
+  })
+  return job.url
+})
+ipcMain.handle('jobs:cancel', (_e, id: number) => jobs.cancel(id))
+ipcMain.handle('jobs:clear', () => jobs.clearFinished())
+
+// UPnP / DLNA and casting
+ipcMain.handle('upnp:discover', (_e, kind: 'server' | 'renderer') => upnpDiscover(kind))
+ipcMain.handle('upnp:browse', (_e, device: UpnpDevice, id: string) => upnpBrowse(device, id))
+ipcMain.handle('cast:start', async (_e, device: UpnpDevice) => {
+  const s = player?.state
+  if (!s?.path) throw new Error('Nothing is playing')
+  const isUrl = /^[a-z]+:\/\//i.test(s.path)
+  if (!isUrl) await ensureServer()
+  const url = isUrl ? s.path : http.shareFile(s.path)
+  const mime = s.kind === 'audio' ? 'audio/mpeg' : s.kind === 'image' ? 'image/jpeg' : 'video/mp4'
+  await castTo(device, url, s.title ?? 'FLP', mime)
+  castDevice = device
+  // Continue on the TV from where we were, and pause here.
+  const at = s.time
+  if (at > 5 && s.kind !== 'image') setTimeout(() => void castSeek(device, at).catch(() => null), 2000)
+  void player?.set('pause', true)
+  return url
+})
+ipcMain.handle('cast:control', (_e, action: 'Pause' | 'Play' | 'Stop') => (castDevice ? castControl(castDevice, action) : null))
+ipcMain.handle('cast:stop', async () => {
+  if (castDevice) await castControl(castDevice, 'Stop').catch(() => null)
+  castDevice = null
+})
+
+// Radio & podcasts
+ipcMain.handle('feeds:stations', (_e, query: string) => searchStations(query))
+ipcMain.handle('feeds:podcast', (_e, url: string) => fetchPodcast(url))
+ipcMain.handle('remote:info', () => ({ enabled: http.remoteEnabled, url: http.remoteEnabled ? `http://${lanAddress()}:${http.port}/` : null }))
+
 // Media helpers
 ipcMain.handle('media:thumbnail', (_e, path: string, time: number) => thumbnailAt(path, time))
 ipcMain.handle('media:waveform', (_e, path: string) => waveform(path).catch(() => []))
@@ -472,12 +567,15 @@ app.whenReady().then(() => {
   library.start()
   createWindow()
   void plugins.start()
+  void configureRemote()
   registerGlobalShortcuts(settings.getUi<Record<string, string>>('globalShortcuts', {}))
 })
 app.on('window-all-closed', () => app.quit())
 app.on('will-quit', () => globalShortcut.unregisterAll())
 app.on('before-quit', () => {
   plugins.dispose()
+  jobs.dispose()
+  void http.stop()
   if (player) library.onStopped(player.state.time, player.state.duration, false)
   settings.flush()
 })

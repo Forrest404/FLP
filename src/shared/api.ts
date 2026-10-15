@@ -1,6 +1,23 @@
 import type { Bounds, PlayerState } from './player'
 import type { SettingsSnapshot } from './settings-store'
 import type { PluginContributions, PluginInfo } from './plugins'
+
+export interface Job {
+  id: number
+  kind: 'convert' | 'stream'
+  input: string
+  output: string
+  label: string
+  progress: number
+  status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
+  error?: string
+  url?: string
+}
+export interface UpnpDevice { id: string; name: string; kind: 'server' | 'renderer'; location: string; controlUrl: string; icon?: string }
+export interface UpnpEntry { id: string; title: string; kind: 'folder' | 'video' | 'audio' | 'image' | 'other'; url?: string; duration?: number; childCount?: number }
+export interface Station { id: string; name: string; url: string; country: string; tags: string; codec: string; bitrate: number; favicon: string }
+export interface Episode { title: string; url: string; published: number; duration: number; description: string }
+export interface Podcast { feed: string; title: string; author: string; image: string; episodes: Episode[] }
 import type { BrowseResult, HomeData, MediaItem, MusicGroup, MusicView, Playlist, ScanStatus, SortKey } from './library'
 
 export interface AudioTags {
@@ -124,6 +141,40 @@ export interface RendererApi {
     onOsd(cb: (text: string) => void): () => void
     onPanelMessage(cb: (pluginId: string, panelId: string, data: unknown) => void): () => void
     onLog(cb: (entry: { pluginId: string; level: string; text: string; at: number }) => void): () => void
+  }
+  sources: {
+    discs(): Promise<{ path: string; name: string; kind: 'dvd' | 'bluray' | 'audiocd' }[]>
+    dvdTitles(path: string): Promise<{ index: number; label: string; url: string; size: number }[]>
+    capture(): Promise<{ video: { index: number; name: string }[]; audio: { index: number; name: string }[] }>
+    captureUrl(video: number | null, audio: number | null): Promise<string>
+    mediaInfo(path: string): Promise<{ format: Record<string, string>; streams: { index: number; type: string; fields: [string, string][] }[]; tags: Record<string, string> } | null>
+    networkShares(): Promise<{ source: string; path: string; kind: string }[]>
+    connectServer(url: string): void
+  }
+  jobs: {
+    presets(): Promise<{ id: string; label: string; ext: string }[]>
+    list(): Promise<Job[]>
+    convert(inputs: string[], opts: { preset: string; outDir?: string; start?: number; end?: number; height?: number }): Promise<void>
+    stream(input: string, target: 'hls' | 'udp', udpAddress?: string): Promise<string | undefined>
+    cancel(id: number): Promise<void>
+    clear(): Promise<void>
+    onList(cb: (jobs: Job[]) => void): () => void
+  }
+  upnp: {
+    discover(kind: 'server' | 'renderer'): Promise<UpnpDevice[]>
+    browse(device: UpnpDevice, id: string): Promise<UpnpEntry[]>
+  }
+  cast: {
+    start(device: UpnpDevice): Promise<string>
+    control(action: 'Pause' | 'Play' | 'Stop'): Promise<void>
+    stop(): Promise<void>
+  }
+  feeds: {
+    stations(query: string): Promise<Station[]>
+    podcast(url: string): Promise<Podcast>
+  }
+  remote: {
+    info(): Promise<{ enabled: boolean; url: string | null }>
   }
   onView(cb: (view: 'player' | 'library') => void): () => void
   onResumeOffer(cb: (offer: { path: string; position: number }) => void): () => void

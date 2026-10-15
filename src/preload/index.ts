@@ -109,6 +109,40 @@ const api: RendererApi = {
     },
     onLog: (cb) => listen('plugins:log', cb)
   },
+  sources: {
+    discs: () => ipcRenderer.invoke('sources:discs'),
+    dvdTitles: (path) => ipcRenderer.invoke('sources:dvdTitles', path),
+    capture: () => ipcRenderer.invoke('sources:capture'),
+    captureUrl: (v, a) => ipcRenderer.invoke('sources:captureUrl', v, a),
+    mediaInfo: (path) => ipcRenderer.invoke('sources:mediaInfo', path),
+    networkShares: () => ipcRenderer.invoke('sources:networkShares'),
+    connectServer: (url) => ipcRenderer.send('sources:connectServer', url)
+  },
+  jobs: {
+    presets: () => ipcRenderer.invoke('jobs:presets'),
+    list: () => ipcRenderer.invoke('jobs:list'),
+    convert: (inputs, opts) => ipcRenderer.invoke('jobs:convert', inputs, opts),
+    stream: (input, target, udp) => ipcRenderer.invoke('jobs:stream', input, target, udp),
+    cancel: (id) => ipcRenderer.invoke('jobs:cancel', id),
+    clear: () => ipcRenderer.invoke('jobs:clear'),
+    onList: (cb) => listen('jobs:list', cb)
+  },
+  upnp: {
+    discover: (kind) => ipcRenderer.invoke('upnp:discover', kind),
+    browse: (device, id) => ipcRenderer.invoke('upnp:browse', device, id)
+  },
+  cast: {
+    start: (device) => ipcRenderer.invoke('cast:start', device),
+    control: (action) => ipcRenderer.invoke('cast:control', action),
+    stop: () => ipcRenderer.invoke('cast:stop')
+  },
+  feeds: {
+    stations: (q) => ipcRenderer.invoke('feeds:stations', q),
+    podcast: (url) => ipcRenderer.invoke('feeds:podcast', url)
+  },
+  remote: {
+    info: () => ipcRenderer.invoke('remote:info')
+  },
   onView: (cb) => listen('ui:view', cb),
   onResumeOffer: (cb) => listen('player:resume-offer', cb),
   menu: {

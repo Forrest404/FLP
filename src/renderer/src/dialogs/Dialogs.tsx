@@ -1,6 +1,10 @@
 import { Dialog } from '@/components/Dialog'
 import { ui, useUi } from '@/state/ui'
 import { AboutDialog } from './AboutDialog'
+import { CaptureDialog } from './CaptureDialog'
+import { ConvertDialog } from './ConvertDialog'
+import { DiscDialog } from './DiscDialog'
+import { MediaInfoDialog } from './MediaInfoDialog'
 import { CustomizeDialog } from './CustomizeDialog'
 import { ProfilesDialog } from './ProfilesDialog'
 import { ShortcutsDialog } from './ShortcutsDialog'
@@ -23,6 +27,14 @@ export function Dialogs() {
       return <ProfilesDialog />
     case 'customize':
       return <CustomizeDialog />
+    case 'disc':
+      return <DiscDialog />
+    case 'capture':
+      return <CaptureDialog />
+    case 'convert':
+      return <ConvertDialog />
+    case 'mediaInfo':
+      return <MediaInfoDialog />
     case 'about':
       return <AboutDialog />
     case 'network':

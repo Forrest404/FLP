@@ -6,3 +6,5 @@ node_modules/
 out/
 test/library/
 test/media/
+test/web/
+test/disc/

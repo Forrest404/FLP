@@ -5,8 +5,6 @@ import { Button } from '@/components/controls'
 import { Icon } from '@/components/Icon'
 import { openMenu } from '@/components/Menu'
 import { Empty, QueueList } from '@/player/Sidebar'
-import { useSettings } from '@/state/settings'
-import { openPaths } from '@/state/playback'
 import { ui } from '@/state/ui'
 import { playList, playlistMenu } from './actions'
 import { CompactHeader, LibraryHeader, SectionTitle } from './Header'
@@ -256,36 +254,6 @@ export function RecentSection({ compact }: { compact?: boolean }) {
   return (
     <Frame compact={compact} title="Recent" crumbs={[{ name: 'Recent', path: null }]} count={items?.length}>
       {items && <Items items={items} kind="all" compact={compact} columns={['folder', 'duration']} />}
-    </Frame>
-  )
-}
-
-// ── Network ──
-
-const NO_URLS: string[] = []
-
-export function NetworkSection({ compact }: { compact?: boolean }) {
-  const recent = useSettings((s) => (s.ui.recentUrls as string[] | undefined) ?? NO_URLS)
-  return (
-    <Frame compact={compact} title="Network" crumbs={[{ name: 'Network', path: null }]}>
-      <div className="flp-tabs">
-        <Button variant="primary" onClick={() => ui.openDialog('network')}><Icon name="streaming" size={16} /> Open network stream</Button>
-      </div>
-      <section className="flp-shelf">
-        <SectionTitle title="Recent streams" />
-        {recent.length ? (
-          <div className="flp-rows">
-            {recent.map((u) => (
-              <div key={u} className="flp-row" tabIndex={0} onDoubleClick={() => void openPaths([u])}>
-                <span className="flp-row__thumb flp-row__thumb--icon"><Icon name="link" size={18} /></span>
-                <span className="flp-row__name">{u}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Empty icon="streaming" text="Streams you open will be listed here." />
-        )}
-      </section>
     </Frame>
   )
 }

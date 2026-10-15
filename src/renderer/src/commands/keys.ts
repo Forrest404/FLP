@@ -52,7 +52,7 @@ const ACCEL: Record<string, string> = {
 const toAccelerator = (key?: string) => key?.split('+').map((p) => ACCEL[p] ?? p).join('+')
 
 const MENUS: { label: string; items: (string | '-')[] }[] = [
-  { label: 'File', items: ['media.openFile', 'media.openFolder', 'media.openNetwork', 'media.openDisc', 'media.openCapture', '-', 'media.convert', '-', 'playlist.new', 'playlist.clear'] },
+  { label: 'File', items: ['media.openFile', 'media.openFolder', 'media.openNetwork', 'media.openDisc', 'media.openCapture', '-', 'media.convert', 'media.stream', 'cast.to', '-', 'playlist.new', 'playlist.clear'] },
   { label: 'Playback', items: ['player.playPause', 'player.stop', 'player.previous', 'player.next', '-', 'player.forwardShort', 'player.backShort', 'player.forwardLong', 'player.backLong', 'player.frameStep', 'player.frameBack', '-', 'player.nextChapter', 'player.prevChapter', '-', 'player.speedUp', 'player.speedDown', 'player.speedReset', '-', 'player.repeat', 'player.shuffle', 'player.abLoop', '-', 'player.record', 'player.snapshot'] },
   { label: 'Audio', items: ['audio.volumeUp', 'audio.volumeDown', 'audio.mute', '-', 'audio.cycleTrack', 'audio.delayUp', 'audio.delayDown', '-', 'audio.effects', 'audio.toggleEq', 'audio.normalize'] },
   { label: 'Video', items: ['video.effects', '-', 'video.cycleAspect', 'video.cycleCrop', 'video.cycleZoom', 'video.cycleDeinterlace', 'video.rotate', 'video.flip', 'video.resetPicture', '-', 'player.snapshot'] },

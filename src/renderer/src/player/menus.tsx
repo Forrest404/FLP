@@ -49,6 +49,7 @@ export function mainMenu(): MenuEntry[] {
     cmd('media.openDisc', 'Open Disc'),
     cmd('media.openCapture', 'Open Capture Device'),
     cmd('media.convert', 'Convert'),
+    cmd('media.stream', 'Stream'),
     { label: 'Open Recent', icon: 'recent', submenu: recentMenu },
     'separator',
     { label: `Profile (${profileName})`, icon: 'profile', submenu: profileMenu },
@@ -109,7 +110,7 @@ export function rightClickMenu(): MenuEntry[] {
         { label: 'Zoom', submenu: () => choice('video.zoom', [['fit', 'Fit'], ['fill', 'Fill'], ['0.5', '50%'], ['1', '100%'], ['2', '200%']]) },
         { label: 'Deinterlace', submenu: () => choice('video.deinterlace', [['auto', 'Automatic'], ['on', 'On'], ['off', 'Off']]) },
         'separator',
-        cmd('video.rotate'), cmd('video.flip'), cmd('player.snapshot'), cmd('ui.pip'), cmd('window.fullscreen'),
+        cmd('video.rotate'), cmd('video.flip'), cmd('player.snapshot'), cmd('ui.pip'), cmd('window.fullscreen'), cmd('cast.to'),
         'separator',
         cmd('video.effects', 'Adjustments & Effects…')
       ]

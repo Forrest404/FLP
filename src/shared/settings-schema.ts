@@ -185,6 +185,7 @@ export const SETTINGS: SettingDef[] = [
     { key: 'controls.webRemote', label: 'Web remote control', info: 'Control FLP from a phone or another computer on your network.', type: 'toggle', default: false },
     { key: 'controls.webRemotePort', label: 'Port', type: 'number', default: 8090, min: 1024, max: 65535 },
     { key: 'controls.webRemotePassword', label: 'Password', type: 'text', default: '', secret: true },
+    { key: 'controls.webRemoteInfo', label: 'Remote address', type: 'custom', component: 'remote-info' },
     { key: 'controls.mediaKeys', label: 'Respond to media keys', type: 'toggle', default: true, advanced: true }
   ]),
 

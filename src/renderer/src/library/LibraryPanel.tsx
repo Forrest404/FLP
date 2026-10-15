@@ -1,5 +1,6 @@
 import { useUi } from '@/state/ui'
-import { BrowseSection, HomeSection, MusicSection, NetworkSection, PlaylistsSection, RecentSection } from './Sections'
+import { BrowseSection, HomeSection, MusicSection, PlaylistsSection, RecentSection } from './Sections'
+import { NetworkSection } from './Network'
 
 /** The current library section; `compact` is the narrow version used in the player sidebar. */
 export function LibraryPanel({ compact }: { compact?: boolean }) {
