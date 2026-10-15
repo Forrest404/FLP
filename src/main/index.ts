@@ -882,6 +882,8 @@ app.on('second-instance', (_e, argv) => {
 })
 
 app.whenReady().then(() => {
+  // Run from the project (not the built app), macOS would show Electron's icon in the Dock.
+  if (!app.isPackaged && app.dock) app.dock.setIcon(nativeImage.createFromPath(join(resourcesDir(), 'icon.png')))
   // A display's refresh rate changed, or the one the window was on went away.
   for (const ev of ['display-metrics-changed', 'display-added', 'display-removed'] as const) screen.on(ev, () => setTimeout(syncDisplayFps, 500))
   protocol.handle('flp-plugin', (req) => {
