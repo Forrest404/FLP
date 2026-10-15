@@ -18,7 +18,7 @@ const isAnimated = (s: { kind: string | null; tracks: { type: string; albumart?:
  *  (the slideshow timer is ImageViewer's), and animated images loop instead of advancing when they end. */
 export function useImageHold() {
   // mpv reads image-display-duration when an image starts, so it's set up front rather than per image.
-  useEffect(() => void player.set('image-display-duration', 'inf').catch(() => {}), [])
+  useEffect(() => void player.set('image-display-duration', 'inf').catch(() => null), [])
   const animated = usePlayer(isAnimated)
   const repeat = useSetting<string>('playback.repeat')
   useEffect(() => {

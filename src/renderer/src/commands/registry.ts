@@ -31,7 +31,7 @@ interface RegistryState {
 
 export const useCommands = create<RegistryState>(() => ({ commands: {} }))
 
-export function registerCommand(cmd: Command): () => void {
+function registerCommand(cmd: Command): () => void {
   useCommands.setState((s) => ({ commands: { ...s.commands, [cmd.id]: { source: 'core', ...cmd } } }))
   return () =>
     useCommands.setState((s) => {
@@ -60,7 +60,7 @@ export async function runCommand(id: string, arg?: unknown): Promise<void> {
   }
 }
 
-export const isMac = navigator.platform.startsWith('Mac')
+const isMac = navigator.platform.startsWith('Mac')
 
 /** Turns a keyboard event into the canonical "Mod+Shift+K" form. */
 export function eventToKey(e: KeyboardEvent): string | null {

@@ -424,7 +424,7 @@ export class PluginManager extends EventEmitter {
     await mkdir(dir, { recursive: true })
     name = name.replace(/[\r\n]+/g, ' ').trim() || 'My plugin'
     await writeFile(join(dir, 'plugin.json'), JSON.stringify({ id: finalId, name, version: '1.0.0', description: 'Describe what your plugin does.', main: 'main.js', permissions: [] }, null, 2) + '\n')
-    await writeFile(join(dir, 'main.js'), TEMPLATE(name, finalId))
+    await writeFile(join(dir, 'main.js'), TEMPLATE(name))
     const types = join(this.builtInDir, '..', 'docs', 'plugin-api.d.ts')
     if (existsSync(types)) await cp(types, join(dir, 'plugin-api.d.ts'))
     await this.discover()
@@ -474,7 +474,7 @@ export class PluginManager extends EventEmitter {
   }
 }
 
-const TEMPLATE = (name: string, id: string) => `// ${name} — an FLP plugin.
+const TEMPLATE = (name: string) => `// ${name} — an FLP plugin.
 // Save this file and FLP reloads the plugin instantly. Docs: Settings → Extensions → "Plugin guide".
 // Tip: the bundled plugin-api.d.ts gives your editor autocomplete for \`flp\`.
 

@@ -9,7 +9,7 @@ import { usePlayer } from '@/state/player'
 import { useUi } from '@/state/ui'
 import { useSettings } from '@/state/settings'
 
-export interface BarItem {
+interface BarItem {
   id: string
   label: string
   icon: IconName
@@ -40,7 +40,7 @@ export function allItems(): BarItem[] {
   return [...registry.values(), ...fromCommands]
 }
 
-export function CommandButton({ id, icon }: { id: string; icon?: IconName }) {
+function CommandButton({ id, icon }: { id: string; icon?: IconName }) {
   const cmd = useCommands((s) => s.commands[id])
   // active() reads player, UI and settings state; re-evaluate it whenever any of them changes.
   const isActive = () => !!cmd?.active?.()

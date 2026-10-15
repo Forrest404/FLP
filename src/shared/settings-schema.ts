@@ -7,7 +7,7 @@ export type PageId =
   | 'playback' | 'video' | 'audio' | 'subtitles' | 'library'
   | 'network' | 'performance' | 'recording' | 'extensions'
 
-export interface PageDef {
+interface PageDef {
   id: PageId
   nav: string
   title: string
@@ -71,7 +71,7 @@ export type SettingDef = Base &
   )
 
 /** Options filled in at runtime (audio devices, discs…). */
-export type DynamicOptions = { dynamic: 'audio-devices' | 'optical-drives' | 'languages' | 'displays' | 'eq-presets' }
+type DynamicOptions = { dynamic: 'audio-devices' | 'optical-drives' | 'languages' | 'displays' | 'eq-presets' }
 
 const opts = (...labels: string[]): Option<string>[] =>
   labels.map((l) => ({ value: l.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), label: l }))

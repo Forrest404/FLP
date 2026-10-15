@@ -5,7 +5,7 @@ export const BUILTIN_ASPECTS = ['16:9', '4:3', '16:10', '2.35:1', '1:1']
 export const BUILTIN_CROPS = ['16:9', '4:3', '2.35:1', '1.85:1']
 
 /** "3:2, 21:9, junk, 0:1" → ['3:2', '21:9']. Only W:H with positive numbers. */
-export function parseRatios(text: unknown): string[] {
+function parseRatios(text: unknown): string[] {
   const out: string[] = []
   for (const raw of String(text ?? '').split(',')) {
     const r = raw.trim().replace(/\s*:\s*/, ':')

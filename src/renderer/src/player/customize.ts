@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { DEFAULT_LAYOUT, type LayoutZone } from './items'
 
-export type Layout = Record<LayoutZone, string[]>
+type Layout = Record<LayoutZone, string[]>
 
 /** While Customize Player is open, the bars render (and edit) this draft. */
 export const useCustomize = create<{ draft: Layout | null; dragging: { id: string; from: LayoutZone | 'palette'; index: number } | null }>(() => ({

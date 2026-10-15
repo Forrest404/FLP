@@ -9,7 +9,7 @@ import { usePlugins } from '@/plugins/state'
 
 const NO_LAYOUT = {}
 
-export function useLayout(zone: LayoutZone): string[] {
+function useLayout(zone: LayoutZone): string[] {
   const layout = useUiSetting<Partial<typeof DEFAULT_LAYOUT>>('layout', NO_LAYOUT)
   const draft = useCustomize((s) => s.draft)
   return draft ? draft[zone] : layout[zone] ?? DEFAULT_LAYOUT[zone]
@@ -71,7 +71,7 @@ function EditableItems({ ids, zone }: { ids: string[]; zone: LayoutZone }) {
   )
 }
 
-export function BarItems({ ids, zone }: { ids: string[]; zone?: LayoutZone }) {
+function BarItems({ ids, zone }: { ids: string[]; zone?: LayoutZone }) {
   const editing = useCustomize((s) => !!s.draft)
   if (editing && zone) return <EditableItems ids={ids} zone={zone} />
   return (

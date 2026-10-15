@@ -69,7 +69,7 @@ const ORDER: Record<SortKey, string> = {
 
 export { ORDER }
 
-export function toItem(r: Row): MediaItem {
+function toItem(r: Row): MediaItem {
   return {
     id: r.id as number,
     path: r.path as string,

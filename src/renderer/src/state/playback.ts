@@ -14,10 +14,6 @@ export async function openPaths(paths: string[], opts: { append?: boolean; play?
   ui.set({ view: 'player' })
 }
 
-export async function openUrl(url: string) {
-  await openPaths([url.trim()])
-}
-
 export function fmtTime(sec: number, forceHours = false): string {
   if (!Number.isFinite(sec) || sec < 0) sec = 0
   const h = Math.floor(sec / 3600)
@@ -82,7 +78,7 @@ export function trackLabel(t: { id: number; title?: string; lang?: string; codec
 }
 
 const langNames = new Intl.DisplayNames(['en'], { type: 'language' })
-export function langName(code: string): string {
+function langName(code: string): string {
   try {
     return langNames.of(code.length === 3 ? ({ eng: 'en', fra: 'fr', fre: 'fr', ger: 'de', deu: 'de', spa: 'es', ita: 'it', jpn: 'ja', chi: 'zh', zho: 'zh', kor: 'ko', rus: 'ru', por: 'pt', ara: 'ar', hin: 'hi' } as Record<string, string>)[code] ?? code : code) ?? code
   } catch {

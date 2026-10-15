@@ -4,7 +4,7 @@ import { getSetting, setUi } from './settings'
 export type View = 'player' | 'library'
 export type LibrarySection = 'home' | 'videos' | 'music' | 'network' | 'playlists' | 'recent'
 export type RightPanel = 'video' | 'audio' | 'subtitles' | 'playback' | `plugin:${string}` | null
-export type DialogId =
+type DialogId =
   | 'settings' | 'shortcuts' | 'customize' | 'network' | 'newPlaylist' | 'profiles' | 'about'
   | 'mediaInfo' | 'convert' | 'capture' | 'disc' | 'addSubtitles' | 'plugins' | 'onboarding' | null
 
@@ -15,7 +15,7 @@ export interface Osd {
   force?: boolean
 }
 
-export interface ConfirmRequest {
+interface ConfirmRequest {
   title: string
   message?: string
   confirmLabel?: string

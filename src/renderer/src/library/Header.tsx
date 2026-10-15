@@ -8,7 +8,7 @@ import { runCommand } from '@/commands/registry'
 import { ui, useUi } from '@/state/ui'
 import { nav, useLibrary, useViewPrefs } from './state'
 
-export function Breadcrumbs({ crumbs, onGo }: { crumbs: Crumb[]; onGo(c: Crumb): void }) {
+function Breadcrumbs({ crumbs, onGo }: { crumbs: Crumb[]; onGo(c: Crumb): void }) {
   return (
     <nav className="flp-crumbs" aria-label="Location">
       {crumbs.map((c, i) => (

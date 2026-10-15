@@ -14,7 +14,7 @@ import { Logo } from '@/components/Logo'
 
 // ── Play button (accent pill) ────────────────────────────────────────────────
 
-export function PlayButton() {
+function PlayButton() {
   const paused = usePlayer((s) => s.paused || s.idle)
   return (
     <button type="button" className="flp-play" aria-label={paused ? 'Play' : 'Pause'} title={paused ? 'Play' : 'Pause'} onClick={() => void runCommand('player.playPause')}>
@@ -25,7 +25,7 @@ export function PlayButton() {
 
 // ── Time labels ──────────────────────────────────────────────────────────────
 
-export function TimeLabel({ which }: { which: 'time' | 'duration' }) {
+function TimeLabel({ which }: { which: 'time' | 'duration' }) {
   const time = usePlayer((s) => s.time)
   const duration = usePlayer((s) => s.duration)
   const [remaining, setRemaining] = useState(false)
@@ -40,7 +40,7 @@ export function TimeLabel({ which }: { which: 'time' | 'duration' }) {
 
 // ── Seek bar ─────────────────────────────────────────────────────────────────
 
-export function SeekBar({ waveform }: { waveform?: boolean }) {
+function SeekBar({ waveform }: { waveform?: boolean }) {
   const { time, duration, chapters, abA, abB, cacheAhead, path, kind, seekable } = usePlayer()
   const showThumbs = useSetting<boolean>('playback.scrubThumbnail') !== false
   const trackRef = useRef<HTMLDivElement>(null)
@@ -178,7 +178,7 @@ export function SeekBar({ waveform }: { waveform?: boolean }) {
 
 // ── Volume (wedge) ───────────────────────────────────────────────────────────
 
-export function VolumeControl() {
+function VolumeControl() {
   const volume = usePlayer((s) => s.volume)
   const muted = usePlayer((s) => s.muted)
   const max = useSetting<number>('audio.maxVolume') ?? 130

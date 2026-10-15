@@ -27,7 +27,7 @@ export async function enqueue(paths: string[], next = false) {
   showOsd(`${paths.length === 1 ? 'Added 1 item' : `Added ${paths.length} items`} to the queue`)
 }
 
-export async function folderPaths(dir: string, kind: 'video' | 'audio' | 'all'): Promise<string[]> {
+async function folderPaths(dir: string, kind: 'video' | 'audio' | 'all'): Promise<string[]> {
   const out: string[] = []
   const walk = async (d: string) => {
     const res = await lib().browse(kind, d, 'name')

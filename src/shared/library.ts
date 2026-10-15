@@ -104,11 +104,11 @@ export interface ScanStatus {
   root: string | null
 }
 
-export const VIDEO_EXT = new Set([
+const VIDEO_EXT = new Set([
   'mp4', 'm4v', 'mkv', 'webm', 'mov', 'avi', 'wmv', 'flv', 'mpg', 'mpeg', 'm2ts', 'mts', 'ts', 'vob', '3gp', 'ogv', 'rm', 'rmvb',
   'asf', 'divx', 'f4v', 'mxf', 'dv', 'y4m', 'hevc', 'h264', 'h265', 'av1', 'ivf', 'nut'
 ])
-export const AUDIO_EXT = new Set([
+const AUDIO_EXT = new Set([
   'mp3', 'flac', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'wav', 'aiff', 'aif', 'alac', 'wma', 'ape', 'wv', 'mka', 'dsf', 'dff',
   'mpc', 'tta', 'ac3', 'eac3', 'dts', 'mid', 'midi', 'mod', 'xm', 's3m', 'it', 'caf', 'amr', 'au', 'spx'
 ])

@@ -19,13 +19,13 @@ export interface Track {
   height?: number
 }
 
-export interface PlaylistEntry {
+interface PlaylistEntry {
   filename: string
   title?: string
   current: boolean
 }
 
-export type MediaKind = 'video' | 'audio' | 'image' | null
+type MediaKind = 'video' | 'audio' | 'image' | null
 
 export interface Chapter {
   title: string

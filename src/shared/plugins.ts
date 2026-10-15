@@ -36,7 +36,7 @@ export type PluginSettingDef = { key: string; label: string; info?: string } & (
   | { type: 'color'; default: string }
 )
 
-export interface PluginCommand {
+interface PluginCommand {
   pluginId: string
   id: string
   title: string
@@ -68,8 +68,6 @@ export const pluginSettingKey = (pluginId: string, key: string) => `plugin.${plu
 export function toSettingDef(pluginId: string, d: PluginSettingDef): SettingDef {
   return { ...d, key: pluginSettingKey(pluginId, d.key), page: 'extensions', section: pluginId } as SettingDef
 }
-
-export const PLUGIN_API_VERSION = 1
 
 /** Messages between the main process and the plugin host. */
 export type HostToMain =

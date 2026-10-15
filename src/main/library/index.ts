@@ -4,7 +4,6 @@ import { watch, type FSWatcher } from 'node:fs'
 import { open, readdir, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { EventEmitter } from 'node:events'
-import { homedir } from 'node:os'
 import { typeOf, type BrowseResult, type Crumb, type FolderEntry, type HomeData, type MediaItem, type MediaType, type MusicGroup, type MusicView, type ScanStatus, type SortKey } from '@shared/library'
 import { bin, posterFor, readTags } from '../media-tools'
 import { LibraryDb, ORDER } from './db'
@@ -375,4 +374,3 @@ export class Library extends EventEmitter {
   }
 }
 
-export const defaultMediaFolders = () => [join(homedir(), 'Movies'), join(homedir(), 'Music')]

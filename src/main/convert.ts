@@ -30,7 +30,7 @@ export const PRESETS = {
   }
 } as const
 
-export type PresetId = keyof typeof PRESETS
+type PresetId = keyof typeof PRESETS
 
 function subtitleCodecs(input: string): Promise<string[]> {
   return new Promise((resolve) =>

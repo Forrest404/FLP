@@ -10,7 +10,7 @@ export interface Disc {
   kind: 'dvd' | 'bluray' | 'audiocd'
 }
 
-export interface DiscTitle {
+interface DiscTitle {
   index: number
   label: string
   url: string
@@ -90,14 +90,9 @@ export async function dvdTitles(discPath: string): Promise<DiscTitle[]> {
     }))
 }
 
-export function discUrl(disc: Disc, title?: number): string {
-  if (disc.kind === 'bluray') return `bd://${title ?? ''}`
-  return disc.path
-}
-
 // ── Capture devices (AVFoundation) ──
 
-export interface CaptureDevices {
+interface CaptureDevices {
   video: { index: number; name: string }[]
   audio: { index: number; name: string }[]
 }
@@ -125,7 +120,7 @@ export function captureUrl(video: number | null, audio: number | null): string {
 
 // ── Media information ──
 
-export interface MediaInfo {
+interface MediaInfo {
   format: Record<string, string>
   streams: { index: number; type: string; fields: [string, string][] }[]
   tags: Record<string, string>

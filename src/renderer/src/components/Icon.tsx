@@ -4,7 +4,7 @@ import {
   Accessibility, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Bookmark, BookmarkPlus, Check,
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, Clapperboard, Disc3, Download, Ellipsis,
   ExternalLink, Folder, FolderOpen, FolderPlus, Gauge, Grid2x2, Heart, Home, Info, Keyboard, Library,
-  Link, List, ListMusic, ListOrdered, ListVideo, LogOut, Maximize, Maximize2, Minimize2, Minus, Move,
+  Link, ListMusic, ListOrdered, ListVideo, LogOut, Maximize, Maximize2, Minimize2, Minus, Move,
   Music, Music2, Paintbrush, Pause, PictureInPicture2, Play, Plug, Plus, Radio, RefreshCw, Repeat,
   Repeat1, RotateCcw, RotateCw, Save, ScanSearch, Search, Settings, Settings2, Shield, Shuffle,
   SkipBack, SkipForward, SlidersHorizontal, SlidersVertical, Camera, Square, Subtitles, Tags, TextCursor,
@@ -130,7 +130,7 @@ const ICONS = {
 
 export type IconName = keyof typeof ICONS
 
-export interface IconProps {
+interface IconProps {
   name: IconName
   size?: number
   /** 'active' and 'two-tone' render in the accent colour, as in the Figma icon states. */
