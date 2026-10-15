@@ -23,11 +23,11 @@ export function VideoPanel() {
     <>
       <PresetBar kind="video" keys={Object.keys(VFX_DEFAULTS)} defaults={VFX_DEFAULTS} />
       <Section title="Essential">
-        <FxSlider k="vfx.hue" label="Hue" min={-100} max={100} step={1} origin={0} format={signed} />
-        <FxSlider k="vfx.brightness" label="Brightness" min={-100} max={100} step={1} origin={0} format={signed} />
-        <FxSlider k="vfx.contrast" label="Contrast" min={-100} max={100} step={1} origin={0} format={signed} />
-        <FxSlider k="vfx.saturation" label="Saturation" min={-100} max={100} step={1} origin={0} ticks={[50]} format={signed} />
-        <FxSlider k="vfx.gamma" label="Gamma" min={-100} max={100} step={1} origin={0} ticks={EQ_TICKS} format={signed} />
+        <FxSlider k="vfx.hue" label="Hue" min={-100} max={100} step={1} format={signed} />
+        <FxSlider k="vfx.brightness" label="Brightness" min={-100} max={100} step={1} format={signed} />
+        <FxSlider k="vfx.contrast" label="Contrast" min={-100} max={100} step={1} format={signed} />
+        <FxSlider k="vfx.saturation" label="Saturation" min={-100} max={100} step={1} ticks={[50]} format={signed} />
+        <FxSlider k="vfx.gamma" label="Gamma" min={-100} max={100} step={1} ticks={EQ_TICKS} format={signed} />
         <FxSlider k="vfx.sharpen" label="Sharpen Sigma" min={0} max={1} step={0.05} ticks={[0.25, 0.5, 0.75]} format={fixed(2)} />
         <FxSlider k="vfx.deband" label="Banding Removal Radius" min={0} max={64} step={1} ticks={[8, 16, 24, 32, 40, 48, 56]} format={(v) => (v ? String(v) : 'Off')} />
         <FxSlider k="vfx.grain" label="Film Grain Variance" min={0} max={100} step={1} ticks={[10, 20, 30, 40, 50, 60, 70, 80, 90]} format={(v) => (v ? String(v) : 'Off')} />

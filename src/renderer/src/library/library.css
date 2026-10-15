@@ -1,5 +1,6 @@
 /* Library, measured from the Figma library frames (970:2703 grid, 970:3308 list, 6261:15078 Home). */
-.flp-library { flex: 1; display: flex; min-width: 0; background: var(--bg-chrome); padding: 0 8px 8px; gap: 8px; }
+/* Figma: the sidebar is a raised panel; the content sits directly on the window background. */
+.flp-library { flex: 1; display: flex; min-width: 0; background: var(--bg-canvas); padding: 8px 0 8px 8px; gap: 8px; }
 .flp-libnav { width: 168px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; border-radius: 10px; background: var(--bg-panel); }
 .flp-libnav__item {
   display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--radius);
@@ -7,7 +8,7 @@
 }
 .flp-libnav__item:hover { color: var(--text); background: var(--bg-raised); }
 .flp-libnav__item[aria-pressed='true'] { color: var(--text-strong); }
-.flp-libmain { flex: 1; min-width: 0; border-radius: 10px; background: var(--bg-canvas); display: flex; flex-direction: column; overflow: hidden; }
+.flp-libmain { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 .flp-libframe { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .flp-libbody { flex: 1; overflow: auto; padding: 16px 24px 120px; }
@@ -57,6 +58,9 @@
   display: grid; place-items: center; color: var(--text-ghost);
 }
 .flp-poster--square { aspect-ratio: 1; background: var(--bg-raised); }
+/* Figma "Listen Again": songs without cover art show a note on an accent tint. */
+.flp-poster--noart { background: color-mix(in srgb, var(--accent) 22%, var(--bg-panel)); color: var(--accent); }
+.flp-poster--noart svg { width: 50%; height: 50%; }
 .flp-poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .flp-poster__progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
 .flp-poster__dur {
@@ -93,6 +97,10 @@
 .flp-row__col { flex: 0 0 22%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-faint); }
 .flp-row__dur { flex: 0 0 auto; min-width: 48px; text-align: right; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .flp-rows--columns .flp-row { min-height: 44px; }
+/* Figma list view: compact rows flowing into columns. */
+.flp-rows--flow { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); column-gap: 16px; }
+.flp-rows--flow .flp-row { min-height: 36px; padding: 2px 6px; }
+.flp-rows--flow .flp-row__thumb { width: 26px; height: 26px; }
 
 /* Shelves (Home rows) */
 .flp-shelf { margin-bottom: 32px; }
@@ -101,6 +109,8 @@
 .flp-rowtitle button:disabled { cursor: default; }
 .flp-shelf__row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 260px); gap: 16px; overflow-x: auto; padding-bottom: 6px; }
 .flp-shelf__row--square { grid-auto-columns: 150px; }
+/* Home rows scroll sideways by trackpad without showing a bar, as in Figma. */
+.flp-shelf__row::-webkit-scrollbar { display: none; }
 
 /* Tabs / toolbars inside a section */
 .flp-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }

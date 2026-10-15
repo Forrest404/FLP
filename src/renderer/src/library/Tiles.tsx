@@ -34,7 +34,7 @@ function Poster({ item, square }: { item: MediaItem; square?: boolean }) {
   const [ref, src] = usePoster(item)
   const progress = progressOf(item)
   return (
-    <div ref={ref} className={`flp-poster ${square ? 'flp-poster--square' : ''}`}>
+    <div ref={ref} className={`flp-poster ${square ? 'flp-poster--square' : ''} ${!src && item.type === 'audio' ? 'flp-poster--noart' : ''}`}>
       {src ? <img src={src} alt="" loading="lazy" draggable={false} /> : <Icon name={item.type === 'audio' ? 'music' : item.type === 'image' ? 'thumbnail' : 'video'} size={32} />}
       {item.type === 'video' && item.duration > 0 && <span className="flp-poster__dur">{fmtTime(item.duration).replace(/^00:/, '')}</span>}
       {progress > 0 && <div className="flp-poster__progress" style={{ width: `${progress}%` }} />}

@@ -10,7 +10,7 @@ import { LibraryPanel } from '@/library/LibraryPanel'
 export const SECTIONS: { id: LibrarySection; label: string; icon: IconName }[] = [
   { id: 'home', label: 'Home', icon: 'home' },
   { id: 'videos', label: 'Videos', icon: 'videos' },
-  { id: 'music', label: 'Music', icon: 'music' },
+  { id: 'music', label: 'Music', icon: 'music-library' },
   { id: 'network', label: 'Network', icon: 'streaming' },
   { id: 'playlists', label: 'Playlists', icon: 'playlist' },
   { id: 'recent', label: 'Recent', icon: 'recent' }

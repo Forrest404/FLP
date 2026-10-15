@@ -5,12 +5,13 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleDot, Clapperboard, Disc3, Download, Ellipsis,
   ExternalLink, Folder, FolderOpen, FolderPlus, Gauge, Grid2x2, Heart, Home, Info, Keyboard, Library,
   Link, ListMusic, ListOrdered, ListVideo, LogOut, Maximize, Maximize2, Minimize2, Minus, Move,
-  Music, Music2, Paintbrush, Pause, PictureInPicture2, Play, Plug, Plus, Radio, RefreshCw, Repeat,
+  Music, Music2, Paintbrush, Pause, PictureInPicture2, Play, Plus, Radio, RefreshCw, Repeat,
   Repeat1, RotateCcw, RotateCw, Save, ScanSearch, Search, Settings, Settings2, Shield, Shuffle,
-  SkipBack, SkipForward, SlidersHorizontal, SlidersVertical, Camera, Square, Subtitles, Tags, TextCursor,
-  Trash2, Tv, Upload, Pencil, User, UserRound, Video, Volume, Volume1, Volume2, VolumeX, Webcam, Wrench, X,
+  SkipBack, SkipForward, SlidersVertical, Camera, Square, Subtitles, Tags,
+  Trash2, Tv, Upload, Pencil, User, UserRound, Volume, Volume1, Volume2, VolumeX, Webcam, Wrench, X,
   ZoomIn, PanelLeft, PanelLeftClose, PanelLeftOpen, PanelRight, ArrowDownUp, Rows3, LayoutList,
-  FileVideo, File, Activity, BarChart3, ArrowLeftRight, Sun, Clock, CircleStop, Layers, Hd, Monitor,
+  FileVideo, File, Activity, SquarePlay, FileMusic, MousePointer2, RotateCcwClock, Puzzle, CirclePlay, Timer,
+  BarChart3, ArrowLeftRight, Sun, CircleStop, Layers, Hd, Monitor,
   type LucideIcon
 } from 'lucide-react'
 import type { CSSProperties } from 'react'
@@ -57,7 +58,7 @@ const ICONS = {
   home: Home,
   hotkeys: Keyboard,
   info: Info,
-  interface: TextCursor,
+  interface: MousePointer2,
   link: Link,
   list: LayoutList,
   lists: Rows3,
@@ -66,6 +67,7 @@ const ICONS = {
   more: Ellipsis,
   move: Move,
   music: Music2,
+  'music-library': FileMusic,
   'new-folder': FolderPlus,
   next: SkipForward,
   open: ExternalLink,
@@ -74,16 +76,16 @@ const ICONS = {
   pip: PictureInPicture2,
   play: Play,
   'playback-settings': Settings2,
-  playback: Clapperboard,
+  playback: CirclePlay,
   playlist: ListVideo,
-  plugins: Plug,
-  preferences: SlidersHorizontal,
+  plugins: Puzzle,
+  preferences: SlidersVertical,
   previous: SkipBack,
   privacy: Shield,
   profile: User,
   queue: ListMusic,
   quit: LogOut,
-  recent: Clock,
+  recent: RotateCcwClock,
   record: CircleDot,
   refresh: RefreshCw,
   remove: Trash2,
@@ -109,12 +111,13 @@ const ICONS = {
   subtitles: Subtitles,
   swap: ArrowLeftRight,
   thumbnail: Layers,
+  timer: Timer,
   tv: Tv,
   ui: Monitor,
   upload: Upload,
   download: Download,
-  video: Video,
-  videos: Clapperboard,
+  video: Clapperboard,
+  videos: SquarePlay,
   view: Sun,
   vlc: Play,
   'volume-0': VolumeX,
@@ -140,9 +143,13 @@ interface IconProps {
   filled?: boolean
 }
 
+/** The Figma skip icons carry their seconds inside the arrow. */
+const SECONDS: Partial<Record<IconName, string>> = { 'backward-10-sec': '10', 'forward-10-sec': '10', 'backward-15-sec': '15', 'forward-15-sec': '15' }
+
 export function Icon({ name, size = 20, state = 'default', className, style, filled }: IconProps) {
   const Glyph = ICONS[name]
   const color = state === 'default' ? 'currentColor' : 'var(--accent)'
+  const secs = SECONDS[name]
   return (
     <Glyph
       size={size}
@@ -152,7 +159,10 @@ export function Icon({ name, size = 20, state = 'default', className, style, fil
       className={className}
       style={{ flexShrink: 0, ...style }}
       aria-hidden
-    />
+      data-icon={name}
+    >
+      {secs && <text x="12" y="15" fontSize="7.5" fontWeight="600" textAnchor="middle" fill={color} stroke="none">{secs}</text>}
+    </Glyph>
   )
 }
 

@@ -58,14 +58,14 @@ export function activate(flp) {
   }
 
   for (const m of [15, 30, 45, 60, 90]) {
-    flp.commands.register({ id: `in-${m}`, title: `Sleep timer: ${m} minutes`, icon: 'recent', run: () => start(m) })
+    flp.commands.register({ id: `in-${m}`, title: `Sleep timer: ${m} minutes`, icon: 'timer', run: () => start(m) })
   }
-  flp.commands.register({ id: 'end', title: 'Sleep timer: end of this item', icon: 'recent', run: () => start('end') })
+  flp.commands.register({ id: 'end', title: 'Sleep timer: end of this item', icon: 'timer', run: () => start('end') })
   flp.commands.register({ id: 'cancel', title: 'Sleep timer: cancel', icon: 'close', run: () => cancel() })
   flp.commands.register({
     id: 'open',
     title: 'Sleep timer',
-    icon: 'recent',
+    icon: 'timer',
     run: () => flp.commands.run('ui.showPanel', 'plugin:sleep-timer:timer')
   })
   flp.ui.addControlButton('open')

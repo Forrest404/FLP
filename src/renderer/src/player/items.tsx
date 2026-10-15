@@ -62,7 +62,7 @@ function CommandButton({ id, icon }: { id: string; icon?: IconName }) {
 export const DEFAULT_LAYOUT = {
   titleLeft: ['logo', 'more', 'ui.leftSidebar', 'divider', 'folder'],
   titleRight: ['window.fullscreen'],
-  controls: ['player.previous', 'play', 'player.next', 'time', 'seek', 'duration', 'volume', 'audio.effects', 'subs.panel', 'player.speedMenu', 'ui.playlist'],
+  controls: ['player.previous', 'play', 'player.next', 'time', 'seek', 'duration', 'volume', 'audio.effects', 'subs.panel', 'ui.playbackSettings', 'ui.playlist'],
   musicControls: ['player.previous', 'player.back10', 'play', 'player.forward10', 'player.next', 'time', 'seek', 'duration', 'volume', 'audio.effects', 'ui.playlist']
 }
 

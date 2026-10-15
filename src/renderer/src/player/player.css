@@ -79,6 +79,8 @@
 .flp-bar__flex { flex: 1; min-width: 80px; display: flex; align-items: center; }
 .flp-controls .ui-iconbtn { height: 32px; min-width: 32px; }
 .flp-controls .ui-iconbtn svg { width: 22px; height: 22px; }
+/* Figma: previous / next are solid glyphs in the control bar. */
+.flp-controls [data-icon='previous'], .flp-controls [data-icon='next'] { fill: currentColor; }
 
 /* Fullscreen / Hide UI: bars float over the video and fade when idle. */
 .flp-app[data-overlay='true'] .flp-titlebar,
@@ -346,11 +348,12 @@
 .flp-customize-backdrop { position: fixed; inset: 40px 0 54px; z-index: 900; display: grid; place-items: center; background: var(--backdrop); }
 .flp-customize { width: min(654px, calc(100vw - 48px)); max-height: calc(100% - 32px); display: flex; flex-direction: column; border-radius: var(--radius-l); background: var(--bg-canvas); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
 .flp-customize__hint { margin: 0; padding: 14px 18px; color: var(--text-dim); font-size: var(--fs); border-bottom: 1px solid var(--border); background: var(--bg-well); }
-.flp-customize__palette { flex: 1; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 18px 8px; padding: 22px 18px; }
+.flp-customize__palette { flex: 1; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 16px 4px; padding: 20px 14px; }
 .flp-customize__palette[data-drop='true'] { outline: 2px dashed var(--accent); outline-offset: -6px; }
-.flp-customize__item { display: grid; justify-items: center; gap: 8px; text-align: center; color: var(--text-dim); font-size: var(--fs-s); cursor: grab; }
+.flp-customize__item { display: grid; justify-items: center; align-content: start; gap: 6px; text-align: center; color: var(--text-dim); font-size: 11px; line-height: 1.3; cursor: grab; }
 .flp-customize__item:hover { color: var(--text-strong); }
-.flp-customize__icon { width: 30px; height: 30px; display: grid; place-items: center; border: 1px dashed var(--text-ghost); border-radius: 4px; }
+.flp-customize__icon { width: 26px; height: 26px; display: grid; place-items: center; border: 1px dashed var(--text-ghost); border-radius: 3px; }
+.flp-customize__icon svg { width: 18px; height: 18px; }
 .flp-editzone { display: flex; align-items: center; gap: 6px; min-width: 60px; min-height: 30px; flex: 1; -webkit-app-region: no-drag; }
 .flp-titlebar__side .flp-editzone { flex: 0 1 auto; }
 .flp-edititem { position: relative; border: 1px dashed var(--text-ghost); border-radius: 4px; padding: 1px; cursor: grab; display: flex; align-items: center; -webkit-app-region: no-drag; }

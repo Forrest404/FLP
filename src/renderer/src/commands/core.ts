@@ -76,6 +76,8 @@ const playback: Command[] = [
   { id: 'player.speedFineDown', title: 'Slower (fine)', category: 'Playback', keys: ['Shift+BracketLeft'], run: () => setSpeed(p().speed - 0.05) },
   { id: 'player.speedReset', title: 'Normal speed', category: 'Playback', keys: ['Equal'], run: () => setSpeed(1) },
   { id: 'player.speedMenu', title: 'Playback speed', category: 'Playback', icon: 'speed', run: () => ui.togglePanel('playback') },
+  { id: 'ui.playbackSettings', title: 'Playback settings', category: 'Playback', icon: 'settings', keywords: ['speed', 'loop', 'sleep'],
+    active: () => useUi.getState().rightPanel === 'playback', run: () => ui.togglePanel('playback') },
   { id: 'player.repeat', title: 'Repeat (off / one / all)', category: 'Playback', icon: 'repeat', keys: ['R'],
     // The setting, not loop-file: animated images loop regardless (see useAnimatedImageLoop).
     active: () => (getSetting('playback.repeat') ?? 'off') !== 'off',
@@ -182,7 +184,7 @@ const audio: Command[] = [
       await player.command('add', 'audio-delay', -0.05)
       showOsd(`Audio delay ${Math.round((p().audioDelay - 0.05) * 1000)} ms`)
     } },
-  { id: 'audio.effects', title: 'Audio effects & equalizer', category: 'Audio', icon: 'eq', keywords: ['equalizer', 'eq', 'compressor', 'spatializer', 'widener'],
+  { id: 'audio.effects', title: 'Audio effects & equalizer', category: 'Audio', icon: 'audio', keywords: ['equalizer', 'eq', 'compressor', 'spatializer', 'widener'],
     keys: ['Mod+E'], active: () => useUi.getState().rightPanel === 'audio', run: () => ui.togglePanel('audio') },
   { id: 'audio.toggleEq', title: 'Equalizer on/off', category: 'Audio', keywords: ['eq'], active: () => !!getSetting('audio.eq'),
     run: () => {
@@ -360,6 +362,7 @@ const windowCmds: Command[] = [
   { id: 'plugins.guide', bar: false, title: 'Plugin guide', category: 'Plugins', icon: 'info', run: () => window.flp.plugins.openGuide() },
   { id: 'app.devTools', bar: false, title: 'Toggle Developer Tools', category: 'Interface', icon: 'wrench', keys: ['Mod+Alt+I'], keywords: ['inspector', 'console', 'debug'],
     enabled: () => !!getSetting('general.developerMode'), run: () => window.flp.app.toggleDevTools() },
+  { id: 'app.quit', title: 'Quit FLP', category: 'Interface', icon: 'quit', run: () => window.flp.window.close() },
   { id: 'app.about', bar: false, title: 'About FLP', category: 'Interface', icon: 'info', keys: ['Shift+F1'], run: () => ui.openDialog('about') }
 ]
 

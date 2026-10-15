@@ -42,7 +42,7 @@ function Items({ items, folders, kind, compact, columns }: {
   const list = compact || mode === 'list'
   if (!items.length && !folders?.length) return <Empty icon="search" text="Nothing here yet." />
   return (
-    <div className={list ? (compact ? 'flp-rows' : 'flp-rows flp-rows--columns') : 'flp-grid'}>
+    <div className={list ? (compact ? 'flp-rows' : columns ? 'flp-rows flp-rows--columns' : 'flp-rows flp-rows--flow') : 'flp-grid'}>
       {folders?.map((f) => (list
         ? <FolderRow key={f.path} folder={f} kind={kind} onOpen={() => nav.go({ dir: f.path })} />
         : <FolderTile key={f.path} folder={f} kind={kind} onOpen={() => nav.go({ dir: f.path })} />))}
@@ -131,7 +131,7 @@ export function BrowseSection({ kind, compact }: { kind: 'video' | 'all'; compac
   if (search) return <Frame compact={compact} title="Videos" crumbs={[...crumbs, { name: `“${search}”`, path: loc.dir }]} count={results?.length}><Items items={results ?? []} kind={kind} compact={compact} columns={['folder', 'duration']} /></Frame>
   return (
     <Frame compact={compact} title="Videos" crumbs={crumbs} count={data ? data.items.length + data.folders.length : undefined}>
-      {data && <Items items={data.items} folders={data.folders} kind={kind} compact={compact} columns={['duration']} />}
+      {data && <Items items={data.items} folders={data.folders} kind={kind} compact={compact} />}
     </Frame>
   )
 }
